@@ -1,24 +1,38 @@
+
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
 export const colors = {
-  primary: '#162456',    // Material Blue
-  secondary: '#193cb8',  // Darker Blue
-  accent: '#64B5F6',     // Light Blue
-  background: '#101824',  // Keeping dark background
-  backgroundAlt: '#162133',  // Keeping dark background
-  text: '#e3e3e3',       // Keeping light text
-  grey: '#90CAF9',       // Light Blue Grey
-  card: '#193cb8',       // Keeping dark card background
+  primary: '#4A90E2',      // Light blue
+  secondary: '#FF6B35',    // Orange accent
+  success: '#4CAF50',      // Green for available dates
+  error: '#F44336',        // Red for booked dates
+  warning: '#FFC107',      // Yellow highlight
+  background: '#F8F9FA',   // Light background
+  backgroundAlt: '#FFFFFF', // White cards
+  text: '#2C3E50',         // Dark gray text
+  textLight: '#7F8C8D',    // Light gray text
+  border: '#E1E8ED',       // Light border
+  card: '#FFFFFF',         // White card background
 };
 
 export const buttonStyles = StyleSheet.create({
-  instructionsButton: {
+  primary: {
     backgroundColor: colors.primary,
     alignSelf: 'center',
     width: '100%',
   },
+  secondary: {
+    backgroundColor: colors.secondary,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  success: {
+    backgroundColor: colors.success,
+    alignSelf: 'center',
+    width: '100%',
+  },
   backButton: {
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.text,
     alignSelf: 'center',
     width: '100%',
   },
@@ -35,55 +49,110 @@ export const commonStyles = StyleSheet.create({
     backgroundColor: colors.background,
     width: '100%',
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   content: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
     maxWidth: 800,
     width: '100%',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '800',
     textAlign: 'center',
     color: colors.text,
-    marginBottom: 10
+    marginBottom: 20,
+    marginTop: 20,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 16,
   },
   text: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '400',
     color: colors.text,
     marginBottom: 8,
     lineHeight: 24,
-    textAlign: 'center',
+  },
+  textLight: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.textLight,
+    marginBottom: 8,
+    lineHeight: 20,
   },
   section: {
     width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    marginBottom: 24,
   },
   buttonContainer: {
     width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   card: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.grey,
+    backgroundColor: colors.card,
+    borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 10,
+    borderRadius: 12,
+    padding: 16,
     marginVertical: 8,
     width: '100%',
-    boxShadow: '0px 2px 3px rgba(0, 0, 0, 0.1)',
-    elevation: 2,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 3,
   },
-  icon: {
-    width: 60,
-    height: 60,
-    tintColor: "white",
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: colors.backgroundAlt,
+    marginBottom: 16,
+    color: colors.text,
+  },
+  picker: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.backgroundAlt,
+    marginBottom: 16,
+  },
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundAlt,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  navButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginHorizontal: 4,
+    borderRadius: 8,
+  },
+  navButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  navButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  navButtonTextActive: {
+    color: colors.backgroundAlt,
   },
 });
