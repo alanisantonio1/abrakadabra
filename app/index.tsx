@@ -81,21 +81,57 @@ const MainScreen: React.FC = () => {
 
   const renderMainScreen = () => (
     <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
-      {/* Header with improved styling - REMOVED "Gestión de eventos Mágicos" */}
-      <View style={[commonStyles.header, { paddingVertical: 50, paddingHorizontal: 20 }]}>
+      {/* Header with improved styling and smaller stars */}
+      <View style={[commonStyles.header, { 
+        paddingVertical: 50, 
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center'
+      }]}>
+        {/* Stars row - smaller and centered */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 10
+        }}>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+        </View>
+        
+        {/* Main title */}
         <Text style={[commonStyles.title, { 
           fontSize: 42, 
           fontWeight: '800',
           color: colors.primary,
           textAlign: 'center',
-          marginBottom: 20
+          marginBottom: 10
         }]}>
-          ✨ Abrakadabra ✨
+          Abrakadabra
         </Text>
+        
+        {/* Stars row - smaller and centered */}
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+          <Text style={{ fontSize: 16, marginHorizontal: 8 }}>✨</Text>
+        </View>
       </View>
 
-      {/* Main Action Buttons */}
-      <View style={[commonStyles.buttonContainer, { paddingHorizontal: 20 }]}>
+      {/* Main Action Buttons - Centered */}
+      <View style={[commonStyles.buttonContainer, { 
+        paddingHorizontal: 20,
+        alignItems: 'center'
+      }]}>
         <TouchableOpacity
           style={[commonStyles.primaryButton, { 
             backgroundColor: colors.success,
@@ -105,7 +141,9 @@ const MainScreen: React.FC = () => {
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.3,
             shadowRadius: 8,
-            elevation: 6
+            elevation: 6,
+            width: '100%',
+            maxWidth: 300
           }]}
           onPress={() => {
             console.log('MainScreen: Switching to calendar view');
@@ -115,7 +153,8 @@ const MainScreen: React.FC = () => {
           <Text style={[commonStyles.buttonText, { 
             fontSize: 18, 
             fontWeight: '700',
-            color: 'white'
+            color: 'white',
+            textAlign: 'center'
           }]}>
             📅 Ver Disponibilidad
           </Text>
@@ -128,14 +167,17 @@ const MainScreen: React.FC = () => {
             borderRadius: 12,
             borderWidth: 2,
             borderColor: colors.primary,
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            width: '100%',
+            maxWidth: 300
           }]}
           onPress={() => router.push('/events')}
         >
           <Text style={[commonStyles.buttonText, { 
             color: colors.primary,
             fontSize: 16,
-            fontWeight: '600'
+            fontWeight: '600',
+            textAlign: 'center'
           }]}>
             📋 Ver Todos los Eventos
           </Text>
@@ -148,14 +190,17 @@ const MainScreen: React.FC = () => {
             borderRadius: 12,
             borderWidth: 2,
             borderColor: colors.primary,
-            backgroundColor: 'transparent'
+            backgroundColor: 'transparent',
+            width: '100%',
+            maxWidth: 300
           }]}
           onPress={() => router.push('/packages')}
         >
           <Text style={[commonStyles.buttonText, { 
             color: colors.primary,
             fontSize: 16,
-            fontWeight: '600'
+            fontWeight: '600',
+            textAlign: 'center'
           }]}>
             📦 Ver Paquetes
           </Text>
@@ -240,15 +285,22 @@ const MainScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Refresh Button */}
-      <View style={{ paddingHorizontal: 20, marginTop: 30, marginBottom: 40 }}>
+      {/* Refresh Button - Centered */}
+      <View style={{ 
+        paddingHorizontal: 20, 
+        marginTop: 30, 
+        marginBottom: 40,
+        alignItems: 'center'
+      }}>
         <TouchableOpacity
           style={[commonStyles.secondaryButton, { 
             paddingVertical: 14,
             borderRadius: 12,
             backgroundColor: colors.backgroundAlt,
             borderWidth: 1,
-            borderColor: colors.primary + '30'
+            borderColor: colors.primary + '30',
+            width: '100%',
+            maxWidth: 300
           }]}
           onPress={loadEventsData}
           disabled={loading}
@@ -256,7 +308,8 @@ const MainScreen: React.FC = () => {
           <Text style={[commonStyles.buttonText, { 
             color: colors.primary,
             fontSize: 15,
-            fontWeight: '600'
+            fontWeight: '600',
+            textAlign: 'center'
           }]}>
             {loading ? '🔄 Actualizando...' : '🔄 Actualizar Eventos'}
           </Text>
