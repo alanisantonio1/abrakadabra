@@ -1,290 +1,269 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Event } from '../types';
-import { loadEventsFromGoogleSheets, saveEventToGoogleSheets, testGoogleSheetsConnection, getSpreadsheetInfo, testRangeAccess } from './googleSheets';
+import { supabase } from '../app/integrations/supabase/client';
 
 const EVENTS_KEY = 'abrakadabra_events';
 
-// Load events from AsyncStorage only (for backup)
+// Convert Supabase row to Event format
+const supabaseRowToEvent = (row: any): Event => {
+  return {
+    id: row.id,
+    date: row.date,
+    time: row.time,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    childName: row.child_name,
+    packageType: row.package_type as 'Abra' | 'Kadabra' | 'Abrakadabra',
+    totalAmount: parseFloat(row.total_amount),
+    deposit: parseFloat(row.deposit),
+    remainingAmount: parseFloat(row.remaining_amount),
+    isPaid: row.is_paid,
+    notes: row.notes || '',
+    createdAt: row.created_at
+  };
+};
+
+// Convert Event to Supabase format
+const eventToSupabaseRow = (event: Event) => {
+  return {
+    id: event.id,
+    date: event.date,
+    time: event.time,
+    customer_name: event.customerName,
+    customer_phone: event.customerPhone,
+    child_name: event.childName,
+    package_type: event.packageType,
+    total_amount: event.totalAmount,
+    deposit: event.deposit,
+    remaining_amount: event.remainingAmount,
+    is_paid: event.isPaid,
+    notes: event.notes
+  };
+};
+
+// Sync event to Google Sheets via Edge Function
+const syncToGoogleSheets = async (event: Event): Promise<boolean> => {
+  try {
+    console.log('🔄 Syncing event to Google Sheets:', event.id);
+    
+    const { data: { url } } = await supabase.functions.invoke('sync-google-sheets', {
+      body: event,
+      method: 'POST'
+    });
+    
+    console.log('✅ Successfully synced to Google Sheets');
+    return true;
+  } catch (error) {
+    console.error('❌ Error syncing to Google Sheets:', error);
+    return false;
+  }
+};
+
+// Load events from local storage
 const loadEventsFromLocalStorage = async (): Promise<Event[]> => {
   try {
-    const stored = await AsyncStorage.getItem(EVENTS_KEY);
-    if (stored) {
-      const events = JSON.parse(stored);
-      console.log('📱 Events loaded from AsyncStorage:', events.length);
+    const eventsJson = await AsyncStorage.getItem(EVENTS_KEY);
+    if (eventsJson) {
+      const events = JSON.parse(eventsJson);
+      console.log('📱 Loaded events from local storage:', events.length);
       return events;
     }
     return [];
   } catch (error) {
-    console.error('❌ Error loading events from AsyncStorage:', error);
+    console.error('❌ Error loading events from local storage:', error);
     return [];
   }
 };
 
-// Save events to AsyncStorage
+// Save events to local storage
 const saveEventsToLocalStorage = async (events: Event[]): Promise<void> => {
   try {
     await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events));
-    console.log('📱 Events saved to AsyncStorage successfully:', events.length);
+    console.log('💾 Saved events to local storage:', events.length);
   } catch (error) {
-    console.error('❌ Error saving events to AsyncStorage:', error);
+    console.error('❌ Error saving events to local storage:', error);
   }
 };
 
-// Comprehensive Google Sheets diagnostics
-export const runGoogleSheetsDiagnostics = async (): Promise<void> => {
-  console.log('🔍 Running comprehensive Google Sheets diagnostics...');
-  
-  try {
-    // Test 1: Basic connection
-    console.log('\n📋 Test 1: Basic Connection');
-    const connectionOk = await testGoogleSheetsConnection();
-    console.log('Connection result:', connectionOk ? '✅ PASS' : '❌ FAIL');
-    
-    if (!connectionOk) {
-      console.log('❌ Basic connection failed. Check API key and spreadsheet ID.');
-      return;
-    }
-    
-    // Test 2: Spreadsheet info
-    console.log('\n📋 Test 2: Spreadsheet Metadata');
-    const spreadsheetInfo = await getSpreadsheetInfo();
-    if (spreadsheetInfo) {
-      console.log('✅ Spreadsheet metadata retrieved successfully');
-      console.log('📊 Available sheets:', spreadsheetInfo.sheets?.map((s: any) => s.properties?.title));
-    } else {
-      console.log('❌ Failed to get spreadsheet metadata');
-    }
-    
-    // Test 3: Range access
-    console.log('\n📋 Test 3: Range Access');
-    const rangeOk = await testRangeAccess();
-    console.log('Range access result:', rangeOk ? '✅ PASS' : '❌ FAIL');
-    
-    // Test 4: Data loading
-    console.log('\n📋 Test 4: Data Loading');
-    const events = await loadEventsFromGoogleSheets();
-    console.log('Data loading result:', events.length > 0 ? '✅ PASS' : '⚠️ NO DATA');
-    console.log('Events found:', events.length);
-    
-    console.log('\n🏁 Diagnostics complete');
-    
-  } catch (error) {
-    console.error('❌ Diagnostics failed:', error);
-  }
-};
-
-// Primary load function - tries Google Sheets first, falls back to AsyncStorage
+// Load events from Supabase
 export const loadEvents = async (): Promise<Event[]> => {
   try {
-    console.log('🔄 Loading events...');
+    console.log('🔄 Loading events from Supabase...');
     
-    // Run diagnostics if we're having issues
-    console.log('🧪 Testing Google Sheets connection...');
-    const connectionOk = await testGoogleSheetsConnection();
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('date', { ascending: true });
     
-    let events: Event[] = [];
-    
-    if (connectionOk) {
-      console.log('✅ Google Sheets connection OK, testing range access...');
-      const rangeOk = await testRangeAccess();
-      
-      if (rangeOk) {
-        console.log('✅ Range access OK, loading events...');
-        events = await loadEventsFromGoogleSheets();
-        
-        if (events.length > 0) {
-          console.log('✅ Events loaded from Google Sheets, caching locally...');
-          // Save to AsyncStorage as cache if we got data from Google Sheets
-          await saveEventsToLocalStorage(events);
-        } else {
-          console.log('📭 No events from Google Sheets, trying local cache...');
-          events = await loadEventsFromLocalStorage();
-        }
-      } else {
-        console.log('❌ Range access failed, using local cache...');
-        console.log('💡 This might be due to incorrect sheet name or range format');
-        events = await loadEventsFromLocalStorage();
-      }
-    } else {
-      console.log('❌ Google Sheets connection failed, using local cache...');
-      console.log('💡 Check API key, spreadsheet ID, and permissions');
-      events = await loadEventsFromLocalStorage();
+    if (error) {
+      console.error('❌ Error loading events from Supabase:', error);
+      // Fallback to local storage
+      return await loadEventsFromLocalStorage();
     }
     
-    console.log('✅ Events loaded successfully:', events.length);
-    console.log('📋 Loaded events summary:', events.map((e: Event) => ({ 
-      id: e.id, 
-      date: e.date, 
-      customerName: e.customerName,
-      packageType: e.packageType 
-    })));
+    const events = data.map(supabaseRowToEvent);
+    console.log('✅ Loaded events from Supabase:', events.length);
+    
+    // Also save to local storage as backup
+    await saveEventsToLocalStorage(events);
     
     return events;
   } catch (error) {
     console.error('❌ Error loading events:', error);
-    // Fallback to AsyncStorage if everything fails
-    console.log('📱 Falling back to local storage...');
+    // Fallback to local storage
     return await loadEventsFromLocalStorage();
   }
 };
 
-// Check if a date already has events
-export const checkDateAvailability = async (date: string): Promise<{ isAvailable: boolean; existingEvents: Event[] }> => {
+// Save event to Supabase and sync to Google Sheets
+export const saveEvent = async (event: Event): Promise<boolean> => {
   try {
-    const events = await loadEvents();
-    const existingEvents = events.filter(event => event.date === date);
+    console.log('💾 Saving event to Supabase:', event);
     
-    console.log(`📅 Date ${date} availability check:`, {
-      isAvailable: existingEvents.length === 0,
-      existingEventsCount: existingEvents.length
+    const supabaseRow = eventToSupabaseRow(event);
+    
+    const { error } = await supabase
+      .from('events')
+      .insert([supabaseRow]);
+    
+    if (error) {
+      console.error('❌ Error saving event to Supabase:', error);
+      // Fallback to local storage
+      const existingEvents = await loadEventsFromLocalStorage();
+      const updatedEvents = [...existingEvents, event];
+      await saveEventsToLocalStorage(updatedEvents);
+      return false;
+    }
+    
+    console.log('✅ Event saved to Supabase successfully');
+    
+    // Sync to Google Sheets in background (don't wait for it)
+    syncToGoogleSheets(event).catch(error => {
+      console.warn('⚠️ Google Sheets sync failed, but event is saved in Supabase:', error);
     });
     
-    return {
-      isAvailable: existingEvents.length === 0,
-      existingEvents
-    };
+    return true;
   } catch (error) {
-    console.error('❌ Error checking date availability:', error);
-    return { isAvailable: true, existingEvents: [] };
+    console.error('❌ Error saving event:', error);
+    return false;
   }
 };
 
-// Hybrid storage: Use Google Sheets as primary, AsyncStorage as backup/cache
-export const saveEvents = async (events: Event[]): Promise<void> => {
+// Update event in Supabase
+export const updateEvent = async (event: Event): Promise<boolean> => {
   try {
-    console.log('💾 Saving events...', events.length);
+    console.log('🔄 Updating event in Supabase:', event.id);
     
-    // Save to AsyncStorage immediately for offline access
-    await saveEventsToLocalStorage(events);
+    const supabaseRow = eventToSupabaseRow(event);
     
-    console.log('✅ Events saved successfully:', events.length);
-  } catch (error) {
-    console.error('❌ Error saving events:', error);
-  }
-};
-
-export const generateEventId = (): string => {
-  return Date.now().toString() + Math.random().toString(36).substr(2, 9);
-};
-
-// Save a single event (used when creating new events)
-export const saveEvent = async (event: Event): Promise<void> => {
-  try {
-    console.log('💾 Saving single event:', event);
+    const { error } = await supabase
+      .from('events')
+      .update(supabaseRow)
+      .eq('id', event.id);
     
-    // Check if date already has events (additional safety check)
-    const { existingEvents } = await checkDateAvailability(event.date);
-    if (existingEvents.length > 0) {
-      console.warn('⚠️ Warning: Saving event to date that already has events:', existingEvents.length);
-      // Don't throw error, just warn - allow multiple events per day if needed
+    if (error) {
+      console.error('❌ Error updating event in Supabase:', error);
+      return false;
     }
     
-    // First, try to save to Google Sheets
-    console.log('🌐 Attempting to save to Google Sheets...');
+    console.log('✅ Event updated in Supabase successfully');
     
-    // Run quick diagnostics before saving
-    const connectionOk = await testGoogleSheetsConnection();
-    if (!connectionOk) {
-      console.log('❌ Google Sheets connection failed, saving locally only');
-    } else {
-      const rangeOk = await testRangeAccess();
-      if (!rangeOk) {
-        console.log('❌ Range access failed, saving locally only');
-      } else {
-        const savedToSheets = await saveEventToGoogleSheets(event);
-        if (savedToSheets) {
-          console.log('✅ Event saved to Google Sheets successfully');
-        } else {
-          console.log('❌ Failed to save to Google Sheets, will save locally only');
-        }
-      }
-    }
+    // Sync to Google Sheets in background
+    syncToGoogleSheets(event).catch(error => {
+      console.warn('⚠️ Google Sheets sync failed, but event is updated in Supabase:', error);
+    });
     
-    // Load existing events from local storage
-    const existingLocalEvents = await loadEventsFromLocalStorage();
-    
-    // Add or update the event in local storage
-    const eventIndex = existingLocalEvents.findIndex(e => e.id === event.id);
-    if (eventIndex >= 0) {
-      existingLocalEvents[eventIndex] = event;
-      console.log('📱 Updated existing event in local storage');
-    } else {
-      existingLocalEvents.push(event);
-      console.log('📱 Added new event to local storage');
-    }
-    
-    // Save all events to local storage
-    await saveEventsToLocalStorage(existingLocalEvents);
-    
-    console.log('✅ Single event saved successfully to local storage');
-  } catch (error) {
-    console.error('❌ Error saving single event:', error);
-    
-    // Still try to save locally even if Google Sheets fails
-    try {
-      const existingLocalEvents = await loadEventsFromLocalStorage();
-      const eventIndex = existingLocalEvents.findIndex(e => e.id === event.id);
-      if (eventIndex >= 0) {
-        existingLocalEvents[eventIndex] = event;
-      } else {
-        existingLocalEvents.push(event);
-      }
-      await saveEventsToLocalStorage(existingLocalEvents);
-      console.log('📱 Event saved to local storage as fallback');
-    } catch (localError) {
-      console.error('❌ Failed to save to local storage as well:', localError);
-      throw localError; // Only throw if both Google Sheets and local storage fail
-    }
-  }
-};
-
-// Update an existing event
-export const updateEvent = async (event: Event): Promise<void> => {
-  try {
-    console.log('🔄 Updating event:', event);
-    
-    // Load existing events
-    const existingEvents = await loadEventsFromLocalStorage();
-    
-    // Find and update the event
-    const eventIndex = existingEvents.findIndex(e => e.id === event.id);
-    if (eventIndex >= 0) {
-      existingEvents[eventIndex] = event;
-      await saveEventsToLocalStorage(existingEvents);
-      console.log('✅ Event updated successfully');
-    } else {
-      console.error('❌ Event not found for update:', event.id);
-      throw new Error('Event not found');
-    }
+    return true;
   } catch (error) {
     console.error('❌ Error updating event:', error);
-    throw error;
+    return false;
   }
 };
 
-// Delete an event
-export const deleteEvent = async (eventId: string): Promise<void> => {
+// Delete event from Supabase
+export const deleteEvent = async (eventId: string): Promise<boolean> => {
   try {
-    console.log('🗑️ Deleting event:', eventId);
+    console.log('🗑️ Deleting event from Supabase:', eventId);
     
-    // Load existing events
-    const existingEvents = await loadEventsFromLocalStorage();
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
     
-    // Filter out the event to delete
-    const filteredEvents = existingEvents.filter(e => e.id !== eventId);
-    
-    if (filteredEvents.length === existingEvents.length) {
-      console.error('❌ Event not found for deletion:', eventId);
-      throw new Error('Event not found');
+    if (error) {
+      console.error('❌ Error deleting event from Supabase:', error);
+      return false;
     }
     
-    // Save the filtered events
-    await saveEventsToLocalStorage(filteredEvents);
-    
-    console.log('✅ Event deleted successfully');
+    console.log('✅ Event deleted from Supabase successfully');
+    return true;
   } catch (error) {
     console.error('❌ Error deleting event:', error);
-    throw error;
+    return false;
+  }
+};
+
+// Save multiple events to Supabase
+export const saveEvents = async (events: Event[]): Promise<boolean> => {
+  try {
+    console.log('💾 Saving multiple events to Supabase:', events.length);
+    
+    const supabaseRows = events.map(eventToSupabaseRow);
+    
+    const { error } = await supabase
+      .from('events')
+      .upsert(supabaseRows);
+    
+    if (error) {
+      console.error('❌ Error saving events to Supabase:', error);
+      return false;
+    }
+    
+    console.log('✅ Events saved to Supabase successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Error saving events:', error);
+    return false;
+  }
+};
+
+// Generate a unique event ID
+export const generateEventId = (): string => {
+  return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
+// Run diagnostics (simplified since we're using Supabase now)
+export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
+  try {
+    console.log('🧪 Running diagnostics...');
+    
+    // Test Supabase connection
+    const { data, error } = await supabase
+      .from('events')
+      .select('count(*)')
+      .limit(1);
+    
+    if (error) {
+      return `❌ Supabase connection failed: ${error.message}`;
+    }
+    
+    // Test Google Sheets sync
+    try {
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('sync-google-sheets', {
+        body: { action: 'test' },
+        method: 'GET'
+      });
+      
+      if (functionError) {
+        return `✅ Supabase connected\n⚠️ Google Sheets sync not available: ${functionError.message}`;
+      }
+      
+      return `✅ Supabase connected\n✅ Google Sheets sync available`;
+    } catch (syncError) {
+      return `✅ Supabase connected\n⚠️ Google Sheets sync not configured`;
+    }
+  } catch (error) {
+    return `❌ Diagnostics failed: ${error}`;
   }
 };

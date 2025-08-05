@@ -11,13 +11,13 @@ export interface Event {
   deposit: number;
   remainingAmount: number;
   isPaid: boolean;
-  notes?: string;
+  notes: string;
   createdAt: string;
 }
 
 export interface Package {
   id: string;
-  name: 'Abra' | 'Kadabra' | 'Abrakadabra';
+  name: string;
   description: string;
   weekdayPrice: number;
   weekendPrice: number;
@@ -27,6 +27,63 @@ export interface Package {
 
 export interface CalendarDay {
   date: string;
-  isAvailable: boolean;
-  events: Event[];
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  isPast: boolean;
+  hasEvent: boolean;
+  eventCount: number;
+}
+
+// Database types for Supabase
+export interface Database {
+  public: {
+    Tables: {
+      events: {
+        Row: {
+          id: string;
+          date: string;
+          time: string;
+          customer_name: string;
+          customer_phone: string;
+          child_name: string;
+          package_type: 'Abra' | 'Kadabra' | 'Abrakadabra';
+          total_amount: number;
+          deposit: number;
+          remaining_amount: number;
+          is_paid: boolean;
+          notes: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          date: string;
+          time: string;
+          customer_name: string;
+          customer_phone: string;
+          child_name: string;
+          package_type: 'Abra' | 'Kadabra' | 'Abrakadabra';
+          total_amount: number;
+          deposit?: number;
+          remaining_amount?: number;
+          is_paid?: boolean;
+          notes?: string;
+        };
+        Update: {
+          id?: string;
+          date?: string;
+          time?: string;
+          customer_name?: string;
+          customer_phone?: string;
+          child_name?: string;
+          package_type?: 'Abra' | 'Kadabra' | 'Abrakadabra';
+          total_amount?: number;
+          deposit?: number;
+          remaining_amount?: number;
+          is_paid?: boolean;
+          notes?: string;
+        };
+      };
+    };
+  };
 }
