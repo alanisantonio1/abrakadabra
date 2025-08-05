@@ -87,52 +87,103 @@ export default function MainScreen() {
 
   const renderMainScreen = () => (
     <ScrollView style={commonStyles.container}>
-      <View style={commonStyles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-          <Text style={[commonStyles.title, { fontSize: 32, fontWeight: 'bold', color: colors.primary }]}>
+      {/* Centered Header */}
+      <View style={{ 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        paddingVertical: 40,
+        paddingHorizontal: 20
+      }}>
+        <View style={{ 
+          flexDirection: 'row', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          marginBottom: 40
+        }}>
+          <Text style={[
+            commonStyles.title, 
+            { 
+              fontSize: 32, 
+              fontWeight: 'bold', 
+              color: colors.primary,
+              textAlign: 'center'
+            }
+          ]}>
             Abrakadabra
           </Text>
-          <Text style={{ fontSize: 20, marginLeft: 8 }}>✨</Text>
+          <Text style={{ fontSize: 24, marginLeft: 8 }}>✨</Text>
+        </View>
+
+        {/* Centered Buttons */}
+        <View style={{ width: '100%', maxWidth: 300, alignItems: 'center' }}>
+          <TouchableOpacity
+            style={[
+              commonStyles.primaryButton, 
+              { 
+                width: '100%',
+                marginBottom: 16,
+                backgroundColor: colors.primary
+              }
+            ]}
+            onPress={() => setCurrentView('calendar')}
+          >
+            <Text style={commonStyles.buttonText}>Ver Disponibilidad</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              commonStyles.primaryButton, 
+              { 
+                width: '100%',
+                marginBottom: 16,
+                backgroundColor: colors.secondary
+              }
+            ]}
+            onPress={() => router.push('/events')}
+          >
+            <Text style={commonStyles.buttonText}>Ver Eventos</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              commonStyles.primaryButton, 
+              { 
+                width: '100%',
+                marginBottom: 16,
+                backgroundColor: colors.accent
+              }
+            ]}
+            onPress={() => router.push('/packages')}
+          >
+            <Text style={commonStyles.buttonText}>Ver Paquetes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              commonStyles.primaryButton, 
+              { 
+                width: '100%',
+                marginBottom: 16,
+                backgroundColor: '#FF6B6B'
+              }
+            ]}
+            onPress={runDiagnostics}
+          >
+            <Text style={commonStyles.buttonText}>🔍 Diagnósticos Google Sheets</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={commonStyles.section}>
-        <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: colors.primary }]}
-          onPress={() => setCurrentView('calendar')}
-        >
-          <Text style={commonStyles.buttonText}>Ver Disponibilidad</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: colors.secondary, marginTop: 10 }]}
-          onPress={() => router.push('/events')}
-        >
-          <Text style={commonStyles.buttonText}>Ver Eventos</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: colors.accent, marginTop: 10 }]}
-          onPress={() => router.push('/packages')}
-        >
-          <Text style={commonStyles.buttonText}>Ver Paquetes</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: '#FF6B6B', marginTop: 10 }]}
-          onPress={runDiagnostics}
-        >
-          <Text style={commonStyles.buttonText}>🔍 Diagnósticos Google Sheets</Text>
-        </TouchableOpacity>
-      </View>
-
+      {/* Upcoming Events Section */}
       {loading ? (
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.text}>Cargando eventos...</Text>
+        <View style={[commonStyles.section, { paddingHorizontal: 20 }]}>
+          <Text style={[commonStyles.text, { textAlign: 'center' }]}>Cargando eventos...</Text>
         </View>
       ) : (
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Próximos Eventos</Text>
+        <View style={[commonStyles.section, { paddingHorizontal: 20 }]}>
+          <Text style={[commonStyles.sectionTitle, { textAlign: 'center', marginBottom: 20 }]}>
+            Próximos Eventos
+          </Text>
           {getUpcomingEvents().length > 0 ? (
             getUpcomingEvents().map((event) => (
               <EventCard
@@ -142,7 +193,9 @@ export default function MainScreen() {
               />
             ))
           ) : (
-            <Text style={commonStyles.text}>No hay eventos próximos</Text>
+            <Text style={[commonStyles.text, { textAlign: 'center' }]}>
+              No hay eventos próximos
+            </Text>
           )}
         </View>
       )}
@@ -151,15 +204,26 @@ export default function MainScreen() {
 
   const renderCalendarScreen = () => (
     <View style={commonStyles.container}>
-      <View style={commonStyles.header}>
+      <View style={[commonStyles.header, { flexDirection: 'column', alignItems: 'center' }]}>
         <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: colors.secondary, marginBottom: 15 }]}
+          style={[
+            commonStyles.backButton, 
+            { 
+              marginBottom: 15,
+              backgroundColor: colors.secondary,
+              paddingVertical: 12,
+              paddingHorizontal: 20,
+              borderRadius: 8
+            }
+          ]}
           onPress={() => setCurrentView('main')}
         >
-          <Text style={commonStyles.buttonText}>← Volver al Menú</Text>
+          <Text style={[commonStyles.backButtonText, { color: 'white' }]}>← Volver al Menú</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>Calendario de Disponibilidad</Text>
-        <Text style={commonStyles.subtitle}>
+        <Text style={[commonStyles.title, { textAlign: 'center' }]}>
+          Calendario de Disponibilidad
+        </Text>
+        <Text style={[commonStyles.subtitle, { textAlign: 'center' }]}>
           Verde: Disponible • Rojo: Ocupado
         </Text>
       </View>
