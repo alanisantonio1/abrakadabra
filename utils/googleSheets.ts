@@ -2,11 +2,18 @@
 import { Event } from '../types';
 
 // Google Sheets configuration
-const GOOGLE_SHEETS_API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc'; // Updated with user's API key
-const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s'; // User's spreadsheet ID
-const RANGE = 'Sheet1!A:I'; // Range A to I as requested
+const GOOGLE_SHEETS_API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc';
+const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s';
+const RANGE = 'Sheet1!A:I';
 
-// Column mapping for Google Sheets (based on the documentation)
+import { 
+  SERVICE_ACCOUNT_CREDENTIALS, 
+  isServiceAccountConfigured, 
+  getConfigurationStatus,
+  getConfigurationInstructions 
+} from './serviceAccountConfig';
+
+// Column mapping for Google Sheets
 const COLUMNS = {
   FECHA: 0,           // A
   NOMBRE: 1,          // B
@@ -17,6 +24,90 @@ const COLUMNS = {
   TOTAL_EVENTO: 6,    // G
   FECHA_PAGO: 7,      // H
   NOTIFICADO_LUNES: 8 // I
+};
+
+// OAuth2 token management
+let accessToken: string | null = null;
+let tokenExpiry: number = 0;
+
+// Generate JWT for service account authentication
+const generateJWT = (): string => {
+  if (!isServiceAccountConfigured()) {
+    console.log('⚠️ Service account not configured - cannot generate JWT');
+    return '';
+  }
+
+  try {
+    // In a real implementation, you would use a proper JWT library like 'jsonwebtoken'
+    // For now, we'll return empty string and provide configuration instructions
+    console.log('⚠️ JWT generation requires a proper JWT library');
+    console.log('📋 Configuration status:', getConfigurationInstructions());
+    return '';
+  } catch (error) {
+    console.error('❌ Error generating JWT:', error);
+    return '';
+  }
+};
+
+// Get OAuth2 access token using service account
+const getAccessToken = async (): Promise<string | null> => {
+  try {
+    // Check if we have a valid token
+    if (accessToken && Date.now() < tokenExpiry) {
+      return accessToken;
+    }
+
+    console.log('🔑 Getting new OAuth2 access token...');
+
+    // Check if service account is configured
+    if (!isServiceAccountConfigured()) {
+      console.log('⚠️ Service account not configured');
+      console.log(getConfigurationInstructions());
+      return null;
+    }
+
+    // For now, we'll return null until JWT library is properly implemented
+    // The user needs to install a JWT library like 'jsonwebtoken' for full OAuth2 support
+    console.log('⚠️ OAuth2 implementation requires JWT library');
+    console.log('📋 Service account configured but JWT generation not implemented');
+    return null;
+
+    // TODO: Implement proper OAuth2 flow with JWT library
+    /*
+    const jwt = generateJWT();
+    
+    if (!jwt) {
+      console.log('❌ Failed to generate JWT');
+      return null;
+    }
+    
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt
+      })
+    });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+      accessToken = data.access_token;
+      tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Subtract 1 minute for safety
+      console.log('✅ OAuth2 access token obtained');
+      return accessToken;
+    } else {
+      console.error('❌ Failed to get OAuth2 token:', data);
+      return null;
+    }
+    */
+  } catch (error) {
+    console.error('❌ Error getting OAuth2 token:', error);
+    return null;
+  }
 };
 
 // Test Google Sheets connection
@@ -90,49 +181,86 @@ export const testRangeAccess = async (): Promise<boolean> => {
   }
 };
 
-// Test write permissions
+// Test write permissions with OAuth2
 export const testWritePermissions = async (): Promise<{ canWrite: boolean; error?: string }> => {
   try {
     console.log('🔍 Testing write permissions...');
     
-    // Try to append a test row
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    // Try OAuth2 first
+    const token = await getAccessToken();
     
-    const testData = {
-      values: [['TEST_WRITE_PERMISSION', 'DELETE_THIS_ROW', '', '', '', '', '', '', '']]
-    };
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(testData)
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Write permissions test successful');
-      return { canWrite: true };
-    } else {
-      console.error('❌ Write permissions test failed:', response.status, data);
+    if (token) {
+      console.log('🔑 Using OAuth2 authentication');
       
-      if (response.status === 401) {
-        return { 
-          canWrite: false, 
-          error: 'API key no tiene permisos de escritura. Necesitas configurar OAuth o una cuenta de servicio.' 
-        };
-      } else if (response.status === 403) {
-        return { 
-          canWrite: false, 
-          error: 'Acceso denegado. Verifica que la hoja esté compartida correctamente.' 
-        };
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW`;
+      
+      const testData = {
+        values: [['TEST_WRITE_PERMISSION', 'DELETE_THIS_ROW', '', '', '', '', '', '', '']]
+      };
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ OAuth2 write permissions test successful');
+        return { canWrite: true };
       } else {
+        console.error('❌ OAuth2 write test failed:', response.status, data);
         return { 
           canWrite: false, 
-          error: `Error ${response.status}: ${data.error?.message || 'Error desconocido'}` 
+          error: `OAuth2 error ${response.status}: ${data.error?.message || 'Error desconocido'}` 
         };
+      }
+    } else {
+      // Fallback to API key test
+      console.log('🔑 OAuth2 not available, testing with API key');
+      
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+      
+      const testData = {
+        values: [['TEST_WRITE_PERMISSION', 'DELETE_THIS_ROW', '', '', '', '', '', '', '']]
+      };
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData)
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ API key write permissions test successful');
+        return { canWrite: true };
+      } else {
+        console.error('❌ API key write permissions test failed:', response.status, data);
+        
+        if (response.status === 401) {
+          return { 
+            canWrite: false, 
+            error: 'API key no tiene permisos de escritura. Necesitas configurar OAuth2 con una cuenta de servicio.' 
+          };
+        } else if (response.status === 403) {
+          return { 
+            canWrite: false, 
+            error: 'Acceso denegado. Verifica que la hoja esté compartida correctamente.' 
+          };
+        } else {
+          return { 
+            canWrite: false, 
+            error: `Error ${response.status}: ${data.error?.message || 'Error desconocido'}` 
+          };
+        }
       }
     }
   } catch (error) {
@@ -144,21 +272,18 @@ export const testWritePermissions = async (): Promise<{ canWrite: boolean; error
   }
 };
 
-// Format date for Google Sheets (ensure consistent format)
+// Format date for Google Sheets
 const formatDateForSheets = (dateString: string): string => {
   try {
-    // If it's already in YYYY-MM-DD format, return as is
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
       return dateString;
     }
     
-    // Try to parse and format the date
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      return date.toISOString().split('T')[0];
     }
     
-    // If all else fails, return the original string
     return dateString;
   } catch (error) {
     console.warn('⚠️ Error formatting date:', dateString, error);
@@ -177,15 +302,15 @@ const eventToSheetRow = (event: Event): string[] => {
   });
 
   return [
-    formattedDate,                                    // A: Fecha
-    `${event.customerName} (${event.childName})`,    // B: Nombre
-    event.customerPhone,                              // C: Teléfono
-    event.packageType,                                // D: Paquete
-    event.isPaid ? 'Pagado' : 'Pendiente',          // E: Estado
-    event.deposit.toString(),                         // F: Anticipo Pagado
-    event.totalAmount.toString(),                     // G: Total Evento
-    event.isPaid ? formattedDate : '',               // H: Fecha Pago
-    'No'                                             // I: Notificado Lunes
+    formattedDate,
+    `${event.customerName} (${event.childName})`,
+    event.customerPhone,
+    event.packageType,
+    event.isPaid ? 'Pagado' : 'Pendiente',
+    event.deposit.toString(),
+    event.totalAmount.toString(),
+    event.isPaid ? formattedDate : '',
+    'No'
   ];
 };
 
@@ -199,7 +324,7 @@ const sheetRowToEvent = (row: any[], index: number): Event | null => {
   return {
     id: `sheet_${index}_${Date.now()}`,
     date: row[COLUMNS.FECHA] ?? '',
-    time: '15:00', // Default time since it's not stored in the sheet
+    time: '15:00',
     customerName: nameMatch ? nameMatch[1].trim() : rawName,
     childName: nameMatch ? nameMatch[2].trim() : '',
     customerPhone: row[COLUMNS.TELEFONO] ?? '',
@@ -233,14 +358,12 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
       return [];
     }
     
-    // Skip header row and convert to events
     const events: Event[] = [];
-    const rows = data.values.slice(1); // Skip header
+    const rows = data.values.slice(1);
     
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       
-      // Skip empty rows
       if (!row[COLUMNS.FECHA] || !row[COLUMNS.NOMBRE]) {
         continue;
       }
@@ -263,7 +386,7 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
   }
 };
 
-// Save event to Google Sheets
+// Save event to Google Sheets with OAuth2 support
 export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('💾 Saving event to Google Sheets:', event.id);
@@ -276,54 +399,71 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: 
       deposit: event.deposit
     });
     
-    // Prepare row data
     const rowData = eventToSheetRow(event);
     console.log('📊 Row data for sheets:', rowData);
     
-    // Use append API to add new row
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    // Try OAuth2 first
+    const token = await getAccessToken();
     
-    console.log('🌐 Making request to:', url);
-    
-    const requestBody = {
-      values: [rowData]
-    };
-    
-    console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
-    
-    const data = await response.json();
-    console.log('📥 Response status:', response.status);
-    console.log('📥 Response data:', data);
-    
-    if (response.ok) {
-      console.log('✅ Event saved to Google Sheets successfully');
-      console.log('📊 Updated range:', data.updates?.updatedRange);
-      return { success: true };
-    } else {
-      console.error('❌ Error saving to Google Sheets:', data);
-      console.error('❌ Response status:', response.status);
+    if (token) {
+      console.log('🔑 Using OAuth2 authentication for save');
       
-      let errorMessage = 'Error desconocido';
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW`;
       
-      if (response.status === 401) {
-        errorMessage = 'API key no tiene permisos de escritura. Solo se puede leer de Google Sheets.';
-      } else if (response.status === 403) {
-        errorMessage = 'Acceso denegado. Verifica los permisos de la hoja.';
-      } else if (response.status === 400) {
-        errorMessage = 'Datos inválidos o formato incorrecto.';
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ values: [rowData] })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event saved to Google Sheets with OAuth2');
+        return { success: true };
+      } else {
+        console.error('❌ OAuth2 save failed:', data);
+        return { success: false, error: `OAuth2 error: ${data.error?.message || 'Error desconocido'}` };
       }
+    } else {
+      // Fallback to API key
+      console.log('🔑 OAuth2 not available, trying API key');
       
-      return { success: false, error: errorMessage };
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ values: [rowData] })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event saved to Google Sheets with API key');
+        return { success: true };
+      } else {
+        console.error('❌ API key save failed:', response.status, data);
+        
+        let errorMessage = 'Error desconocido';
+        
+        if (response.status === 401) {
+          errorMessage = 'API key no tiene permisos de escritura. Necesitas configurar OAuth2 con una cuenta de servicio.';
+        } else if (response.status === 403) {
+          errorMessage = 'Acceso denegado. Verifica los permisos de la hoja.';
+        } else if (response.status === 400) {
+          errorMessage = 'Datos inválidos o formato incorrecto.';
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
+        }
+        
+        return { success: false, error: errorMessage };
+      }
     }
   } catch (error) {
     console.error('❌ Error saving event to Google Sheets:', error);
@@ -331,12 +471,11 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: 
   }
 };
 
-// Update event in Google Sheets (find and replace)
+// Update event in Google Sheets
 export const updateEventInGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🔄 Updating event in Google Sheets:', event.id);
     
-    // First, load all events to find the row
     const allEvents = await loadEventsFromGoogleSheets();
     const eventIndex = allEvents.findIndex(e => 
       e.date === event.date && 
@@ -349,43 +488,65 @@ export const updateEventInGoogleSheets = async (event: Event): Promise<{ success
       return await saveEventToGoogleSheets(event);
     }
     
-    // Calculate actual row number (add 2: 1 for header, 1 for 0-based index)
     const rowNumber = eventIndex + 2;
     const range = `Sheet1!A${rowNumber}:I${rowNumber}`;
-    
-    // Prepare row data
     const rowData = eventToSheetRow(event);
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    // Try OAuth2 first
+    const token = await getAccessToken();
     
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        values: [rowData]
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Event updated in Google Sheets successfully');
-      return { success: true };
-    } else {
-      console.error('❌ Error updating in Google Sheets:', data);
+    if (token) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=RAW`;
       
-      let errorMessage = 'Error desconocido';
-      if (response.status === 401) {
-        errorMessage = 'API key no tiene permisos de escritura.';
-      } else if (response.status === 403) {
-        errorMessage = 'Acceso denegado.';
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ values: [rowData] })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event updated in Google Sheets with OAuth2');
+        return { success: true };
+      } else {
+        console.error('❌ OAuth2 update failed:', data);
+        return { success: false, error: `OAuth2 error: ${data.error?.message || 'Error desconocido'}` };
       }
+    } else {
+      // Fallback to API key
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
       
-      return { success: false, error: errorMessage };
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ values: [rowData] })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event updated in Google Sheets with API key');
+        return { success: true };
+      } else {
+        console.error('❌ API key update failed:', data);
+        
+        let errorMessage = 'Error desconocido';
+        if (response.status === 401) {
+          errorMessage = 'API key no tiene permisos de escritura.';
+        } else if (response.status === 403) {
+          errorMessage = 'Acceso denegado.';
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
+        }
+        
+        return { success: false, error: errorMessage };
+      }
     }
   } catch (error) {
     console.error('❌ Error updating event in Google Sheets:', error);
@@ -393,12 +554,11 @@ export const updateEventInGoogleSheets = async (event: Event): Promise<{ success
   }
 };
 
-// Delete event from Google Sheets (clear row)
+// Delete event from Google Sheets
 export const deleteEventFromGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🗑️ Deleting event from Google Sheets:', event.id);
     
-    // First, load all events to find the row
     const allEvents = await loadEventsFromGoogleSheets();
     const eventIndex = allEvents.findIndex(e => 
       e.date === event.date && 
@@ -411,37 +571,62 @@ export const deleteEventFromGoogleSheets = async (event: Event): Promise<{ succe
       return { success: false, error: 'Evento no encontrado en Google Sheets' };
     }
     
-    // Calculate actual row number (add 2: 1 for header, 1 for 0-based index)
     const rowNumber = eventIndex + 2;
     const range = `Sheet1!A${rowNumber}:I${rowNumber}`;
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:clear?key=${GOOGLE_SHEETS_API_KEY}`;
+    // Try OAuth2 first
+    const token = await getAccessToken();
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    if (token) {
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:clear`;
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event deleted from Google Sheets with OAuth2');
+        return { success: true };
+      } else {
+        console.error('❌ OAuth2 delete failed:', data);
+        return { success: false, error: `OAuth2 error: ${data.error?.message || 'Error desconocido'}` };
       }
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Event deleted from Google Sheets successfully');
-      return { success: true };
     } else {
-      console.error('❌ Error deleting from Google Sheets:', data);
+      // Fallback to API key
+      const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:clear?key=${GOOGLE_SHEETS_API_KEY}`;
       
-      let errorMessage = 'Error desconocido';
-      if (response.status === 401) {
-        errorMessage = 'API key no tiene permisos de escritura.';
-      } else if (response.status === 403) {
-        errorMessage = 'Acceso denegado.';
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event deleted from Google Sheets with API key');
+        return { success: true };
+      } else {
+        console.error('❌ API key delete failed:', data);
+        
+        let errorMessage = 'Error desconocido';
+        if (response.status === 401) {
+          errorMessage = 'API key no tiene permisos de escritura.';
+        } else if (response.status === 403) {
+          errorMessage = 'Acceso denegado.';
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
+        }
+        
+        return { success: false, error: errorMessage };
       }
-      
-      return { success: false, error: errorMessage };
     }
   } catch (error) {
     console.error('❌ Error deleting event from Google Sheets:', error);
@@ -529,22 +714,37 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
       diagnostics += `   - Último evento: ${events[events.length - 1].customerName} - ${events[events.length - 1].date}\n`;
     }
     
-    // Test 5: Write permissions
-    diagnostics += '\n5. Probando permisos de escritura...\n';
+    // Test 5: OAuth2 status
+    const configStatus = getConfigurationStatus();
+    const token = await getAccessToken();
+    diagnostics += `\n5. Estado OAuth2: ${token ? '✅ CONFIGURADO' : '❌ NO CONFIGURADO'}\n`;
+    
+    if (!token) {
+      diagnostics += `   - Cuenta de servicio: ${configStatus.configured ? '✅ CONFIGURADA' : '❌ NO CONFIGURADA'}\n`;
+      diagnostics += `   - Client ID: ${configStatus.clientId}\n`;
+      
+      if (!configStatus.configured) {
+        diagnostics += `   - Campos faltantes: ${configStatus.missingFields.join(', ')}\n`;
+      } else {
+        diagnostics += '   - JWT library requerida para OAuth2 completo\n';
+      }
+    }
+    
+    // Test 6: Write permissions
+    diagnostics += '\n6. Probando permisos de escritura...\n';
     const writeTest = await testWritePermissions();
     diagnostics += `   - Permisos de escritura: ${writeTest.canWrite ? '✅ OK' : '❌ FALLO'}\n`;
     
     if (!writeTest.canWrite) {
       diagnostics += `   - Error: ${writeTest.error}\n`;
       diagnostics += '\n⚠️ PROBLEMA DETECTADO:\n';
-      diagnostics += 'La API key actual solo permite LECTURA de Google Sheets.\n';
-      diagnostics += 'Para ESCRIBIR necesitas:\n';
-      diagnostics += '1. Configurar OAuth 2.0, o\n';
-      diagnostics += '2. Usar una cuenta de servicio con permisos de escritura\n';
+      diagnostics += 'Para habilitar escritura necesitas:\n';
+      diagnostics += '1. Configurar OAuth2 con cuenta de servicio, o\n';
+      diagnostics += '2. Usar una API key con permisos de escritura\n';
       diagnostics += '\nMientras tanto, los eventos se guardan localmente.\n';
     } else {
-      // Test 6: Test save functionality
-      diagnostics += '\n6. Probando funcionalidad de guardado...\n';
+      // Test 7: Test save functionality
+      diagnostics += '\n7. Probando funcionalidad de guardado...\n';
       const saveTest = await testSaveToGoogleSheets();
       diagnostics += `   - Prueba de guardado: ${saveTest.success ? '✅ OK' : '❌ FALLO'}\n`;
       
@@ -558,15 +758,20 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
     diagnostics += `\n   - Spreadsheet ID: ${SPREADSHEET_ID}`;
     diagnostics += `\n   - Rango: ${RANGE}`;
     diagnostics += `\n   - API Key: ${GOOGLE_SHEETS_API_KEY.substring(0, 10)}...`;
+    diagnostics += `\n   - OAuth2 Client ID: ${configStatus.clientId}`;
+    diagnostics += `\n   - Service Account: ${configStatus.configured ? 'Configurada' : 'No configurada'}`;
     
     if (!writeTest.canWrite) {
-      diagnostics += '\n\n🔧 SOLUCIÓN RECOMENDADA:';
-      diagnostics += '\nPara habilitar escritura a Google Sheets:';
-      diagnostics += '\n1. Ve a Google Cloud Console';
-      diagnostics += '\n2. Crea una cuenta de servicio';
-      diagnostics += '\n3. Descarga el archivo JSON de credenciales';
-      diagnostics += '\n4. Comparte tu hoja con el email de la cuenta de servicio';
-      diagnostics += '\n5. Actualiza el código para usar las credenciales de servicio';
+      diagnostics += '\n\n🔧 PASOS PARA CONFIGURAR OAUTH2:';
+      diagnostics += '\n1. Ve a Google Cloud Console (console.cloud.google.com)';
+      diagnostics += '\n2. Selecciona tu proyecto o crea uno nuevo';
+      diagnostics += '\n3. Habilita la API de Google Sheets';
+      diagnostics += '\n4. Ve a "Credenciales" > "Crear credenciales" > "Cuenta de servicio"';
+      diagnostics += '\n5. Descarga el archivo JSON de credenciales';
+      diagnostics += '\n6. Comparte tu hoja de Google Sheets con el email de la cuenta de servicio';
+      diagnostics += '\n7. Actualiza el código con las credenciales completas';
+      diagnostics += '\n\n📧 Email de cuenta de servicio esperado:';
+      diagnostics += '\n   tu-cuenta-servicio@tu-proyecto.iam.gserviceaccount.com';
     }
     
     return diagnostics;

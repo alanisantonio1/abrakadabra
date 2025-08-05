@@ -6,7 +6,7 @@ import CalendarView from '../components/CalendarView';
 import EventCard from '../components/EventCard';
 import { Event } from '../types';
 import { loadEvents } from '../utils/storage';
-import { runGoogleSheetsDiagnostics, testSaveToGoogleSheets } from '../utils/googleSheets';
+import { testDatabaseConnections, syncGoogleSheetsToSupabase } from '../utils/storage';
 import { commonStyles, colors } from '../styles/commonStyles';
 
 export default function MainScreen() {
@@ -53,13 +53,13 @@ export default function MainScreen() {
       .slice(0, 3);
   };
 
-  const testGoogleSheets = async () => {
+  const testDatabases = async () => {
     try {
-      console.log('🧪 Running Google Sheets diagnostics...');
-      const diagnostics = await runGoogleSheetsDiagnostics();
+      console.log('🧪 Running database diagnostics...');
+      const diagnostics = await testDatabaseConnections();
       
       Alert.alert(
-        'Diagnósticos Google Sheets',
+        'Diagnósticos de Base de Datos',
         diagnostics,
         [
           { text: 'OK' }
@@ -78,38 +78,37 @@ export default function MainScreen() {
     }
   };
 
-  const testSaveEvent = async () => {
+  const syncFromGoogleSheets = async () => {
     try {
-      console.log('🧪 Testing save event...');
-      const result = await testSaveToGoogleSheets();
-      
-      let message = '';
-      let title = '';
-      
-      if (result.success) {
-        title = '✅ Prueba Exitosa';
-        message = 'El evento de prueba se guardó correctamente en Google Sheets.\n\n' +
-                 '⚠️ IMPORTANTE: Elimina la fila de prueba de tu hoja de cálculo.';
-      } else {
-        title = '❌ Prueba Fallida';
-        message = `No se pudo guardar en Google Sheets:\n\n${result.error}\n\n` +
-                 'Los eventos se guardarán solo localmente hasta que se resuelva el problema.';
-        
-        if (result.error?.includes('permisos de escritura')) {
-          message += '\n\n💡 SOLUCIÓN:\n' +
-                    'Para escribir a Google Sheets necesitas:\n' +
-                    '1. Configurar OAuth 2.0, o\n' +
-                    '2. Usar una cuenta de servicio\n\n' +
-                    'Mientras tanto, puedes leer eventos desde la hoja pero no escribir nuevos.';
-        }
-      }
-      
-      Alert.alert(title, message, [{ text: 'OK' }]);
+      Alert.alert(
+        'Sincronizar desde Google Sheets',
+        '¿Deseas sincronizar los eventos de Google Sheets a Supabase?\n\nEsto copiará eventos que no existan en Supabase.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Sincronizar',
+            onPress: async () => {
+              console.log('🔄 Starting sync from Google Sheets...');
+              const result = await syncGoogleSheetsToSupabase();
+              
+              if (result.success) {
+                Alert.alert(
+                  '✅ Sincronización Exitosa',
+                  `Se sincronizaron ${result.synced} eventos desde Google Sheets a Supabase.`
+                );
+                loadEventsData(); // Reload events
+              } else {
+                Alert.alert('❌ Error de Sincronización', result.error || 'Error desconocido');
+              }
+            }
+          }
+        ]
+      );
     } catch (error) {
-      console.error('❌ Error testing save:', error);
+      console.error('❌ Error running sync:', error);
       Alert.alert(
         'Error',
-        'Error al probar guardado: ' + error,
+        'Error al ejecutar sincronización: ' + error,
         [{ text: 'OK' }]
       );
     }
@@ -150,22 +149,22 @@ export default function MainScreen() {
 
           <TouchableOpacity
             style={[commonStyles.gridButton, { backgroundColor: '#FF6B6B' }]}
-            onPress={testGoogleSheets}
+            onPress={testDatabases}
           >
             <Text style={commonStyles.gridButtonText}>🔧</Text>
-            <Text style={commonStyles.gridButtonLabel}>Probar Conexión</Text>
+            <Text style={commonStyles.gridButtonLabel}>Diagnósticos</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Test Save Button - Only show if there are connection issues */}
+      {/* Sync Button */}
       <View style={commonStyles.section}>
         <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: '#FFA500', marginBottom: 10 }]}
-          onPress={testSaveEvent}
+          style={[commonStyles.button, { backgroundColor: '#4CAF50', marginBottom: 10 }]}
+          onPress={syncFromGoogleSheets}
         >
           <Text style={[commonStyles.buttonText, { color: 'white' }]}>
-            🧪 Probar Guardado en Google Sheets
+            🔄 Sincronizar desde Google Sheets
           </Text>
         </TouchableOpacity>
       </View>

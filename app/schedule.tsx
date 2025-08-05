@@ -180,19 +180,23 @@ export default function ScheduleScreen() {
           `💵 Anticipo: $${formData.deposit}\n` +
           `📊 Restante: $${formData.remainingAmount}\n\n`;
 
-        if (result.savedToGoogleSheets) {
-          successMessage += '✅ Guardado en Google Sheets y localmente';
+        if (result.savedToSupabase) {
+          successMessage += '✅ Guardado en Supabase (base de datos principal)';
+          if (result.googleSheetsError) {
+            successMessage += '\n📝 Nota: Google Sheets está en modo solo lectura';
+          }
         } else {
           successMessage += '⚠️ Guardado localmente';
           
-          if (result.googleSheetsError) {
-            if (result.googleSheetsError.includes('permisos de escritura')) {
-              successMessage += '\n\n📝 Nota: Google Sheets está en modo solo lectura.';
-              successMessage += '\nLos eventos se pueden leer desde la hoja pero no escribir.';
-            } else {
-              successMessage += `\n\nError Google Sheets: ${result.googleSheetsError}`;
-            }
+          if (result.supabaseError) {
+            successMessage += `\n\nError Supabase: ${result.supabaseError}`;
           }
+          
+          if (result.googleSheetsError) {
+            successMessage += '\n📝 Google Sheets: Solo lectura';
+          }
+          
+          successMessage += '\n\n💡 El evento se sincronizará cuando se restablezca la conexión.';
         }
 
         Alert.alert(
