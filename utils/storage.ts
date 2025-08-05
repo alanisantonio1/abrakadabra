@@ -1,7 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Event } from '../types';
-import { loadEventsFromGoogleSheets, saveEventToGoogleSheets } from './googleSheets';
+import { loadEventsFromGoogleSheets, saveEventToGoogleSheets, testGoogleSheetsConnection } from './googleSheets';
 
 const EVENTS_KEY = 'abrakadabra_events';
 
@@ -36,20 +36,31 @@ export const loadEvents = async (): Promise<Event[]> => {
   try {
     console.log('🔄 Loading events...');
     
-    // Try to load from Google Sheets first
-    let events = await loadEventsFromGoogleSheets();
+    // Test Google Sheets connection first
+    console.log('🧪 Testing Google Sheets connection...');
+    const connectionOk = await testGoogleSheetsConnection();
     
-    // If Google Sheets fails or returns empty, try AsyncStorage
-    if (events.length === 0) {
-      console.log('📱 No events from Google Sheets, trying AsyncStorage...');
-      events = await loadEventsFromLocalStorage();
+    let events: Event[] = [];
+    
+    if (connectionOk) {
+      console.log('✅ Google Sheets connection OK, loading events...');
+      events = await loadEventsFromGoogleSheets();
+      
+      if (events.length > 0) {
+        console.log('✅ Events loaded from Google Sheets, caching locally...');
+        // Save to AsyncStorage as cache if we got data from Google Sheets
+        await saveEventsToLocalStorage(events);
+      } else {
+        console.log('📭 No events from Google Sheets, trying local cache...');
+        events = await loadEventsFromLocalStorage();
+      }
     } else {
-      // Save to AsyncStorage as cache if we got data from Google Sheets
-      await saveEventsToLocalStorage(events);
+      console.log('❌ Google Sheets connection failed, using local cache...');
+      events = await loadEventsFromLocalStorage();
     }
     
     console.log('✅ Events loaded successfully:', events.length);
-    console.log('📋 Loaded events:', events.map((e: Event) => ({ 
+    console.log('📋 Loaded events summary:', events.map((e: Event) => ({ 
       id: e.id, 
       date: e.date, 
       customerName: e.customerName,
@@ -60,6 +71,7 @@ export const loadEvents = async (): Promise<Event[]> => {
   } catch (error) {
     console.error('❌ Error loading events:', error);
     // Fallback to AsyncStorage if everything fails
+    console.log('📱 Falling back to local storage...');
     return await loadEventsFromLocalStorage();
   }
 };
@@ -112,6 +124,7 @@ export const saveEvent = async (event: Event): Promise<void> => {
     const { existingEvents } = await checkDateAvailability(event.date);
     if (existingEvents.length > 0) {
       console.warn('⚠️ Warning: Saving event to date that already has events:', existingEvents.length);
+      // Don't throw error, just warn - allow multiple events per day if needed
     }
     
     // First, try to save to Google Sheets
@@ -122,7 +135,7 @@ export const saveEvent = async (event: Event): Promise<void> => {
       console.log('✅ Event saved to Google Sheets successfully');
     } else {
       console.log('❌ Failed to save to Google Sheets, will save locally only');
-      throw new Error('Failed to save to Google Sheets');
+      // Don't throw error, continue with local save
     }
     
     // Load existing events from local storage
@@ -132,14 +145,20 @@ export const saveEvent = async (event: Event): Promise<void> => {
     const eventIndex = existingLocalEvents.findIndex(e => e.id === event.id);
     if (eventIndex >= 0) {
       existingLocalEvents[eventIndex] = event;
+      console.log('📱 Updated existing event in local storage');
     } else {
       existingLocalEvents.push(event);
+      console.log('📱 Added new event to local storage');
     }
     
     // Save all events to local storage
     await saveEventsToLocalStorage(existingLocalEvents);
     
-    console.log('✅ Single event saved successfully to both Google Sheets and local storage');
+    if (savedToSheets) {
+      console.log('✅ Single event saved successfully to both Google Sheets and local storage');
+    } else {
+      console.log('⚠️ Single event saved to local storage only (Google Sheets failed)');
+    }
   } catch (error) {
     console.error('❌ Error saving single event:', error);
     
@@ -156,9 +175,8 @@ export const saveEvent = async (event: Event): Promise<void> => {
       console.log('📱 Event saved to local storage as fallback');
     } catch (localError) {
       console.error('❌ Failed to save to local storage as well:', localError);
+      throw localError; // Only throw if both Google Sheets and local storage fail
     }
-    
-    throw error;
   }
 };
 

@@ -81,24 +81,16 @@ const MainScreen: React.FC = () => {
 
   const renderMainScreen = () => (
     <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
-      {/* Header with improved styling */}
-      <View style={[commonStyles.header, { paddingVertical: 40, paddingHorizontal: 20 }]}>
+      {/* Header with improved styling - REMOVED "Gestión de eventos Mágicos" */}
+      <View style={[commonStyles.header, { paddingVertical: 50, paddingHorizontal: 20 }]}>
         <Text style={[commonStyles.title, { 
-          fontSize: 36, 
+          fontSize: 42, 
           fontWeight: '800',
           color: colors.primary,
           textAlign: 'center',
-          marginBottom: 8
+          marginBottom: 20
         }]}>
           ✨ Abrakadabra ✨
-        </Text>
-        <Text style={[commonStyles.subtitle, { 
-          fontSize: 18,
-          color: colors.textLight,
-          textAlign: 'center',
-          fontWeight: '500'
-        }]}>
-          Gestión de Eventos Mágicos
         </Text>
       </View>
 
