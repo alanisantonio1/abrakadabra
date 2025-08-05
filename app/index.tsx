@@ -1,5 +1,5 @@
 
-import { loadEvents, runGoogleSheetsDiagnostics, importEventsFromGoogleSheets, addSampleEvents } from '../utils/storage';
+import { loadEvents } from '../utils/storage';
 import { Event } from '../types';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { commonStyles, colors } from '../styles/commonStyles';
@@ -12,8 +12,6 @@ export default function MainScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
   const [loading, setLoading] = useState(true);
-  const [isImporting, setIsImporting] = useState(false);
-  const [isAddingTestEvents, setIsAddingTestEvents] = useState(false);
 
   useEffect(() => {
     loadEventsData();
@@ -63,106 +61,6 @@ export default function MainScreen() {
       .filter(event => event.date >= todayString)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 3);
-  };
-
-  const runDiagnostics = async () => {
-    try {
-      console.log('🔍 Starting Google Sheets diagnostics...');
-      const result = await runGoogleSheetsDiagnostics();
-      
-      Alert.alert(
-        'Diagnósticos de Google Sheets',
-        result,
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('❌ Diagnostics error:', error);
-      Alert.alert('Error', 'Error ejecutando diagnósticos');
-    }
-  };
-
-  const importFromGoogleSheets = async () => {
-    if (isImporting) return;
-    
-    try {
-      setIsImporting(true);
-      console.log('📥 Starting import from Google Sheets...');
-      
-      Alert.alert(
-        'Importar desde Google Sheets',
-        'Importando eventos desde Google Sheets...',
-        [{ text: 'OK' }]
-      );
-      
-      const success = await importEventsFromGoogleSheets();
-      
-      if (success) {
-        Alert.alert(
-          'Importación Exitosa',
-          'Los eventos han sido importados desde Google Sheets.',
-          [{ 
-            text: 'OK',
-            onPress: () => loadEventsData() // Refresh events after import
-          }]
-        );
-      } else {
-        Alert.alert(
-          'Error de Importación',
-          'No se pudieron importar los eventos desde Google Sheets. Verifica la conexión y configuración.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('❌ Import error:', error);
-      Alert.alert(
-        'Error', 
-        `Error importando desde Google Sheets: ${error.message || error}`
-      );
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
-  const addTestEvents = async () => {
-    if (isAddingTestEvents) return;
-    
-    try {
-      setIsAddingTestEvents(true);
-      console.log('🧪 Adding sample events...');
-      
-      Alert.alert(
-        'Agregar Eventos de Prueba',
-        'Agregando eventos de prueba para verificar la funcionalidad...',
-        [{ text: 'OK' }]
-      );
-      
-      const success = await addSampleEvents();
-      
-      if (success) {
-        Alert.alert(
-          'Eventos Agregados',
-          'Se han agregado eventos de prueba exitosamente.',
-          [{ 
-            text: 'OK',
-            onPress: () => loadEventsData() // Refresh events after adding
-          }]
-        );
-      } else {
-        Alert.alert(
-          'Error',
-          'No se pudieron agregar los eventos de prueba. Verifica la conexión a la base de datos.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('❌ Add sample events error:', error);
-      Alert.alert(
-        'Error', 
-        `Error agregando eventos de prueba: ${error.message || error}`
-      );
-    } finally {
-      setIsAddingTestEvents(false);
-    }
   };
 
   const renderMainScreen = () => (
@@ -237,56 +135,6 @@ export default function MainScreen() {
           >
             <Text style={commonStyles.buttonText}>Ver Paquetes</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              commonStyles.primaryButton, 
-              { 
-                width: '100%',
-                marginBottom: 16,
-                backgroundColor: isImporting ? '#cccccc' : '#4CAF50',
-                opacity: isImporting ? 0.6 : 1
-              }
-            ]}
-            onPress={importFromGoogleSheets}
-            disabled={isImporting}
-          >
-            <Text style={commonStyles.buttonText}>
-              {isImporting ? '⏳ Importando...' : '📥 Importar desde Google Sheets'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              commonStyles.primaryButton, 
-              { 
-                width: '100%',
-                marginBottom: 16,
-                backgroundColor: isAddingTestEvents ? '#cccccc' : '#FF9800',
-                opacity: isAddingTestEvents ? 0.6 : 1
-              }
-            ]}
-            onPress={addTestEvents}
-            disabled={isAddingTestEvents}
-          >
-            <Text style={commonStyles.buttonText}>
-              {isAddingTestEvents ? '⏳ Agregando...' : '🧪 Agregar Eventos de Prueba'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              commonStyles.primaryButton, 
-              { 
-                width: '100%',
-                marginBottom: 16,
-                backgroundColor: '#FF6B6B'
-              }
-            ]}
-            onPress={runDiagnostics}
-          >
-            <Text style={commonStyles.buttonText}>🔍 Diagnósticos Google Sheets</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -314,7 +162,7 @@ export default function MainScreen() {
                 No hay eventos próximos
               </Text>
               <Text style={[commonStyles.text, { textAlign: 'center', fontSize: 14, color: '#666' }]}>
-                Usa los botones de arriba para agregar eventos de prueba o importar desde Google Sheets
+                Los eventos se cargan automáticamente desde Google Sheets
               </Text>
             </View>
           )}
