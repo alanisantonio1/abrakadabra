@@ -90,6 +90,60 @@ export const testRangeAccess = async (): Promise<boolean> => {
   }
 };
 
+// Test write permissions
+export const testWritePermissions = async (): Promise<{ canWrite: boolean; error?: string }> => {
+  try {
+    console.log('🔍 Testing write permissions...');
+    
+    // Try to append a test row
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    
+    const testData = {
+      values: [['TEST_WRITE_PERMISSION', 'DELETE_THIS_ROW', '', '', '', '', '', '', '']]
+    };
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(testData)
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log('✅ Write permissions test successful');
+      return { canWrite: true };
+    } else {
+      console.error('❌ Write permissions test failed:', response.status, data);
+      
+      if (response.status === 401) {
+        return { 
+          canWrite: false, 
+          error: 'API key no tiene permisos de escritura. Necesitas configurar OAuth o una cuenta de servicio.' 
+        };
+      } else if (response.status === 403) {
+        return { 
+          canWrite: false, 
+          error: 'Acceso denegado. Verifica que la hoja esté compartida correctamente.' 
+        };
+      } else {
+        return { 
+          canWrite: false, 
+          error: `Error ${response.status}: ${data.error?.message || 'Error desconocido'}` 
+        };
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error testing write permissions:', error);
+    return { 
+      canWrite: false, 
+      error: `Error de conexión: ${error}` 
+    };
+  }
+};
+
 // Format date for Google Sheets (ensure consistent format)
 const formatDateForSheets = (dateString: string): string => {
   try {
@@ -210,7 +264,7 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
 };
 
 // Save event to Google Sheets
-export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> => {
+export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('💾 Saving event to Google Sheets:', event.id);
     console.log('📋 Event details:', {
@@ -252,20 +306,33 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> =>
     if (response.ok) {
       console.log('✅ Event saved to Google Sheets successfully');
       console.log('📊 Updated range:', data.updates?.updatedRange);
-      return true;
+      return { success: true };
     } else {
       console.error('❌ Error saving to Google Sheets:', data);
       console.error('❌ Response status:', response.status);
-      return false;
+      
+      let errorMessage = 'Error desconocido';
+      
+      if (response.status === 401) {
+        errorMessage = 'API key no tiene permisos de escritura. Solo se puede leer de Google Sheets.';
+      } else if (response.status === 403) {
+        errorMessage = 'Acceso denegado. Verifica los permisos de la hoja.';
+      } else if (response.status === 400) {
+        errorMessage = 'Datos inválidos o formato incorrecto.';
+      } else if (data.error?.message) {
+        errorMessage = data.error.message;
+      }
+      
+      return { success: false, error: errorMessage };
     }
   } catch (error) {
     console.error('❌ Error saving event to Google Sheets:', error);
-    return false;
+    return { success: false, error: `Error de conexión: ${error}` };
   }
 };
 
 // Update event in Google Sheets (find and replace)
-export const updateEventInGoogleSheets = async (event: Event): Promise<boolean> => {
+export const updateEventInGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🔄 Updating event in Google Sheets:', event.id);
     
@@ -305,19 +372,29 @@ export const updateEventInGoogleSheets = async (event: Event): Promise<boolean> 
     
     if (response.ok) {
       console.log('✅ Event updated in Google Sheets successfully');
-      return true;
+      return { success: true };
     } else {
       console.error('❌ Error updating in Google Sheets:', data);
-      return false;
+      
+      let errorMessage = 'Error desconocido';
+      if (response.status === 401) {
+        errorMessage = 'API key no tiene permisos de escritura.';
+      } else if (response.status === 403) {
+        errorMessage = 'Acceso denegado.';
+      } else if (data.error?.message) {
+        errorMessage = data.error.message;
+      }
+      
+      return { success: false, error: errorMessage };
     }
   } catch (error) {
     console.error('❌ Error updating event in Google Sheets:', error);
-    return false;
+    return { success: false, error: `Error de conexión: ${error}` };
   }
 };
 
 // Delete event from Google Sheets (clear row)
-export const deleteEventFromGoogleSheets = async (event: Event): Promise<boolean> => {
+export const deleteEventFromGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🗑️ Deleting event from Google Sheets:', event.id);
     
@@ -331,7 +408,7 @@ export const deleteEventFromGoogleSheets = async (event: Event): Promise<boolean
     
     if (eventIndex === -1) {
       console.warn('⚠️ Event not found in Google Sheets');
-      return false;
+      return { success: false, error: 'Evento no encontrado en Google Sheets' };
     }
     
     // Calculate actual row number (add 2: 1 for header, 1 for 0-based index)
@@ -351,19 +428,29 @@ export const deleteEventFromGoogleSheets = async (event: Event): Promise<boolean
     
     if (response.ok) {
       console.log('✅ Event deleted from Google Sheets successfully');
-      return true;
+      return { success: true };
     } else {
       console.error('❌ Error deleting from Google Sheets:', data);
-      return false;
+      
+      let errorMessage = 'Error desconocido';
+      if (response.status === 401) {
+        errorMessage = 'API key no tiene permisos de escritura.';
+      } else if (response.status === 403) {
+        errorMessage = 'Acceso denegado.';
+      } else if (data.error?.message) {
+        errorMessage = data.error.message;
+      }
+      
+      return { success: false, error: errorMessage };
     }
   } catch (error) {
     console.error('❌ Error deleting event from Google Sheets:', error);
-    return false;
+    return { success: false, error: `Error de conexión: ${error}` };
   }
 };
 
 // Test save functionality
-export const testSaveToGoogleSheets = async (): Promise<boolean> => {
+export const testSaveToGoogleSheets = async (): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🧪 Testing save functionality...');
     
@@ -383,13 +470,13 @@ export const testSaveToGoogleSheets = async (): Promise<boolean> => {
       createdAt: new Date().toISOString()
     };
     
-    const success = await saveEventToGoogleSheets(testEvent);
-    console.log('🧪 Test save result:', success);
+    const result = await saveEventToGoogleSheets(testEvent);
+    console.log('🧪 Test save result:', result);
     
-    return success;
+    return result;
   } catch (error) {
     console.error('❌ Error testing save functionality:', error);
-    return false;
+    return { success: false, error: `Error de prueba: ${error}` };
   }
 };
 
@@ -442,16 +529,45 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
       diagnostics += `   - Último evento: ${events[events.length - 1].customerName} - ${events[events.length - 1].date}\n`;
     }
     
-    // Test 5: Test save functionality
-    diagnostics += '\n5. Probando funcionalidad de guardado...\n';
-    const saveTest = await testSaveToGoogleSheets();
-    diagnostics += `   - Prueba de guardado: ${saveTest ? '✅ OK' : '❌ FALLO'}\n`;
+    // Test 5: Write permissions
+    diagnostics += '\n5. Probando permisos de escritura...\n';
+    const writeTest = await testWritePermissions();
+    diagnostics += `   - Permisos de escritura: ${writeTest.canWrite ? '✅ OK' : '❌ FALLO'}\n`;
+    
+    if (!writeTest.canWrite) {
+      diagnostics += `   - Error: ${writeTest.error}\n`;
+      diagnostics += '\n⚠️ PROBLEMA DETECTADO:\n';
+      diagnostics += 'La API key actual solo permite LECTURA de Google Sheets.\n';
+      diagnostics += 'Para ESCRIBIR necesitas:\n';
+      diagnostics += '1. Configurar OAuth 2.0, o\n';
+      diagnostics += '2. Usar una cuenta de servicio con permisos de escritura\n';
+      diagnostics += '\nMientras tanto, los eventos se guardan localmente.\n';
+    } else {
+      // Test 6: Test save functionality
+      diagnostics += '\n6. Probando funcionalidad de guardado...\n';
+      const saveTest = await testSaveToGoogleSheets();
+      diagnostics += `   - Prueba de guardado: ${saveTest.success ? '✅ OK' : '❌ FALLO'}\n`;
+      
+      if (!saveTest.success) {
+        diagnostics += `   - Error: ${saveTest.error}\n`;
+      }
+    }
     
     diagnostics += '\n✅ Diagnósticos completados';
     diagnostics += '\n\n📋 Configuración actual:';
     diagnostics += `\n   - Spreadsheet ID: ${SPREADSHEET_ID}`;
     diagnostics += `\n   - Rango: ${RANGE}`;
     diagnostics += `\n   - API Key: ${GOOGLE_SHEETS_API_KEY.substring(0, 10)}...`;
+    
+    if (!writeTest.canWrite) {
+      diagnostics += '\n\n🔧 SOLUCIÓN RECOMENDADA:';
+      diagnostics += '\nPara habilitar escritura a Google Sheets:';
+      diagnostics += '\n1. Ve a Google Cloud Console';
+      diagnostics += '\n2. Crea una cuenta de servicio';
+      diagnostics += '\n3. Descarga el archivo JSON de credenciales';
+      diagnostics += '\n4. Comparte tu hoja con el email de la cuenta de servicio';
+      diagnostics += '\n5. Actualiza el código para usar las credenciales de servicio';
+    }
     
     return diagnostics;
   } catch (error) {

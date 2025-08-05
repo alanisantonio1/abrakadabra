@@ -1,267 +1,238 @@
 
-import { loadEvents } from '../utils/storage';
-import { runGoogleSheetsDiagnostics, testSaveToGoogleSheets } from '../utils/googleSheets';
-import { Event } from '../types';
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { commonStyles, colors } from '../styles/commonStyles';
-import EventCard from '../components/EventCard';
 import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import CalendarView from '../components/CalendarView';
+import EventCard from '../components/EventCard';
+import { Event } from '../types';
+import { loadEvents } from '../utils/storage';
+import { runGoogleSheetsDiagnostics, testSaveToGoogleSheets } from '../utils/googleSheets';
+import { commonStyles, colors } from '../styles/commonStyles';
 
 export default function MainScreen() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadEventsData();
   }, []);
 
-  // Refresh events when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('🔄 Main screen focused, refreshing events...');
       loadEventsData();
     }, [])
   );
 
   const loadEventsData = async () => {
     try {
-      setLoading(true);
       console.log('🔄 Loading events data...');
       const loadedEvents = await loadEvents();
       setEvents(loadedEvents);
       console.log('✅ Events loaded:', loadedEvents.length);
     } catch (error) {
       console.error('❌ Error loading events:', error);
-      Alert.alert('Error', 'No se pudieron cargar los eventos');
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleDateSelect = (date: string) => {
-    console.log('📅 Date selected:', date);
-    const existingEvent = events.find(event => event.date === date);
-    
-    if (existingEvent) {
-      console.log('📋 Existing event found, navigating to details');
-      router.push(`/event/${existingEvent.id}`);
-    } else {
-      console.log('➕ No existing event, navigating to schedule');
-      router.push(`/schedule?date=${date}`);
-    }
+    setSelectedDate(date);
+    router.push(`/schedule?date=${date}`);
   };
 
   const getUpcomingEvents = () => {
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    today.setHours(0, 0, 0, 0);
     
     return events
-      .filter(event => event.date >= todayString)
-      .sort((a, b) => a.date.localeCompare(b.date))
+      .filter(event => {
+        const eventDate = new Date(event.date);
+        return eventDate >= today;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 3);
   };
 
   const testGoogleSheets = async () => {
     try {
-      console.log('🧪 Testing Google Sheets connection...');
+      console.log('🧪 Running Google Sheets diagnostics...');
       const diagnostics = await runGoogleSheetsDiagnostics();
-      Alert.alert('Diagnósticos Google Sheets', diagnostics);
+      
+      Alert.alert(
+        'Diagnósticos Google Sheets',
+        diagnostics,
+        [
+          { text: 'OK' }
+        ],
+        { 
+          cancelable: true
+        }
+      );
     } catch (error) {
-      console.error('❌ Error testing Google Sheets:', error);
-      Alert.alert('Error', 'Error al probar Google Sheets: ' + error);
+      console.error('❌ Error running diagnostics:', error);
+      Alert.alert(
+        'Error',
+        'Error al ejecutar diagnósticos: ' + error,
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const testSaveEvent = async () => {
     try {
-      console.log('🧪 Testing save event to Google Sheets...');
+      console.log('🧪 Testing save event...');
       const result = await testSaveToGoogleSheets();
-      Alert.alert(
-        'Prueba de Guardado',
-        result ? '✅ Evento de prueba guardado exitosamente' : '❌ Error al guardar evento de prueba'
-      );
+      
+      let message = '';
+      let title = '';
+      
+      if (result.success) {
+        title = '✅ Prueba Exitosa';
+        message = 'El evento de prueba se guardó correctamente en Google Sheets.\n\n' +
+                 '⚠️ IMPORTANTE: Elimina la fila de prueba de tu hoja de cálculo.';
+      } else {
+        title = '❌ Prueba Fallida';
+        message = `No se pudo guardar en Google Sheets:\n\n${result.error}\n\n` +
+                 'Los eventos se guardarán solo localmente hasta que se resuelva el problema.';
+        
+        if (result.error?.includes('permisos de escritura')) {
+          message += '\n\n💡 SOLUCIÓN:\n' +
+                    'Para escribir a Google Sheets necesitas:\n' +
+                    '1. Configurar OAuth 2.0, o\n' +
+                    '2. Usar una cuenta de servicio\n\n' +
+                    'Mientras tanto, puedes leer eventos desde la hoja pero no escribir nuevos.';
+        }
+      }
+      
+      Alert.alert(title, message, [{ text: 'OK' }]);
     } catch (error) {
       console.error('❌ Error testing save:', error);
-      Alert.alert('Error', 'Error al probar guardado: ' + error);
+      Alert.alert(
+        'Error',
+        'Error al probar guardado: ' + error,
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const renderMainScreen = () => (
     <ScrollView style={commonStyles.container}>
-      {/* Centered Header */}
-      <View style={{ 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        paddingVertical: 40,
-        paddingHorizontal: 20
-      }}>
-        <View style={{ 
-          flexDirection: 'row', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          marginBottom: 40
-        }}>
-          <Text style={[
-            commonStyles.title, 
-            { 
-              fontSize: 32, 
-              fontWeight: 'bold', 
-              color: colors.primary,
-              textAlign: 'center'
-            }
-          ]}>
-            Abrakadabra
-          </Text>
-          <Text style={{ fontSize: 24, marginLeft: 8 }}>✨</Text>
-        </View>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.title}>🎪 Abrakadabra</Text>
+        <Text style={commonStyles.subtitle}>Gestión de Eventos</Text>
+      </View>
 
-        {/* Centered Buttons */}
-        <View style={{ width: '100%', maxWidth: 300, alignItems: 'center' }}>
+      <View style={commonStyles.section}>
+        <View style={commonStyles.buttonGrid}>
           <TouchableOpacity
-            style={[
-              commonStyles.primaryButton, 
-              { 
-                width: '100%',
-                marginBottom: 16,
-                backgroundColor: colors.primary
-              }
-            ]}
+            style={[commonStyles.gridButton, { backgroundColor: colors.primary }]}
             onPress={() => setCurrentView('calendar')}
           >
-            <Text style={commonStyles.buttonText}>Ver Disponibilidad</Text>
+            <Text style={commonStyles.gridButtonText}>📅</Text>
+            <Text style={commonStyles.gridButtonLabel}>Calendario</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              commonStyles.primaryButton, 
-              { 
-                width: '100%',
-                marginBottom: 16,
-                backgroundColor: colors.secondary
-              }
-            ]}
+            style={[commonStyles.gridButton, { backgroundColor: colors.secondary }]}
             onPress={() => router.push('/events')}
           >
-            <Text style={commonStyles.buttonText}>Ver Eventos</Text>
+            <Text style={commonStyles.gridButtonText}>📋</Text>
+            <Text style={commonStyles.gridButtonLabel}>Ver Eventos</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              commonStyles.primaryButton, 
-              { 
-                width: '100%',
-                marginBottom: 16,
-                backgroundColor: colors.accent
-              }
-            ]}
+            style={[commonStyles.gridButton, { backgroundColor: colors.accent }]}
             onPress={() => router.push('/packages')}
           >
-            <Text style={commonStyles.buttonText}>Ver Paquetes</Text>
+            <Text style={commonStyles.gridButtonText}>🎁</Text>
+            <Text style={commonStyles.gridButtonLabel}>Paquetes</Text>
           </TouchableOpacity>
 
-          {/* Debug buttons - temporary */}
-          <View style={{ width: '100%', marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#eee' }}>
-            <Text style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 10 }}>
-              Herramientas de Diagnóstico
-            </Text>
-            <TouchableOpacity
-              style={[
-                commonStyles.primaryButton, 
-                { 
-                  width: '100%',
-                  marginBottom: 8,
-                  backgroundColor: '#666',
-                  paddingVertical: 8
-                }
-              ]}
-              onPress={testGoogleSheets}
-            >
-              <Text style={[commonStyles.buttonText, { fontSize: 12 }]}>Probar Conexión Google Sheets</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                commonStyles.primaryButton, 
-                { 
-                  width: '100%',
-                  marginBottom: 8,
-                  backgroundColor: '#888',
-                  paddingVertical: 8
-                }
-              ]}
-              onPress={testSaveEvent}
-            >
-              <Text style={[commonStyles.buttonText, { fontSize: 12 }]}>Probar Guardar Evento</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={[commonStyles.gridButton, { backgroundColor: '#FF6B6B' }]}
+            onPress={testGoogleSheets}
+          >
+            <Text style={commonStyles.gridButtonText}>🔧</Text>
+            <Text style={commonStyles.gridButtonLabel}>Probar Conexión</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Upcoming Events Section */}
-      {loading ? (
-        <View style={[commonStyles.section, { paddingHorizontal: 20 }]}>
-          <Text style={[commonStyles.text, { textAlign: 'center' }]}>Cargando eventos...</Text>
-        </View>
-      ) : (
-        <View style={[commonStyles.section, { paddingHorizontal: 20 }]}>
-          <Text style={[commonStyles.sectionTitle, { textAlign: 'center', marginBottom: 20 }]}>
-            Próximos Eventos ({events.length} total)
+      {/* Test Save Button - Only show if there are connection issues */}
+      <View style={commonStyles.section}>
+        <TouchableOpacity
+          style={[commonStyles.button, { backgroundColor: '#FFA500', marginBottom: 10 }]}
+          onPress={testSaveEvent}
+        >
+          <Text style={[commonStyles.buttonText, { color: 'white' }]}>
+            🧪 Probar Guardado en Google Sheets
           </Text>
-          {getUpcomingEvents().length > 0 ? (
-            getUpcomingEvents().map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onPress={() => router.push(`/event/${event.id}`)}
-              />
-            ))
-          ) : (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-              <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 10 }]}>
-                No hay eventos próximos
-              </Text>
-              <Text style={[commonStyles.text, { textAlign: 'center', fontSize: 14, color: '#666' }]}>
-                Los eventos se cargan automáticamente desde Google Sheets
-              </Text>
-            </View>
-          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Próximos Eventos</Text>
+        {getUpcomingEvents().length > 0 ? (
+          getUpcomingEvents().map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => router.push(`/event/${event.id}`)}
+            />
+          ))
+        ) : (
+          <View style={commonStyles.emptyState}>
+            <Text style={commonStyles.emptyStateText}>
+              No hay eventos próximos
+            </Text>
+            <Text style={commonStyles.emptyStateSubtext}>
+              Usa el calendario para agendar un nuevo evento
+            </Text>
+          </View>
+        )}
+      </View>
+
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Estadísticas</Text>
+        <View style={commonStyles.statsContainer}>
+          <View style={commonStyles.statItem}>
+            <Text style={commonStyles.statNumber}>{events.length}</Text>
+            <Text style={commonStyles.statLabel}>Total Eventos</Text>
+          </View>
+          <View style={commonStyles.statItem}>
+            <Text style={commonStyles.statNumber}>
+              {events.filter(e => e.isPaid).length}
+            </Text>
+            <Text style={commonStyles.statLabel}>Pagados</Text>
+          </View>
+          <View style={commonStyles.statItem}>
+            <Text style={commonStyles.statNumber}>
+              {events.filter(e => !e.isPaid).length}
+            </Text>
+            <Text style={commonStyles.statLabel}>Pendientes</Text>
+          </View>
         </View>
-      )}
+      </View>
     </ScrollView>
   );
 
   const renderCalendarScreen = () => (
     <View style={commonStyles.container}>
-      <View style={[commonStyles.header, { flexDirection: 'column', alignItems: 'center' }]}>
+      <View style={commonStyles.header}>
         <TouchableOpacity
-          style={[
-            commonStyles.backButton, 
-            { 
-              marginBottom: 15,
-              backgroundColor: colors.secondary,
-              paddingVertical: 12,
-              paddingHorizontal: 20,
-              borderRadius: 8
-            }
-          ]}
+          style={[commonStyles.backButton, { backgroundColor: colors.secondary }]}
           onPress={() => setCurrentView('main')}
         >
-          <Text style={[commonStyles.backButtonText, { color: 'white' }]}>← Volver al Menú</Text>
+          <Text style={[commonStyles.backButtonText, { color: 'white' }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[commonStyles.title, { textAlign: 'center' }]}>
-          Calendario de Disponibilidad
-        </Text>
-        <Text style={[commonStyles.subtitle, { textAlign: 'center' }]}>
-          Verde: Disponible • Rojo: Ocupado
-        </Text>
+        <Text style={commonStyles.title}>Calendario</Text>
+        <Text style={commonStyles.subtitle}>Selecciona una fecha para agendar</Text>
       </View>
 
       <CalendarView
         events={events}
         onDateSelect={handleDateSelect}
+        selectedDate={selectedDate}
       />
     </View>
   );

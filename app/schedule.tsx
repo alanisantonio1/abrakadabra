@@ -183,7 +183,16 @@ export default function ScheduleScreen() {
         if (result.savedToGoogleSheets) {
           successMessage += '✅ Guardado en Google Sheets y localmente';
         } else {
-          successMessage += '⚠️ Guardado localmente (Google Sheets no disponible)';
+          successMessage += '⚠️ Guardado localmente';
+          
+          if (result.googleSheetsError) {
+            if (result.googleSheetsError.includes('permisos de escritura')) {
+              successMessage += '\n\n📝 Nota: Google Sheets está en modo solo lectura.';
+              successMessage += '\nLos eventos se pueden leer desde la hoja pero no escribir.';
+            } else {
+              successMessage += `\n\nError Google Sheets: ${result.googleSheetsError}`;
+            }
+          }
         }
 
         Alert.alert(
@@ -200,7 +209,7 @@ export default function ScheduleScreen() {
           ]
         );
       } else {
-        throw new Error('Failed to save event');
+        throw new Error(result.error || 'Failed to save event');
       }
     } catch (error) {
       console.error('❌ Error saving event:', error);
