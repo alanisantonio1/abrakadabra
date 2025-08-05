@@ -1,5 +1,5 @@
 {
-  "name": "Natively",
+  "name": "abrakadabra-events-app-mcuwhd",
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
@@ -40,6 +40,7 @@
     "expo-symbols": "^0.4.4",
     "expo-system-ui": "^5.0.7",
     "expo-web-browser": "^14.1.6",
+    "googleapis": "^155.0.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",

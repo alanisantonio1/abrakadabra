@@ -13,38 +13,51 @@ export default function MainScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
+    console.log('MainScreen: Initial load');
     loadEventsData();
   }, []);
 
   // Refresh events when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('Main screen focused, reloading events...');
+      console.log('MainScreen: Screen focused, reloading events...');
       loadEventsData();
     }, [])
   );
 
   const loadEventsData = async () => {
     console.log('MainScreen: Loading events...');
-    const loadedEvents = await loadEvents();
-    setEvents(loadedEvents);
-    console.log('MainScreen: Loaded events:', loadedEvents.length);
-    console.log('MainScreen: Events state updated with:', loadedEvents.map(e => ({ id: e.id, date: e.date, customerName: e.customerName })));
+    try {
+      const loadedEvents = await loadEvents();
+      console.log('MainScreen: Events loaded from storage:', loadedEvents.length);
+      console.log('MainScreen: Event details:', loadedEvents.map(e => ({ 
+        id: e.id, 
+        date: e.date, 
+        customerName: e.customerName,
+        packageType: e.packageType 
+      })));
+      
+      setEvents(loadedEvents);
+      console.log('MainScreen: State updated with events');
+    } catch (error) {
+      console.error('MainScreen: Error loading events:', error);
+    }
   };
 
   const handleDateSelect = (date: string) => {
-    console.log('Selected date:', date);
+    console.log('MainScreen: Date selected:', date);
     
     // Check if the date has any events (unavailable)
     const dateEvents = events.filter(event => event.date === date);
+    console.log('MainScreen: Events for selected date:', dateEvents.length);
     
     if (dateEvents.length > 0) {
       // Date is unavailable (red) - show event details
-      console.log('Date unavailable, showing event details for:', dateEvents[0].id);
+      console.log('MainScreen: Date unavailable, showing event details for:', dateEvents[0].id);
       router.push(`/event/${dateEvents[0].id}`);
     } else {
       // Date is available (green) - go to schedule screen
-      console.log('Date available, navigating to schedule');
+      console.log('MainScreen: Date available, navigating to schedule');
       router.push(`/schedule?date=${date}`);
     }
   };
@@ -77,6 +90,21 @@ export default function MainScreen() {
           Sistema de gestión para eventos infantiles
         </Text>
 
+        {/* Google Sheets Connection Status */}
+        <View style={[commonStyles.card, { 
+          marginHorizontal: 20,
+          marginBottom: 30,
+          backgroundColor: colors.warning + '20',
+          borderColor: colors.warning
+        }]}>
+          <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 8, fontWeight: '600' }]}>
+            🔗 Conexión con Google Sheets
+          </Text>
+          <Text style={[commonStyles.textLight, { textAlign: 'center', fontSize: 12 }]}>
+            Los datos se sincronizan automáticamente con tu hoja de cálculo
+          </Text>
+        </View>
+
         {/* Main Action Button */}
         <TouchableOpacity
           style={[commonStyles.card, {
@@ -90,7 +118,10 @@ export default function MainScreen() {
             elevation: 6,
             borderWidth: 0
           }]}
-          onPress={() => setShowCalendar(true)}
+          onPress={() => {
+            console.log('MainScreen: Opening calendar view');
+            setShowCalendar(true);
+          }}
         >
           <Text style={[commonStyles.text, {
             color: colors.backgroundAlt,
@@ -195,7 +226,10 @@ export default function MainScreen() {
             borderRadius: 8,
             marginRight: 16
           }}
-          onPress={() => setShowCalendar(false)}
+          onPress={() => {
+            console.log('MainScreen: Closing calendar view');
+            setShowCalendar(false);
+          }}
         >
           <Text style={{
             color: colors.backgroundAlt,

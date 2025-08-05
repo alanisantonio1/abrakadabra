@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
 import { Event } from '../types';
 import { packages } from '../data/packages';
-import { saveEvents, loadEvents, generateEventId } from '../utils/storage';
+import { saveEvent, loadEvents, generateEventId } from '../utils/storage';
 import PackageCard from '../components/PackageCard';
 import Button from '../components/Button';
 
@@ -14,7 +14,7 @@ export default function ScheduleScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [formData, setFormData] = useState({
     date: date || new Date().toISOString().split('T')[0],
-    time: '',
+    time: '15:00',
     customerName: '',
     customerPhone: '',
     childName: '',
@@ -41,8 +41,10 @@ export default function ScheduleScreen() {
   }, [formData.packageType, formData.date]);
 
   const loadEventsData = async () => {
+    console.log('ScheduleScreen: Loading events...');
     const loadedEvents = await loadEvents();
     setEvents(loadedEvents);
+    console.log('ScheduleScreen: Loaded events:', loadedEvents.length);
   };
 
   const handleInputChange = (field: string, value: string | number) => {
@@ -75,47 +77,96 @@ export default function ScheduleScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-
-    const newEvent: Event = {
-      id: generateEventId(),
-      date: formData.date,
-      time: formData.time,
-      customerName: formData.customerName,
-      customerPhone: formData.customerPhone,
-      childName: formData.childName,
-      packageType: formData.packageType as 'Abra' | 'Kadabra' | 'Abrakadabra',
-      totalAmount: formData.totalAmount,
-      deposit: formData.deposit,
-      remainingAmount: formData.totalAmount - formData.deposit,
-      isPaid: formData.deposit >= formData.totalAmount,
-      notes: formData.notes,
-      createdAt: new Date().toISOString()
-    };
-
-    const updatedEvents = [...events, newEvent];
-    await saveEvents(updatedEvents);
+    console.log('ScheduleScreen: Submitting form...');
     
-    console.log('Event saved successfully:', newEvent);
-    console.log('Total events after save:', updatedEvents.length);
-    
-    Alert.alert(
-      'Éxito',
-      'Evento agendado correctamente',
-      [{ text: 'OK', onPress: () => {
-        console.log('Navigating back to main screen...');
-        router.back();
-      }}]
-    );
+    if (!validateForm()) {
+      console.log('ScheduleScreen: Form validation failed');
+      return;
+    }
+
+    try {
+      const newEvent: Event = {
+        id: generateEventId(),
+        date: formData.date,
+        time: formData.time,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        childName: formData.childName,
+        packageType: formData.packageType as 'Abra' | 'Kadabra' | 'Abrakadabra',
+        totalAmount: formData.totalAmount,
+        deposit: formData.deposit,
+        remainingAmount: formData.totalAmount - formData.deposit,
+        isPaid: formData.deposit >= formData.totalAmount,
+        notes: formData.notes,
+        createdAt: new Date().toISOString()
+      };
+
+      console.log('ScheduleScreen: Saving new event:', newEvent);
+      
+      await saveEvent(newEvent);
+      
+      console.log('ScheduleScreen: Event saved successfully');
+      
+      Alert.alert(
+        'Éxito',
+        'Evento agendado correctamente. La información se ha guardado en Google Sheets.',
+        [{ 
+          text: 'OK', 
+          onPress: () => {
+            console.log('ScheduleScreen: Navigating back to main screen...');
+            router.back();
+          }
+        }]
+      );
+    } catch (error) {
+      console.error('ScheduleScreen: Error saving event:', error);
+      Alert.alert('Error', 'Hubo un problema al guardar el evento. Por favor intenta de nuevo.');
+    }
   };
 
   const isWeekend = new Date(formData.date).getDay() === 0 || new Date(formData.date).getDay() === 6;
 
   return (
     <ScrollView style={commonStyles.container}>
-      <Text style={commonStyles.title}>📅 Agendar Nuevo Evento</Text>
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 20,
+        paddingBottom: 10
+      }}>
+        <TouchableOpacity
+          style={{
+            backgroundColor: colors.text,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 8,
+            marginRight: 16
+          }}
+          onPress={() => router.back()}
+        >
+          <Text style={{
+            color: colors.backgroundAlt,
+            fontWeight: '600'
+          }}>
+            ← Volver
+          </Text>
+        </TouchableOpacity>
+        <Text style={[commonStyles.title, { flex: 1, marginTop: 0, marginBottom: 0 }]}>
+          📅 Agendar Evento
+        </Text>
+      </View>
 
       <View style={commonStyles.content}>
+        <View style={[commonStyles.card, { marginBottom: 16 }]}>
+          <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 8 }]}>
+            📅 Fecha seleccionada: <Text style={{ fontWeight: '700', color: colors.primary }}>{formData.date}</Text>
+          </Text>
+          <Text style={[commonStyles.textLight, { textAlign: 'center' }]}>
+            {isWeekend ? '🎉 Fin de semana - Precios especiales' : '📅 Entre semana - Precios regulares'}
+          </Text>
+        </View>
+
         <View style={commonStyles.section}>
           <Text style={commonStyles.subtitle}>Información del Evento</Text>
           
@@ -186,7 +237,11 @@ export default function ScheduleScreen() {
           <View style={commonStyles.section}>
             <Text style={commonStyles.subtitle}>Información de Pago</Text>
             
-            <Text style={commonStyles.text}>Monto Total: ${formData.totalAmount}</Text>
+            <View style={[commonStyles.card, { backgroundColor: colors.success + '20', borderColor: colors.success }]}>
+              <Text style={[commonStyles.text, { textAlign: 'center', fontWeight: '700', color: colors.success }]}>
+                Monto Total: ${formData.totalAmount}
+              </Text>
+            </View>
             
             <Text style={commonStyles.text}>Anticipo</Text>
             <TextInput
@@ -197,9 +252,11 @@ export default function ScheduleScreen() {
               keyboardType="numeric"
             />
 
-            <Text style={commonStyles.text}>
-              Saldo Pendiente: ${formData.totalAmount - formData.deposit}
-            </Text>
+            <View style={[commonStyles.card, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}>
+              <Text style={[commonStyles.text, { textAlign: 'center', fontWeight: '600', color: colors.text }]}>
+                Saldo Pendiente: ${formData.totalAmount - formData.deposit}
+              </Text>
+            </View>
           </View>
         )}
 
@@ -216,7 +273,7 @@ export default function ScheduleScreen() {
 
         <View style={commonStyles.buttonContainer}>
           <Button
-            text="Agendar Evento"
+            text="💾 Guardar Evento"
             onPress={handleSubmit}
             style={buttonStyles.primary}
           />
@@ -224,7 +281,7 @@ export default function ScheduleScreen() {
 
         <View style={commonStyles.buttonContainer}>
           <Button
-            text="Cancelar"
+            text="❌ Cancelar"
             onPress={() => router.back()}
             style={buttonStyles.backButton}
           />

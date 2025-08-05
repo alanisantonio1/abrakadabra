@@ -16,20 +16,28 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
 
   useEffect(() => {
     console.log('CalendarView: Regenerating calendar days with', events.length, 'events');
+    console.log('CalendarView: Events data:', events.map(e => ({ date: e.date, customer: e.customerName })));
     generateCalendarDays();
   }, [currentMonth, events]);
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
+    
+    // Get first day of month and adjust for Monday start
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
+    
+    // Calculate start date (Monday of the week containing the first day)
     const startDate = new Date(firstDay);
-    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    const dayOfWeek = firstDay.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday = 0, so offset is -6
+    startDate.setDate(firstDay.getDate() + mondayOffset);
 
     const days: CalendarDay[] = [];
     const current = new Date(startDate);
 
+    // Generate 6 weeks (42 days) to ensure full calendar
     for (let i = 0; i < 42; i++) {
       const dateString = current.toISOString().split('T')[0];
       const dayEvents = events.filter(event => event.date === dateString);
@@ -47,6 +55,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       current.setDate(current.getDate() + 1);
     }
 
+    console.log('CalendarView: Generated', days.length, 'calendar days');
+    console.log('CalendarView: Days with events:', days.filter(d => d.events.length > 0).map(d => ({ date: d.date, eventCount: d.events.length })));
     setCalendarDays(days);
   };
 
@@ -54,11 +64,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     const newMonth = new Date(currentMonth);
     newMonth.setMonth(newMonth.getMonth() + (direction === 'next' ? 1 : -1));
     setCurrentMonth(newMonth);
+    console.log('CalendarView: Navigated to', newMonth.getFullYear(), newMonth.getMonth() + 1);
   };
 
   const isCurrentMonth = (date: string) => {
     const day = new Date(date);
-    return day.getMonth() === currentMonth.getMonth();
+    return day.getMonth() === currentMonth.getMonth() && day.getFullYear() === currentMonth.getFullYear();
   };
 
   const isToday = (date: string) => {
@@ -76,7 +87,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
-  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   return (
     <View style={styles.container}>
@@ -104,6 +115,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
           const isTodayDay = isToday(day.date);
           const isPast = isPastDate(day.date);
           const isClickable = isCurrentMonthDay && !isPast;
+          const hasEvents = day.events.length > 0;
 
           return (
             <TouchableOpacity
@@ -117,7 +129,12 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
                 isTodayDay && styles.today,
                 selectedDate === day.date && styles.selectedDay
               ]}
-              onPress={() => isClickable ? onDateSelect(day.date) : null}
+              onPress={() => {
+                if (isClickable) {
+                  console.log('CalendarView: Date selected:', day.date, 'Available:', day.isAvailable, 'Events:', day.events.length);
+                  onDateSelect(day.date);
+                }
+              }}
               disabled={!isClickable}
             >
               <Text style={[
@@ -130,7 +147,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
               ]}>
                 {new Date(day.date).getDate()}
               </Text>
-              {day.events.length > 0 && isCurrentMonthDay && (
+              {hasEvents && isCurrentMonthDay && (
                 <View style={styles.eventIndicator}>
                   <Text style={styles.eventCount}>{day.events.length}</Text>
                 </View>
