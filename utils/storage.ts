@@ -11,12 +11,12 @@ const loadEventsFromLocalStorage = async (): Promise<Event[]> => {
     const stored = await AsyncStorage.getItem(EVENTS_KEY);
     if (stored) {
       const events = JSON.parse(stored);
-      console.log('Events loaded from AsyncStorage:', events.length);
+      console.log('📱 Events loaded from AsyncStorage:', events.length);
       return events;
     }
     return [];
   } catch (error) {
-    console.error('Error loading events from AsyncStorage:', error);
+    console.error('❌ Error loading events from AsyncStorage:', error);
     return [];
   }
 };
@@ -25,31 +25,31 @@ const loadEventsFromLocalStorage = async (): Promise<Event[]> => {
 const saveEventsToLocalStorage = async (events: Event[]): Promise<void> => {
   try {
     await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events));
-    console.log('Events saved to AsyncStorage successfully:', events.length);
+    console.log('📱 Events saved to AsyncStorage successfully:', events.length);
   } catch (error) {
-    console.error('Error saving events to AsyncStorage:', error);
+    console.error('❌ Error saving events to AsyncStorage:', error);
   }
 };
 
 // Primary load function - tries Google Sheets first, falls back to AsyncStorage
 export const loadEvents = async (): Promise<Event[]> => {
   try {
-    console.log('Loading events...');
+    console.log('🔄 Loading events...');
     
     // Try to load from Google Sheets first
     let events = await loadEventsFromGoogleSheets();
     
     // If Google Sheets fails or returns empty, try AsyncStorage
     if (events.length === 0) {
-      console.log('No events from Google Sheets, trying AsyncStorage...');
+      console.log('📱 No events from Google Sheets, trying AsyncStorage...');
       events = await loadEventsFromLocalStorage();
     } else {
       // Save to AsyncStorage as cache if we got data from Google Sheets
       await saveEventsToLocalStorage(events);
     }
     
-    console.log('Events loaded successfully:', events.length);
-    console.log('Loaded events:', events.map((e: Event) => ({ 
+    console.log('✅ Events loaded successfully:', events.length);
+    console.log('📋 Loaded events:', events.map((e: Event) => ({ 
       id: e.id, 
       date: e.date, 
       customerName: e.customerName,
@@ -58,7 +58,7 @@ export const loadEvents = async (): Promise<Event[]> => {
     
     return events;
   } catch (error) {
-    console.error('Error loading events:', error);
+    console.error('❌ Error loading events:', error);
     // Fallback to AsyncStorage if everything fails
     return await loadEventsFromLocalStorage();
   }
@@ -70,7 +70,7 @@ export const checkDateAvailability = async (date: string): Promise<{ isAvailable
     const events = await loadEvents();
     const existingEvents = events.filter(event => event.date === date);
     
-    console.log(`Date ${date} availability check:`, {
+    console.log(`📅 Date ${date} availability check:`, {
       isAvailable: existingEvents.length === 0,
       existingEventsCount: existingEvents.length
     });
@@ -80,7 +80,7 @@ export const checkDateAvailability = async (date: string): Promise<{ isAvailable
       existingEvents
     };
   } catch (error) {
-    console.error('Error checking date availability:', error);
+    console.error('❌ Error checking date availability:', error);
     return { isAvailable: true, existingEvents: [] };
   }
 };
@@ -88,14 +88,14 @@ export const checkDateAvailability = async (date: string): Promise<{ isAvailable
 // Hybrid storage: Use Google Sheets as primary, AsyncStorage as backup/cache
 export const saveEvents = async (events: Event[]): Promise<void> => {
   try {
-    console.log('Saving events...', events.length);
+    console.log('💾 Saving events...', events.length);
     
     // Save to AsyncStorage immediately for offline access
     await saveEventsToLocalStorage(events);
     
-    console.log('Events saved successfully:', events.length);
+    console.log('✅ Events saved successfully:', events.length);
   } catch (error) {
-    console.error('Error saving events:', error);
+    console.error('❌ Error saving events:', error);
   }
 };
 
@@ -106,21 +106,23 @@ export const generateEventId = (): string => {
 // Save a single event (used when creating new events)
 export const saveEvent = async (event: Event): Promise<void> => {
   try {
-    console.log('Saving single event:', event);
+    console.log('💾 Saving single event:', event);
     
     // Check if date already has events (additional safety check)
     const { existingEvents } = await checkDateAvailability(event.date);
     if (existingEvents.length > 0) {
-      console.warn('Warning: Saving event to date that already has events:', existingEvents.length);
+      console.warn('⚠️ Warning: Saving event to date that already has events:', existingEvents.length);
     }
     
     // First, try to save to Google Sheets
+    console.log('🌐 Attempting to save to Google Sheets...');
     const savedToSheets = await saveEventToGoogleSheets(event);
     
     if (savedToSheets) {
-      console.log('Event saved to Google Sheets successfully');
+      console.log('✅ Event saved to Google Sheets successfully');
     } else {
-      console.log('Failed to save to Google Sheets, will save locally only');
+      console.log('❌ Failed to save to Google Sheets, will save locally only');
+      throw new Error('Failed to save to Google Sheets');
     }
     
     // Load existing events from local storage
@@ -137,9 +139,25 @@ export const saveEvent = async (event: Event): Promise<void> => {
     // Save all events to local storage
     await saveEventsToLocalStorage(existingLocalEvents);
     
-    console.log('Single event saved successfully');
+    console.log('✅ Single event saved successfully to both Google Sheets and local storage');
   } catch (error) {
-    console.error('Error saving single event:', error);
+    console.error('❌ Error saving single event:', error);
+    
+    // Still try to save locally even if Google Sheets fails
+    try {
+      const existingLocalEvents = await loadEventsFromLocalStorage();
+      const eventIndex = existingLocalEvents.findIndex(e => e.id === event.id);
+      if (eventIndex >= 0) {
+        existingLocalEvents[eventIndex] = event;
+      } else {
+        existingLocalEvents.push(event);
+      }
+      await saveEventsToLocalStorage(existingLocalEvents);
+      console.log('📱 Event saved to local storage as fallback');
+    } catch (localError) {
+      console.error('❌ Failed to save to local storage as well:', localError);
+    }
+    
     throw error;
   }
 };
@@ -147,7 +165,7 @@ export const saveEvent = async (event: Event): Promise<void> => {
 // Update an existing event
 export const updateEvent = async (event: Event): Promise<void> => {
   try {
-    console.log('Updating event:', event);
+    console.log('🔄 Updating event:', event);
     
     // Load existing events
     const existingEvents = await loadEventsFromLocalStorage();
@@ -157,13 +175,13 @@ export const updateEvent = async (event: Event): Promise<void> => {
     if (eventIndex >= 0) {
       existingEvents[eventIndex] = event;
       await saveEventsToLocalStorage(existingEvents);
-      console.log('Event updated successfully');
+      console.log('✅ Event updated successfully');
     } else {
-      console.error('Event not found for update:', event.id);
+      console.error('❌ Event not found for update:', event.id);
       throw new Error('Event not found');
     }
   } catch (error) {
-    console.error('Error updating event:', error);
+    console.error('❌ Error updating event:', error);
     throw error;
   }
 };
@@ -171,7 +189,7 @@ export const updateEvent = async (event: Event): Promise<void> => {
 // Delete an event
 export const deleteEvent = async (eventId: string): Promise<void> => {
   try {
-    console.log('Deleting event:', eventId);
+    console.log('🗑️ Deleting event:', eventId);
     
     // Load existing events
     const existingEvents = await loadEventsFromLocalStorage();
@@ -180,16 +198,16 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
     const filteredEvents = existingEvents.filter(e => e.id !== eventId);
     
     if (filteredEvents.length === existingEvents.length) {
-      console.error('Event not found for deletion:', eventId);
+      console.error('❌ Event not found for deletion:', eventId);
       throw new Error('Event not found');
     }
     
     // Save the filtered events
     await saveEventsToLocalStorage(filteredEvents);
     
-    console.log('Event deleted successfully');
+    console.log('✅ Event deleted successfully');
   } catch (error) {
-    console.error('Error deleting event:', error);
+    console.error('❌ Error deleting event:', error);
     throw error;
   }
 };

@@ -145,7 +145,7 @@ const ScheduleScreen: React.FC = () => {
 
     try {
       setLoading(true);
-      console.log('ScheduleScreen: Submitting form data:', formData);
+      console.log('🔄 ScheduleScreen: Submitting form data:', formData);
 
       const newEvent: Event = {
         id: generateEventId(),
@@ -163,26 +163,29 @@ const ScheduleScreen: React.FC = () => {
         createdAt: new Date().toISOString()
       };
 
-      console.log('ScheduleScreen: Created event object:', newEvent);
+      console.log('📝 ScheduleScreen: Created event object:', newEvent);
 
+      // Show loading message
+      console.log('💾 ScheduleScreen: Saving event...');
+      
       await saveEvent(newEvent);
       
-      console.log('ScheduleScreen: Event saved successfully');
+      console.log('✅ ScheduleScreen: Event saved successfully');
       
       // Show success message and navigate back to main menu
       Alert.alert(
-        '✅ ¡Éxito!',
-        `Evento agendado correctamente para el ${new Date(formData.date).toLocaleDateString('es-ES', {
+        '🎉 ¡Evento Guardado Exitosamente!',
+        `El evento ha sido agendado correctamente para el ${new Date(formData.date).toLocaleDateString('es-ES', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
           day: 'numeric'
-        })}\n\nCliente: ${formData.customerName}\nNiño/a: ${formData.childName}\nPaquete: ${formData.packageType}`,
+        })}\n\n📋 Detalles del evento:\n• Cliente: ${formData.customerName}\n• Niño/a: ${formData.childName}\n• Paquete: ${formData.packageType}\n• Total: $${formData.totalAmount.toLocaleString()}\n• Anticipo: $${formData.deposit.toLocaleString()}\n\n✅ El evento se ha guardado en Google Sheets y está disponible en el calendario.`,
         [
           {
-            text: 'OK',
+            text: '🏠 Ir al Menú Principal',
             onPress: () => {
-              console.log('ScheduleScreen: Navigating back to main menu');
+              console.log('🏠 ScheduleScreen: Navigating back to main menu');
               // Use replace to go back to main menu and refresh the calendar
               router.replace('/');
             }
@@ -190,12 +193,35 @@ const ScheduleScreen: React.FC = () => {
         ]
       );
     } catch (error) {
-      console.error('ScheduleScreen: Error saving event:', error);
+      console.error('❌ ScheduleScreen: Error saving event:', error);
+      
+      // Show detailed error message
+      let errorMessage = 'No se pudo guardar el evento. ';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Google Sheets')) {
+          errorMessage += 'Hubo un problema con la conexión a Google Sheets. ';
+        } else if (error.message.includes('fetch')) {
+          errorMessage += 'Verifica tu conexión a internet. ';
+        } else {
+          errorMessage += `Error: ${error.message}. `;
+        }
+      }
+      
+      errorMessage += 'Por favor inténtalo de nuevo.';
+      
       Alert.alert(
-        'Error', 
-        'No se pudo guardar el evento. Por favor verifica tu conexión a internet e inténtalo de nuevo.',
+        '❌ Error al Guardar', 
+        errorMessage,
         [
-          { text: 'OK' }
+          { 
+            text: '🔄 Reintentar',
+            onPress: () => handleSubmit()
+          },
+          { 
+            text: '❌ Cancelar',
+            style: 'cancel'
+          }
         ]
       );
     } finally {
@@ -382,7 +408,7 @@ const ScheduleScreen: React.FC = () => {
 
         {/* Submit Button */}
         <Button
-          text={loading ? "Guardando..." : "Agendar Evento"}
+          text={loading ? "💾 Guardando Evento..." : "🎉 Agendar Evento"}
           onPress={handleSubmit}
           style={[
             buttonStyles.primary,

@@ -144,18 +144,18 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
 // Save event to Google Sheets
 export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> => {
   try {
-    console.log('Saving event to Google Sheets:', event);
+    console.log('🔄 Saving event to Google Sheets:', event);
     
     const sheetRow = eventToSheetRow(event);
-    console.log('Sheet row data:', sheetRow);
+    console.log('📊 Sheet row data:', sheetRow);
     
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${API_KEY}`;
-    console.log('Append URL:', url);
+    console.log('🌐 Append URL:', url);
     
     const requestBody = {
       values: [sheetRow]
     };
-    console.log('Request body:', requestBody);
+    console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
     
     const response = await fetch(url, {
       method: 'POST',
@@ -165,17 +165,45 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> =>
       body: JSON.stringify(requestBody)
     });
     
+    console.log('📥 Response status:', response.status);
+    console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+    
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Error saving to Google Sheets:', response.status, errorText);
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      console.error('❌ Error saving to Google Sheets:', response.status, errorText);
+      
+      // Try to parse error details
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error('❌ Detailed error:', errorData);
+        throw new Error(`Google Sheets API Error: ${errorData.error?.message || errorText}`);
+      } catch (parseError) {
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
     }
     
     const result = await response.json();
-    console.log('Event saved to Google Sheets successfully:', result);
-    return true;
+    console.log('✅ Event saved to Google Sheets successfully:', result);
+    
+    // Verify the save was successful
+    if (result.updates && result.updates.updatedRows > 0) {
+      console.log('✅ Confirmed: Row was added to Google Sheets');
+      return true;
+    } else {
+      console.warn('⚠️ Warning: Save response doesn\'t confirm row addition:', result);
+      return false;
+    }
   } catch (error) {
-    console.error('Error saving event to Google Sheets:', error);
+    console.error('❌ Error saving event to Google Sheets:', error);
+    
+    // Log more details about the error
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error('❌ Network error - check internet connection');
+    } else if (error instanceof Error) {
+      console.error('❌ Error details:', error.message);
+      console.error('❌ Error stack:', error.stack);
+    }
+    
     return false;
   }
 };
