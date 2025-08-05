@@ -1,7 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Event } from '../types';
-import { loadEventsFromGoogleSheets, saveEventToGoogleSheets, testGoogleSheetsConnection } from './googleSheets';
+import { loadEventsFromGoogleSheets, saveEventToGoogleSheets, testGoogleSheetsConnection, getSpreadsheetInfo, testRangeAccess } from './googleSheets';
 
 const EVENTS_KEY = 'abrakadabra_events';
 
@@ -31,31 +31,84 @@ const saveEventsToLocalStorage = async (events: Event[]): Promise<void> => {
   }
 };
 
+// Comprehensive Google Sheets diagnostics
+export const runGoogleSheetsDiagnostics = async (): Promise<void> => {
+  console.log('🔍 Running comprehensive Google Sheets diagnostics...');
+  
+  try {
+    // Test 1: Basic connection
+    console.log('\n📋 Test 1: Basic Connection');
+    const connectionOk = await testGoogleSheetsConnection();
+    console.log('Connection result:', connectionOk ? '✅ PASS' : '❌ FAIL');
+    
+    if (!connectionOk) {
+      console.log('❌ Basic connection failed. Check API key and spreadsheet ID.');
+      return;
+    }
+    
+    // Test 2: Spreadsheet info
+    console.log('\n📋 Test 2: Spreadsheet Metadata');
+    const spreadsheetInfo = await getSpreadsheetInfo();
+    if (spreadsheetInfo) {
+      console.log('✅ Spreadsheet metadata retrieved successfully');
+      console.log('📊 Available sheets:', spreadsheetInfo.sheets?.map((s: any) => s.properties?.title));
+    } else {
+      console.log('❌ Failed to get spreadsheet metadata');
+    }
+    
+    // Test 3: Range access
+    console.log('\n📋 Test 3: Range Access');
+    const rangeOk = await testRangeAccess();
+    console.log('Range access result:', rangeOk ? '✅ PASS' : '❌ FAIL');
+    
+    // Test 4: Data loading
+    console.log('\n📋 Test 4: Data Loading');
+    const events = await loadEventsFromGoogleSheets();
+    console.log('Data loading result:', events.length > 0 ? '✅ PASS' : '⚠️ NO DATA');
+    console.log('Events found:', events.length);
+    
+    console.log('\n🏁 Diagnostics complete');
+    
+  } catch (error) {
+    console.error('❌ Diagnostics failed:', error);
+  }
+};
+
 // Primary load function - tries Google Sheets first, falls back to AsyncStorage
 export const loadEvents = async (): Promise<Event[]> => {
   try {
     console.log('🔄 Loading events...');
     
-    // Test Google Sheets connection first
+    // Run diagnostics if we're having issues
     console.log('🧪 Testing Google Sheets connection...');
     const connectionOk = await testGoogleSheetsConnection();
     
     let events: Event[] = [];
     
     if (connectionOk) {
-      console.log('✅ Google Sheets connection OK, loading events...');
-      events = await loadEventsFromGoogleSheets();
+      console.log('✅ Google Sheets connection OK, testing range access...');
+      const rangeOk = await testRangeAccess();
       
-      if (events.length > 0) {
-        console.log('✅ Events loaded from Google Sheets, caching locally...');
-        // Save to AsyncStorage as cache if we got data from Google Sheets
-        await saveEventsToLocalStorage(events);
+      if (rangeOk) {
+        console.log('✅ Range access OK, loading events...');
+        events = await loadEventsFromGoogleSheets();
+        
+        if (events.length > 0) {
+          console.log('✅ Events loaded from Google Sheets, caching locally...');
+          // Save to AsyncStorage as cache if we got data from Google Sheets
+          await saveEventsToLocalStorage(events);
+        } else {
+          console.log('📭 No events from Google Sheets, trying local cache...');
+          events = await loadEventsFromLocalStorage();
+        }
       } else {
-        console.log('📭 No events from Google Sheets, trying local cache...');
+        console.log('❌ Range access failed, using local cache...');
+        console.log('💡 This might be due to incorrect sheet name or range format');
         events = await loadEventsFromLocalStorage();
       }
     } else {
       console.log('❌ Google Sheets connection failed, using local cache...');
+      console.log('💡 Check API key, spreadsheet ID, and permissions');
       events = await loadEventsFromLocalStorage();
     }
     
@@ -129,13 +182,23 @@ export const saveEvent = async (event: Event): Promise<void> => {
     
     // First, try to save to Google Sheets
     console.log('🌐 Attempting to save to Google Sheets...');
-    const savedToSheets = await saveEventToGoogleSheets(event);
     
-    if (savedToSheets) {
-      console.log('✅ Event saved to Google Sheets successfully');
+    // Run quick diagnostics before saving
+    const connectionOk = await testGoogleSheetsConnection();
+    if (!connectionOk) {
+      console.log('❌ Google Sheets connection failed, saving locally only');
     } else {
-      console.log('❌ Failed to save to Google Sheets, will save locally only');
-      // Don't throw error, continue with local save
+      const rangeOk = await testRangeAccess();
+      if (!rangeOk) {
+        console.log('❌ Range access failed, saving locally only');
+      } else {
+        const savedToSheets = await saveEventToGoogleSheets(event);
+        if (savedToSheets) {
+          console.log('✅ Event saved to Google Sheets successfully');
+        } else {
+          console.log('❌ Failed to save to Google Sheets, will save locally only');
+        }
+      }
     }
     
     // Load existing events from local storage
@@ -154,11 +217,7 @@ export const saveEvent = async (event: Event): Promise<void> => {
     // Save all events to local storage
     await saveEventsToLocalStorage(existingLocalEvents);
     
-    if (savedToSheets) {
-      console.log('✅ Single event saved successfully to both Google Sheets and local storage');
-    } else {
-      console.log('⚠️ Single event saved to local storage only (Google Sheets failed)');
-    }
+    console.log('✅ Single event saved successfully to local storage');
   } catch (error) {
     console.error('❌ Error saving single event:', error);
     

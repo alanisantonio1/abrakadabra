@@ -97,13 +97,70 @@ const sheetRowToEvent = (row: any[], index: number): Event | null => {
   }
 };
 
-// Test Google Sheets connection
+// Get spreadsheet metadata to check sheet names and structure
+export const getSpreadsheetInfo = async (): Promise<any> => {
+  try {
+    console.log('🔍 Getting spreadsheet info...');
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}`;
+    console.log('🌐 Metadata URL:', url);
+    
+    const response = await fetch(url);
+    console.log('📥 Metadata response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Failed to get spreadsheet info:', response.status, errorText);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('📊 Spreadsheet info:', {
+      title: data.properties?.title,
+      sheetCount: data.sheets?.length,
+      sheets: data.sheets?.map((sheet: any) => ({
+        title: sheet.properties?.title,
+        sheetId: sheet.properties?.sheetId,
+        gridProperties: sheet.properties?.gridProperties
+      }))
+    });
+    
+    return data;
+  } catch (error) {
+    console.error('❌ Error getting spreadsheet info:', error);
+    return null;
+  }
+};
+
+// Test Google Sheets connection with detailed diagnostics
 export const testGoogleSheetsConnection = async (): Promise<boolean> => {
   try {
     console.log('🧪 Testing Google Sheets connection...');
     console.log('📋 Spreadsheet ID:', SPREADSHEET_ID);
     console.log('🔑 API Key (first 10 chars):', API_KEY.substring(0, 10) + '...');
+    console.log('📊 Range:', RANGE);
     
+    // First, get spreadsheet metadata
+    const spreadsheetInfo = await getSpreadsheetInfo();
+    if (!spreadsheetInfo) {
+      console.error('❌ Cannot access spreadsheet metadata');
+      return false;
+    }
+    
+    // Check if the specified sheet exists
+    const sheets = spreadsheetInfo.sheets || [];
+    const sheetNames = sheets.map((sheet: any) => sheet.properties?.title);
+    console.log('📋 Available sheets:', sheetNames);
+    
+    const targetSheetName = RANGE.split('!')[0]; // Extract "Sheet1" from "Sheet1!A:I"
+    if (!sheetNames.includes(targetSheetName)) {
+      console.error(`❌ Sheet "${targetSheetName}" not found. Available sheets:`, sheetNames);
+      console.error('💡 Suggestion: Update the RANGE variable to use one of the available sheet names');
+      return false;
+    }
+    
+    console.log(`✅ Sheet "${targetSheetName}" found`);
+    
+    // Test basic connection
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${API_KEY}`;
     console.log('🌐 Test URL:', url);
     
@@ -113,6 +170,25 @@ export const testGoogleSheetsConnection = async (): Promise<boolean> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Connection test failed:', response.status, errorText);
+      
+      // Parse and provide specific error guidance
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.message) {
+          console.error('❌ Error message:', errorData.error.message);
+          
+          if (errorData.error.message.includes('API key not valid')) {
+            console.error('💡 The API key is invalid. Please check your Google Cloud Console.');
+          } else if (errorData.error.message.includes('permission')) {
+            console.error('💡 Permission denied. Make sure the spreadsheet is shared publicly.');
+          } else if (errorData.error.message.includes('not found')) {
+            console.error('💡 Spreadsheet not found. Check the SPREADSHEET_ID.');
+          }
+        }
+      } catch (parseError) {
+        console.error('❌ Could not parse error response');
+      }
+      
       return false;
     }
     
@@ -121,11 +197,71 @@ export const testGoogleSheetsConnection = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error('❌ Connection test error:', error);
+    
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.error('💡 Network error - check internet connection');
+    }
+    
     return false;
   }
 };
 
-// Load events from Google Sheets
+// Test specific range access
+export const testRangeAccess = async (): Promise<boolean> => {
+  try {
+    console.log('🧪 Testing range access for:', RANGE);
+    
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+    console.log('🌐 Range test URL:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    console.log('📥 Range test response status:', response.status);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Range access failed:', response.status, errorText);
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error?.message) {
+          console.error('❌ Range error message:', errorData.error.message);
+          
+          if (errorData.error.message.includes('Unable to parse range')) {
+            console.error('💡 Range parsing error. Check if the sheet name and range are correct.');
+            console.error('💡 Current range:', RANGE);
+            console.error('💡 Make sure the sheet is named exactly "Sheet1" or update the RANGE variable.');
+          }
+        }
+      } catch (parseError) {
+        console.error('❌ Could not parse range error response');
+      }
+      
+      return false;
+    }
+    
+    const data = await response.json();
+    console.log('✅ Range access successful. Rows found:', data.values?.length || 0);
+    
+    if (data.values && data.values.length > 0) {
+      console.log('📋 First row (headers):', data.values[0]);
+      console.log('📋 Sample data rows:', data.values.slice(1, 3));
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Range test error:', error);
+    return false;
+  }
+};
+
+// Load events from Google Sheets with enhanced error handling
 export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
   try {
     console.log('🔄 Loading events from Google Sheets...');
@@ -134,6 +270,13 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
     const connectionOk = await testGoogleSheetsConnection();
     if (!connectionOk) {
       console.error('❌ Google Sheets connection failed');
+      return [];
+    }
+    
+    // Test range access specifically
+    const rangeOk = await testRangeAccess();
+    if (!rangeOk) {
+      console.error('❌ Range access failed');
       return [];
     }
     
@@ -228,6 +371,13 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> =>
       return false;
     }
     
+    // Test range access
+    const rangeOk = await testRangeAccess();
+    if (!rangeOk) {
+      console.error('❌ Range access failed, cannot save');
+      return false;
+    }
+    
     const sheetRow = eventToSheetRow(event);
     console.log('📊 Sheet row data:', sheetRow);
     
@@ -270,6 +420,8 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> =>
             console.error('❌ Quota exceeded - API limit reached');
           } else if (errorData.error.message.includes('invalid')) {
             console.error('❌ Invalid request - check API key and spreadsheet ID');
+          } else if (errorData.error.message.includes('Unable to parse range')) {
+            console.error('❌ Range parsing error - check sheet name and range format');
           }
         }
         throw new Error(`Google Sheets API Error: ${errorData.error?.message || errorText}`);
