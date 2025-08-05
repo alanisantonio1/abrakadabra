@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { saveEvent, generateEventId } from '../utils/storage';
+import { saveEvent, generateEventId, loadEvents } from '../utils/storage';
 import { packages } from '../data/packages';
 import Button from '../components/Button';
 import PackageCard from '../components/PackageCard';
@@ -12,6 +12,7 @@ import { Event } from '../types';
 const ScheduleScreen: React.FC = () => {
   const { date } = useLocalSearchParams<{ date: string }>();
   const [loading, setLoading] = useState(false);
+  const [existingEvents, setExistingEvents] = useState<Event[]>([]);
   
   const [formData, setFormData] = useState({
     date: date || '',
@@ -29,8 +30,26 @@ const ScheduleScreen: React.FC = () => {
     if (date) {
       setFormData(prev => ({ ...prev, date }));
       console.log('ScheduleScreen: Date set from params:', date);
+      
+      // Load existing events to check for conflicts
+      loadExistingEvents();
     }
   }, [date]);
+
+  const loadExistingEvents = async () => {
+    try {
+      const events = await loadEvents();
+      setExistingEvents(events);
+      
+      // Check if the selected date already has events
+      const dateEvents = events.filter(event => event.date === date);
+      if (dateEvents.length > 0) {
+        console.log('ScheduleScreen: Warning - Date already has events:', dateEvents.length);
+      }
+    } catch (error) {
+      console.error('ScheduleScreen: Error loading existing events:', error);
+    }
+  };
 
   useEffect(() => {
     if (formData.packageType && formData.date) {
@@ -59,11 +78,40 @@ const ScheduleScreen: React.FC = () => {
     console.log('ScheduleScreen: Field updated:', field, value);
   };
 
-  const validateForm = (): boolean => {
-    if (!formData.date) {
-      Alert.alert('Error', 'Por favor selecciona una fecha');
-      return false;
-    }
+  const validateForm = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (!formData.date) {
+        Alert.alert('Error', 'Por favor selecciona una fecha');
+        resolve(false);
+        return;
+      }
+      
+      // Check if date already has events
+      const dateEvents = existingEvents.filter(event => event.date === formData.date);
+      if (dateEvents.length > 0) {
+        Alert.alert(
+          'Fecha Ocupada', 
+          `Esta fecha ya tiene ${dateEvents.length} evento(s) agendado(s). ¿Estás seguro de que quieres agendar otro evento en la misma fecha?`,
+          [
+            { 
+              text: 'Cancelar', 
+              style: 'cancel',
+              onPress: () => resolve(false)
+            },
+            { 
+              text: 'Continuar', 
+              onPress: () => resolve(continueValidation())
+            }
+          ]
+        );
+        return;
+      }
+      
+      resolve(continueValidation());
+    });
+  };
+
+  const continueValidation = (): boolean => {
     if (!formData.customerName.trim()) {
       Alert.alert('Error', 'Por favor ingresa el nombre del cliente');
       return false;
@@ -92,7 +140,8 @@ const ScheduleScreen: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    const isValid = await validateForm();
+    if (!isValid) return;
 
     try {
       setLoading(true);
@@ -120,14 +169,21 @@ const ScheduleScreen: React.FC = () => {
       
       console.log('ScheduleScreen: Event saved successfully');
       
+      // Show success message and navigate back to main menu
       Alert.alert(
-        'Éxito',
-        'Evento agendado correctamente',
+        '✅ ¡Éxito!',
+        `Evento agendado correctamente para el ${new Date(formData.date).toLocaleDateString('es-ES', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })}\n\nCliente: ${formData.customerName}\nNiño/a: ${formData.childName}\nPaquete: ${formData.packageType}`,
         [
           {
             text: 'OK',
             onPress: () => {
-              console.log('ScheduleScreen: Navigating back to home');
+              console.log('ScheduleScreen: Navigating back to main menu');
+              // Use replace to go back to main menu and refresh the calendar
               router.replace('/');
             }
           }
@@ -135,7 +191,13 @@ const ScheduleScreen: React.FC = () => {
       );
     } catch (error) {
       console.error('ScheduleScreen: Error saving event:', error);
-      Alert.alert('Error', 'No se pudo guardar el evento. Inténtalo de nuevo.');
+      Alert.alert(
+        'Error', 
+        'No se pudo guardar el evento. Por favor verifica tu conexión a internet e inténtalo de nuevo.',
+        [
+          { text: 'OK' }
+        ]
+      );
     } finally {
       setLoading(false);
     }
@@ -146,6 +208,10 @@ const ScheduleScreen: React.FC = () => {
       const day = new Date(formData.date).getDay();
       return day === 0 || day === 6;
     })() : false;
+
+  // Check if date has existing events
+  const dateEvents = existingEvents.filter(event => event.date === formData.date);
+  const hasExistingEvents = dateEvents.length > 0;
 
   return (
     <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
@@ -159,6 +225,34 @@ const ScheduleScreen: React.FC = () => {
         <Text style={[commonStyles.title, { flex: 1, textAlign: 'center' }]}>Agendar Evento</Text>
         <View style={{ width: 80 }} />
       </View>
+
+      {/* Warning if date has existing events */}
+      {hasExistingEvents && (
+        <View style={{
+          backgroundColor: colors.warning + '20',
+          borderColor: colors.warning,
+          borderWidth: 1,
+          borderRadius: 8,
+          padding: 16,
+          margin: 16,
+          marginBottom: 0
+        }}>
+          <Text style={{
+            color: colors.warning,
+            fontWeight: '600',
+            fontSize: 16,
+            marginBottom: 4
+          }}>
+            ⚠️ Advertencia
+          </Text>
+          <Text style={{
+            color: colors.text,
+            fontSize: 14
+          }}>
+            Esta fecha ya tiene {dateEvents.length} evento(s) agendado(s). Considera verificar la disponibilidad antes de continuar.
+          </Text>
+        </View>
+      )}
 
       <View style={commonStyles.form}>
         {/* Date Display */}

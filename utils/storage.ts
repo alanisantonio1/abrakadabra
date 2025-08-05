@@ -64,6 +64,27 @@ export const loadEvents = async (): Promise<Event[]> => {
   }
 };
 
+// Check if a date already has events
+export const checkDateAvailability = async (date: string): Promise<{ isAvailable: boolean; existingEvents: Event[] }> => {
+  try {
+    const events = await loadEvents();
+    const existingEvents = events.filter(event => event.date === date);
+    
+    console.log(`Date ${date} availability check:`, {
+      isAvailable: existingEvents.length === 0,
+      existingEventsCount: existingEvents.length
+    });
+    
+    return {
+      isAvailable: existingEvents.length === 0,
+      existingEvents
+    };
+  } catch (error) {
+    console.error('Error checking date availability:', error);
+    return { isAvailable: true, existingEvents: [] };
+  }
+};
+
 // Hybrid storage: Use Google Sheets as primary, AsyncStorage as backup/cache
 export const saveEvents = async (events: Event[]): Promise<void> => {
   try {
@@ -87,6 +108,12 @@ export const saveEvent = async (event: Event): Promise<void> => {
   try {
     console.log('Saving single event:', event);
     
+    // Check if date already has events (additional safety check)
+    const { existingEvents } = await checkDateAvailability(event.date);
+    if (existingEvents.length > 0) {
+      console.warn('Warning: Saving event to date that already has events:', existingEvents.length);
+    }
+    
     // First, try to save to Google Sheets
     const savedToSheets = await saveEventToGoogleSheets(event);
     
@@ -97,18 +124,18 @@ export const saveEvent = async (event: Event): Promise<void> => {
     }
     
     // Load existing events from local storage
-    const existingEvents = await loadEventsFromLocalStorage();
+    const existingLocalEvents = await loadEventsFromLocalStorage();
     
     // Add or update the event in local storage
-    const eventIndex = existingEvents.findIndex(e => e.id === event.id);
+    const eventIndex = existingLocalEvents.findIndex(e => e.id === event.id);
     if (eventIndex >= 0) {
-      existingEvents[eventIndex] = event;
+      existingLocalEvents[eventIndex] = event;
     } else {
-      existingEvents.push(event);
+      existingLocalEvents.push(event);
     }
     
     // Save all events to local storage
-    await saveEventsToLocalStorage(existingEvents);
+    await saveEventsToLocalStorage(existingLocalEvents);
     
     console.log('Single event saved successfully');
   } catch (error) {

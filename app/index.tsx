@@ -14,7 +14,7 @@ const MainScreen: React.FC = () => {
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
   const [loading, setLoading] = useState(false);
 
-  // Load events when screen comes into focus
+  // Load events when screen comes into focus (this ensures refresh after scheduling)
   useFocusEffect(
     useCallback(() => {
       console.log('MainScreen: Screen focused, loading events...');
@@ -115,7 +115,10 @@ const MainScreen: React.FC = () => {
             shadowRadius: 8,
             elevation: 6
           }]}
-          onPress={() => setCurrentView('calendar')}
+          onPress={() => {
+            console.log('MainScreen: Switching to calendar view');
+            setCurrentView('calendar');
+          }}
         >
           <Text style={[commonStyles.buttonText, { 
             fontSize: 18, 
@@ -280,7 +283,12 @@ const MainScreen: React.FC = () => {
             paddingVertical: 10,
             borderRadius: 8
           }]}
-          onPress={() => setCurrentView('main')}
+          onPress={() => {
+            console.log('MainScreen: Returning to main view');
+            setCurrentView('main');
+            // Refresh events when returning to main view
+            loadEventsData();
+          }}
         >
           <Text style={[commonStyles.backButtonText, { 
             color: 'white',
