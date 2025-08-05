@@ -15,6 +15,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
 
   useEffect(() => {
+    console.log('CalendarView: Regenerating calendar days with', events.length, 'events');
     generateCalendarDays();
   }, [currentMonth, events]);
 
@@ -32,6 +33,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     for (let i = 0; i < 42; i++) {
       const dateString = current.toISOString().split('T')[0];
       const dayEvents = events.filter(event => event.date === dateString);
+      
+      if (dayEvents.length > 0) {
+        console.log(`CalendarView: Date ${dateString} has ${dayEvents.length} events:`, dayEvents.map(e => e.customerName));
+      }
       
       days.push({
         date: dateString,

@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { commonStyles, colors } from '../styles/commonStyles';
 import { Event } from '../types';
 import { loadEvents } from '../utils/storage';
@@ -16,10 +16,20 @@ export default function MainScreen() {
     loadEventsData();
   }, []);
 
+  // Refresh events when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Main screen focused, reloading events...');
+      loadEventsData();
+    }, [])
+  );
+
   const loadEventsData = async () => {
+    console.log('MainScreen: Loading events...');
     const loadedEvents = await loadEvents();
     setEvents(loadedEvents);
-    console.log('Loaded events:', loadedEvents.length);
+    console.log('MainScreen: Loaded events:', loadedEvents.length);
+    console.log('MainScreen: Events state updated with:', loadedEvents.map(e => ({ id: e.id, date: e.date, customerName: e.customerName })));
   };
 
   const handleDateSelect = (date: string) => {

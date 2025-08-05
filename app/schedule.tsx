@@ -96,10 +96,16 @@ export default function ScheduleScreen() {
     const updatedEvents = [...events, newEvent];
     await saveEvents(updatedEvents);
     
+    console.log('Event saved successfully:', newEvent);
+    console.log('Total events after save:', updatedEvents.length);
+    
     Alert.alert(
       'Éxito',
       'Evento agendado correctamente',
-      [{ text: 'OK', onPress: () => router.back() }]
+      [{ text: 'OK', onPress: () => {
+        console.log('Navigating back to main screen...');
+        router.back();
+      }}]
     );
   };
 
