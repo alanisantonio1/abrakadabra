@@ -1,5 +1,5 @@
 
-import { loadEvents, runGoogleSheetsDiagnostics } from '../utils/storage';
+import { loadEvents, runGoogleSheetsDiagnostics, importEventsFromGoogleSheets, addSampleEvents } from '../utils/storage';
 import { Event } from '../types';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { commonStyles, colors } from '../styles/commonStyles';
@@ -65,23 +65,79 @@ export default function MainScreen() {
 
   const runDiagnostics = async () => {
     try {
+      console.log('🔍 Starting Google Sheets diagnostics...');
+      const result = await runGoogleSheetsDiagnostics();
+      
       Alert.alert(
         'Diagnósticos de Google Sheets',
-        'Ejecutando diagnósticos... Revisa la consola para ver los resultados.',
-        [{ text: 'OK' }]
-      );
-      
-      console.log('🔍 Starting Google Sheets diagnostics...');
-      await runGoogleSheetsDiagnostics();
-      
-      Alert.alert(
-        'Diagnósticos Completados',
-        'Los diagnósticos han terminado. Revisa la consola del desarrollador para ver los resultados detallados.',
+        result,
         [{ text: 'OK' }]
       );
     } catch (error) {
       console.error('❌ Diagnostics error:', error);
       Alert.alert('Error', 'Error ejecutando diagnósticos');
+    }
+  };
+
+  const importFromGoogleSheets = async () => {
+    try {
+      Alert.alert(
+        'Importar desde Google Sheets',
+        'Importando eventos desde Google Sheets...',
+        [{ text: 'OK' }]
+      );
+      
+      console.log('📥 Starting import from Google Sheets...');
+      const success = await importEventsFromGoogleSheets();
+      
+      if (success) {
+        Alert.alert(
+          'Importación Exitosa',
+          'Los eventos han sido importados desde Google Sheets.',
+          [{ text: 'OK' }]
+        );
+        loadEventsData(); // Refresh events
+      } else {
+        Alert.alert(
+          'Error de Importación',
+          'No se pudieron importar los eventos desde Google Sheets.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Import error:', error);
+      Alert.alert('Error', 'Error importando desde Google Sheets');
+    }
+  };
+
+  const addTestEvents = async () => {
+    try {
+      Alert.alert(
+        'Agregar Eventos de Prueba',
+        'Agregando eventos de prueba para verificar la funcionalidad...',
+        [{ text: 'OK' }]
+      );
+      
+      console.log('🧪 Adding sample events...');
+      const success = await addSampleEvents();
+      
+      if (success) {
+        Alert.alert(
+          'Eventos Agregados',
+          'Se han agregado eventos de prueba exitosamente.',
+          [{ text: 'OK' }]
+        );
+        loadEventsData(); // Refresh events
+      } else {
+        Alert.alert(
+          'Error',
+          'No se pudieron agregar los eventos de prueba.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('❌ Add sample events error:', error);
+      Alert.alert('Error', 'Error agregando eventos de prueba');
     }
   };
 
@@ -156,6 +212,34 @@ export default function MainScreen() {
             onPress={() => router.push('/packages')}
           >
             <Text style={commonStyles.buttonText}>Ver Paquetes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              commonStyles.primaryButton, 
+              { 
+                width: '100%',
+                marginBottom: 16,
+                backgroundColor: '#4CAF50'
+              }
+            ]}
+            onPress={importFromGoogleSheets}
+          >
+            <Text style={commonStyles.buttonText}>📥 Importar desde Google Sheets</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              commonStyles.primaryButton, 
+              { 
+                width: '100%',
+                marginBottom: 16,
+                backgroundColor: '#FF9800'
+              }
+            ]}
+            onPress={addTestEvents}
+          >
+            <Text style={commonStyles.buttonText}>🧪 Agregar Eventos de Prueba</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

@@ -233,35 +233,137 @@ export const generateEventId = (): string => {
   return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
+// Import events from Google Sheets
+export const importEventsFromGoogleSheets = async (): Promise<boolean> => {
+  try {
+    console.log('📥 Importing events from Google Sheets...');
+    
+    const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
+      method: 'GET',
+      body: { action: 'import' }
+    });
+    
+    if (error) {
+      console.error('❌ Error importing from Google Sheets:', error);
+      return false;
+    }
+    
+    console.log('✅ Import completed:', data);
+    return true;
+  } catch (error) {
+    console.error('❌ Error importing events:', error);
+    return false;
+  }
+};
+
+// Add sample events for testing
+export const addSampleEvents = async (): Promise<boolean> => {
+  try {
+    console.log('🧪 Adding sample events for testing...');
+    
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    
+    const sampleEvents: Event[] = [
+      {
+        id: generateEventId(),
+        date: tomorrow.toISOString().split('T')[0],
+        time: '15:00',
+        customerName: 'María González',
+        customerPhone: '+52 55 1234 5678',
+        childName: 'Sofia',
+        packageType: 'Kadabra',
+        totalAmount: 2500,
+        deposit: 1000,
+        remainingAmount: 1500,
+        isPaid: false,
+        notes: 'Evento de prueba - Cumpleaños de Sofia',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: generateEventId(),
+        date: nextWeek.toISOString().split('T')[0],
+        time: '16:30',
+        customerName: 'Carlos Rodríguez',
+        customerPhone: '+52 55 9876 5432',
+        childName: 'Diego',
+        packageType: 'Abrakadabra',
+        totalAmount: 3500,
+        deposit: 2000,
+        remainingAmount: 1500,
+        isPaid: false,
+        notes: 'Evento de prueba - Fiesta de Diego',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: generateEventId(),
+        date: '2025-02-15',
+        time: '14:00',
+        customerName: 'Ana Martínez',
+        customerPhone: '+52 55 5555 1234',
+        childName: 'Isabella',
+        packageType: 'Abra',
+        totalAmount: 1800,
+        deposit: 1800,
+        remainingAmount: 0,
+        isPaid: true,
+        notes: 'Evento de prueba - Pagado completo',
+        createdAt: new Date().toISOString()
+      }
+    ];
+    
+    const supabaseRows = sampleEvents.map(eventToSupabaseRow);
+    
+    const { error } = await supabase
+      .from('events')
+      .insert(supabaseRows);
+    
+    if (error) {
+      console.error('❌ Error adding sample events:', error);
+      return false;
+    }
+    
+    console.log('✅ Sample events added successfully');
+    return true;
+  } catch (error) {
+    console.error('❌ Error adding sample events:', error);
+    return false;
+  }
+};
+
 // Run diagnostics (simplified since we're using Supabase now)
 export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
   try {
     console.log('🧪 Running diagnostics...');
     
     // Test Supabase connection
-    const { data, error } = await supabase
+    const { data: countData, error: countError } = await supabase
       .from('events')
-      .select('count(*)')
-      .limit(1);
+      .select('*', { count: 'exact', head: true });
     
-    if (error) {
-      return `❌ Supabase connection failed: ${error.message}`;
+    if (countError) {
+      return `❌ Supabase connection failed: ${countError.message}`;
     }
+    
+    const eventCount = countData?.length || 0;
     
     // Test Google Sheets sync
     try {
       const { data: functionData, error: functionError } = await supabase.functions.invoke('sync-google-sheets', {
-        body: { action: 'test' },
-        method: 'GET'
+        method: 'GET',
+        body: { action: 'test' }
       });
       
       if (functionError) {
-        return `✅ Supabase connected\n⚠️ Google Sheets sync not available: ${functionError.message}`;
+        return `✅ Supabase connected (${eventCount} eventos)\n⚠️ Google Sheets sync not available: ${functionError.message}`;
       }
       
-      return `✅ Supabase connected\n✅ Google Sheets sync available`;
+      return `✅ Supabase connected (${eventCount} eventos)\n✅ Google Sheets sync available\n\nSi no ves eventos, puedes:\n1. Importar desde Google Sheets\n2. Agregar eventos de prueba`;
     } catch (syncError) {
-      return `✅ Supabase connected\n⚠️ Google Sheets sync not configured`;
+      return `✅ Supabase connected (${eventCount} eventos)\n⚠️ Google Sheets sync not configured\n\nSi no ves eventos, puedes agregar eventos de prueba para verificar la funcionalidad.`;
     }
   } catch (error) {
     return `❌ Diagnostics failed: ${error}`;
