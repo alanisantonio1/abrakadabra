@@ -49,7 +49,7 @@ Para obtener una API key válida:
 Una vez que tengas la API key correcta, actualiza el archivo `utils/googleSheets.ts`:
 
 ```typescript
-const API_KEY = 'TU_API_KEY_AQUI'; // Reemplaza con tu API key real
+const API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc'; // Reemplaza con tu API key real
 ```
 
 ### 6. Probar la Conexión

@@ -2,17 +2,18 @@
 import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
 
 export const colors = {
-  primary: '#4A90E2',      // Light blue
-  secondary: '#FF6B35',    // Orange accent
-  success: '#4CAF50',      // Green for available dates
-  error: '#F44336',        // Red for booked dates
-  warning: '#FFC107',      // Yellow highlight
-  background: '#F8F9FA',   // Light background
-  backgroundAlt: '#FFFFFF', // White cards
-  text: '#2C3E50',         // Dark gray text
-  textLight: '#7F8C8D',    // Light gray text
-  border: '#E1E8ED',       // Light border
+  primary: '#6366F1',      // Modern indigo
+  secondary: '#F59E0B',    // Warm amber
+  success: '#10B981',      // Emerald green
+  error: '#EF4444',        // Modern red
+  warning: '#F59E0B',      // Amber warning
+  background: '#F8FAFC',   // Very light gray
+  backgroundAlt: '#FFFFFF', // Pure white
+  text: '#1F2937',         // Dark gray text
+  textLight: '#6B7280',    // Medium gray text
+  border: '#E5E7EB',       // Light border
   card: '#FFFFFF',         // White card background
+  accent: '#8B5CF6',       // Purple accent
 };
 
 export const buttonStyles = StyleSheet.create({
@@ -20,19 +21,34 @@ export const buttonStyles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignSelf: 'center',
     width: '100%',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   secondary: {
     backgroundColor: colors.secondary,
     alignSelf: 'center',
     width: '100%',
+    shadowColor: colors.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   success: {
     backgroundColor: colors.success,
     alignSelf: 'center',
     width: '100%',
+    shadowColor: colors.success,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   backButton: {
-    backgroundColor: colors.text,
+    backgroundColor: colors.primary,
     alignSelf: 'center',
     width: '100%',
   },
@@ -57,19 +73,34 @@ export const commonStyles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 16,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
   title: {
     fontSize: 28,
     fontWeight: '800',
     textAlign: 'center',
     color: colors.text,
-    marginBottom: 20,
-    marginTop: 20,
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textLight,
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: 12,
   },
   text: {
     fontSize: 16,
@@ -87,23 +118,103 @@ export const commonStyles = StyleSheet.create({
   },
   section: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   buttonContainer: {
     width: '100%',
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     marginBottom: 16,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  secondaryButton: {
+    backgroundColor: colors.backgroundAlt,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.backgroundAlt,
+    textAlign: 'center',
+  },
+  backButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.backgroundAlt,
   },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     marginVertical: 8,
     width: '100%',
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
-    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  statusBadge: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border + '40',
+  },
+  infoLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textLight,
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+    flex: 2,
+    textAlign: 'right',
   },
   row: {
     flexDirection: 'row',
@@ -112,19 +223,28 @@ export const commonStyles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     fontSize: 16,
     backgroundColor: colors.backgroundAlt,
     marginBottom: 16,
     color: colors.text,
+    fontWeight: '500',
+  },
+  inputFocused: {
+    borderColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   picker: {
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.backgroundAlt,
     marginBottom: 16,
   },
@@ -133,15 +253,20 @@ export const commonStyles = StyleSheet.create({
     backgroundColor: colors.backgroundAlt,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   navButton: {
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
     marginHorizontal: 4,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   navButtonActive: {
     backgroundColor: colors.primary,
@@ -149,7 +274,7 @@ export const commonStyles = StyleSheet.create({
   navButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.text,
+    color: colors.textLight,
     marginTop: 4,
   },
   navButtonTextActive: {

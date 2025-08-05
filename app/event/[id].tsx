@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { loadEvents, updateEvent, deleteEvent } from '../../utils/storage';
-import { sendWhatsAppReminder } from '../../utils/whatsapp';
+import { sendWhatsAppReminder, sendWhatsAppCancellation } from '../../utils/whatsapp';
 import Button from '../../components/Button';
 import { Event } from '../../types';
 import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
@@ -87,23 +87,27 @@ const EventDetailScreen: React.FC = () => {
 
     Alert.alert(
       'Eliminar Evento',
-      '¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.',
+      '¿Estás seguro de que quieres eliminar este evento?\n\n⚠️ Se enviará un mensaje de cancelación al cliente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Eliminar',
+          text: 'Eliminar y Notificar',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
-              console.log('EventDetailScreen: Deleting event:', event.id);
+              console.log('EventDetailScreen: Deleting event and sending cancellation:', event.id);
               
+              // Send cancellation message first
+              sendWhatsAppCancellation(event);
+              
+              // Then delete the event
               await deleteEvent(event.id);
               
               console.log('EventDetailScreen: Event deleted successfully');
               Alert.alert(
-                'Eliminado',
-                'Evento eliminado correctamente',
+                'Evento Eliminado',
+                '✅ Evento eliminado correctamente\n📱 Mensaje de cancelación enviado al cliente',
                 [
                   {
                     text: 'OK',
@@ -128,12 +132,18 @@ const EventDetailScreen: React.FC = () => {
     
     console.log('EventDetailScreen: Sending WhatsApp reminder for event:', event.id);
     sendWhatsAppReminder(event);
+    
+    Alert.alert(
+      'Recordatorio Enviado',
+      '📱 Se abrió WhatsApp con el mensaje de recordatorio',
+      [{ text: 'OK' }]
+    );
   };
 
   if (loading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ fontSize: 18, color: colors.text }}>Cargando...</Text>
+        <Text style={{ fontSize: 18, color: colors.text }}>🔄 Cargando...</Text>
       </View>
     );
   }
@@ -141,7 +151,7 @@ const EventDetailScreen: React.FC = () => {
   if (!event) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ fontSize: 18, color: colors.text }}>Evento no encontrado</Text>
+        <Text style={{ fontSize: 18, color: colors.text }}>❌ Evento no encontrado</Text>
         <Button
           text="Volver"
           onPress={() => router.back()}
@@ -161,96 +171,165 @@ const EventDetailScreen: React.FC = () => {
 
   return (
     <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
-      <View style={commonStyles.header}>
+      <View style={[commonStyles.header, { paddingHorizontal: 16, paddingVertical: 20 }]}>
         <TouchableOpacity
-          style={[commonStyles.backButton, { backgroundColor: colors.primary }]}
+          style={[commonStyles.backButton, { 
+            backgroundColor: colors.primary,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderRadius: 8
+          }]}
           onPress={() => router.back()}
         >
-          <Text style={[commonStyles.backButtonText, { color: colors.backgroundAlt }]}>← Volver</Text>
+          <Text style={[commonStyles.backButtonText, { 
+            color: 'white',
+            fontWeight: '600'
+          }]}>
+            ← Volver
+          </Text>
         </TouchableOpacity>
-        <Text style={[commonStyles.title, { flex: 1, textAlign: 'center' }]}>Detalles del Evento</Text>
+        <Text style={[commonStyles.title, { 
+          flex: 1, 
+          textAlign: 'center',
+          fontSize: 20,
+          fontWeight: '700',
+          color: colors.primary
+        }]}>
+          📋 Detalles del Evento
+        </Text>
         <View style={{ width: 80 }} />
       </View>
 
-      <View style={commonStyles.card}>
+      <View style={[commonStyles.card, { margin: 16 }]}>
         {/* Event Status */}
         <View style={[
           commonStyles.statusBadge,
-          { backgroundColor: event.isPaid ? colors.success + '20' : colors.warning + '20' }
+          { 
+            backgroundColor: event.isPaid ? colors.success + '20' : colors.warning + '20',
+            marginBottom: 20,
+            paddingVertical: 12,
+            borderRadius: 8
+          }
         ]}>
           <Text style={[
             commonStyles.statusText,
-            { color: event.isPaid ? colors.success : colors.warning }
+            { 
+              color: event.isPaid ? colors.success : colors.warning,
+              fontSize: 16,
+              fontWeight: '700',
+              textAlign: 'center'
+            }
           ]}>
-            {event.isPaid ? 'PAGADO' : 'PENDIENTE'}
+            {event.isPaid ? '✅ PAGADO' : '⏳ PENDIENTE'}
           </Text>
         </View>
 
         {/* Basic Information */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Información del Evento</Text>
+        <View style={[commonStyles.section, { marginBottom: 24 }]}>
+          <Text style={[commonStyles.sectionTitle, { 
+            fontSize: 18,
+            fontWeight: '700',
+            color: colors.primary,
+            marginBottom: 16
+          }]}>
+            📅 Información del Evento
+          </Text>
           
-          <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Fecha:</Text>
-            <Text style={commonStyles.infoValue}>{formattedDate}</Text>
+          <View style={[commonStyles.infoRow, { marginBottom: 12 }]}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Fecha:</Text>
+            <Text style={[commonStyles.infoValue, { fontWeight: '500' }]}>{formattedDate}</Text>
+          </View>
+
+          <View style={[commonStyles.infoRow, { marginBottom: 12 }]}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Hora:</Text>
+            <Text style={[commonStyles.infoValue, { fontWeight: '500' }]}>{event.time}</Text>
           </View>
 
           <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Hora:</Text>
-            <Text style={commonStyles.infoValue}>{event.time}</Text>
-          </View>
-
-          <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Paquete:</Text>
-            <Text style={commonStyles.infoValue}>{event.packageType}</Text>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Paquete:</Text>
+            <Text style={[commonStyles.infoValue, { 
+              fontWeight: '600',
+              color: colors.primary
+            }]}>
+              {event.packageType}
+            </Text>
           </View>
         </View>
 
         {/* Customer Information */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Información del Cliente</Text>
+        <View style={[commonStyles.section, { marginBottom: 24 }]}>
+          <Text style={[commonStyles.sectionTitle, { 
+            fontSize: 18,
+            fontWeight: '700',
+            color: colors.primary,
+            marginBottom: 16
+          }]}>
+            👤 Información del Cliente
+          </Text>
           
-          <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Cliente:</Text>
-            <Text style={commonStyles.infoValue}>{event.customerName}</Text>
+          <View style={[commonStyles.infoRow, { marginBottom: 12 }]}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Cliente:</Text>
+            <Text style={[commonStyles.infoValue, { fontWeight: '500' }]}>{event.customerName}</Text>
           </View>
 
-          <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Teléfono:</Text>
-            <Text style={commonStyles.infoValue}>{event.customerPhone}</Text>
-          </View>
-
-          <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Festejado:</Text>
-            <Text style={commonStyles.infoValue}>{event.childName}</Text>
-          </View>
-        </View>
-
-        {/* Payment Information */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Información de Pago</Text>
-          
-          <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Total:</Text>
-            <Text style={[commonStyles.infoValue, { fontWeight: '700' }]}>
-              ${event.totalAmount.toLocaleString()}
+          <View style={[commonStyles.infoRow, { marginBottom: 12 }]}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Teléfono:</Text>
+            <Text style={[commonStyles.infoValue, { 
+              fontWeight: '500',
+              color: colors.primary
+            }]}>
+              {event.customerPhone}
             </Text>
           </View>
 
           <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Anticipo:</Text>
-            <Text style={commonStyles.infoValue}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Festejado:</Text>
+            <Text style={[commonStyles.infoValue, { 
+              fontWeight: '600',
+              color: colors.success
+            }]}>
+              🎂 {event.childName}
+            </Text>
+          </View>
+        </View>
+
+        {/* Payment Information */}
+        <View style={[commonStyles.section, { marginBottom: 24 }]}>
+          <Text style={[commonStyles.sectionTitle, { 
+            fontSize: 18,
+            fontWeight: '700',
+            color: colors.primary,
+            marginBottom: 16
+          }]}>
+            💰 Información de Pago
+          </Text>
+          
+          <View style={[commonStyles.infoRow, { marginBottom: 12 }]}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Total:</Text>
+            <Text style={[commonStyles.infoValue, { 
+              fontWeight: '700',
+              fontSize: 16,
+              color: colors.text
+            }]}>
+              ${event.totalAmount.toLocaleString()}
+            </Text>
+          </View>
+
+          <View style={[commonStyles.infoRow, { marginBottom: 12 }]}>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Anticipo:</Text>
+            <Text style={[commonStyles.infoValue, { fontWeight: '500' }]}>
               ${event.deposit.toLocaleString()}
             </Text>
           </View>
 
           <View style={commonStyles.infoRow}>
-            <Text style={commonStyles.infoLabel}>Saldo:</Text>
+            <Text style={[commonStyles.infoLabel, { fontWeight: '600' }]}>Saldo:</Text>
             <Text style={[
               commonStyles.infoValue,
               { 
                 color: event.remainingAmount > 0 ? colors.warning : colors.success,
-                fontWeight: '600'
+                fontWeight: '700',
+                fontSize: 16
               }
             ]}>
               ${event.remainingAmount.toLocaleString()}
@@ -260,9 +339,23 @@ const EventDetailScreen: React.FC = () => {
 
         {/* Notes */}
         {event.notes && (
-          <View style={commonStyles.section}>
-            <Text style={commonStyles.sectionTitle}>Notas</Text>
-            <Text style={commonStyles.infoValue}>{event.notes}</Text>
+          <View style={[commonStyles.section, { marginBottom: 24 }]}>
+            <Text style={[commonStyles.sectionTitle, { 
+              fontSize: 18,
+              fontWeight: '700',
+              color: colors.primary,
+              marginBottom: 16
+            }]}>
+              📝 Notas
+            </Text>
+            <Text style={[commonStyles.infoValue, { 
+              fontStyle: 'italic',
+              backgroundColor: colors.backgroundAlt,
+              padding: 12,
+              borderRadius: 8
+            }]}>
+              {event.notes}
+            </Text>
           </View>
         )}
 
@@ -270,43 +363,75 @@ const EventDetailScreen: React.FC = () => {
         <View style={commonStyles.buttonContainer}>
           {/* WhatsApp Reminder */}
           <Button
-            text="Enviar Recordatorio WhatsApp"
+            text="📱 Enviar Recordatorio WhatsApp"
             onPress={handleWhatsAppReminder}
-            style={[buttonStyles.secondary, { backgroundColor: colors.success }]}
-            textStyle={{ color: colors.backgroundAlt }}
+            style={[buttonStyles.secondary, { 
+              backgroundColor: colors.success,
+              paddingVertical: 16,
+              borderRadius: 10
+            }]}
+            textStyle={{ 
+              color: 'white',
+              fontWeight: '600',
+              fontSize: 16
+            }}
           />
 
           {/* Mark as Paid */}
           {!event.isPaid && (
             <Button
-              text="Marcar como Pagado"
+              text="✅ Marcar como Pagado"
               onPress={handleMarkAsPaid}
-              style={[buttonStyles.primary, { marginTop: 12 }]}
+              style={[buttonStyles.primary, { 
+                marginTop: 12,
+                paddingVertical: 16,
+                borderRadius: 10
+              }]}
+              textStyle={{
+                fontWeight: '600',
+                fontSize: 16
+              }}
             />
           )}
 
           {/* Delete Event */}
           <Button
-            text="Eliminar Evento"
+            text="🗑️ Eliminar Evento"
             onPress={handleDeleteEvent}
             style={[
               buttonStyles.secondary,
               { 
                 marginTop: 12,
-                backgroundColor: colors.error + '20',
+                backgroundColor: colors.error + '15',
                 borderColor: colors.error,
-                borderWidth: 1
+                borderWidth: 2,
+                paddingVertical: 16,
+                borderRadius: 10
               }
             ]}
-            textStyle={{ color: colors.error }}
+            textStyle={{ 
+              color: colors.error,
+              fontWeight: '600',
+              fontSize: 16
+            }}
           />
         </View>
       </View>
 
       {/* Event Creation Info */}
-      <View style={[commonStyles.card, { marginTop: 16, marginBottom: 32 }]}>
-        <Text style={[commonStyles.subtitle, { textAlign: 'center', color: colors.textLight }]}>
-          Evento creado el {new Date(event.createdAt).toLocaleDateString('es-ES')}
+      <View style={[commonStyles.card, { 
+        marginHorizontal: 16, 
+        marginBottom: 32,
+        backgroundColor: colors.backgroundAlt,
+        paddingVertical: 16
+      }]}>
+        <Text style={[commonStyles.subtitle, { 
+          textAlign: 'center', 
+          color: colors.textLight,
+          fontSize: 14,
+          fontWeight: '500'
+        }]}>
+          📅 Evento creado el {new Date(event.createdAt).toLocaleDateString('es-ES')}
         </Text>
       </View>
     </ScrollView>

@@ -4,7 +4,7 @@ import { Event } from '../types';
 // Google Sheets configuration
 const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s';
 const RANGE = 'Sheet1!A:I'; // Columns A-I for all our data
-const API_KEY = '8aff616a2f0872fb097d6217fa4685715601daf5'; // Your provided API key
+const API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc'; // Updated API key
 
 // Column mapping to match your Google Sheet exactly
 // Fecha	Nombre	Teléfono	Paquete	Estado	AnticipoPagado	TotalEvento	FechaPago	NotificadoLunes
