@@ -1,292 +1,169 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { commonStyles, colors } from '../styles/commonStyles';
-import { Event } from '../types';
 import { loadEvents } from '../utils/storage';
 import CalendarView from '../components/CalendarView';
 import EventCard from '../components/EventCard';
+import { commonStyles, colors } from '../styles/commonStyles';
+import { Event } from '../types';
 
-export default function MainScreen() {
+const MainScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    console.log('MainScreen: Initial load');
-    loadEventsData();
-  }, []);
-
-  // Refresh events when screen comes into focus
+  // Load events when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('MainScreen: Screen focused, reloading events...');
+      console.log('MainScreen: Screen focused, loading events...');
       loadEventsData();
     }, [])
   );
 
+  useEffect(() => {
+    console.log('MainScreen: Component mounted, loading events...');
+    loadEventsData();
+  }, []);
+
   const loadEventsData = async () => {
-    console.log('MainScreen: Loading events...');
     try {
+      setLoading(true);
+      console.log('MainScreen: Loading events...');
       const loadedEvents = await loadEvents();
-      console.log('MainScreen: Events loaded from storage:', loadedEvents.length);
-      console.log('MainScreen: Event details:', loadedEvents.map(e => ({ 
-        id: e.id, 
-        date: e.date, 
-        customerName: e.customerName,
-        packageType: e.packageType 
-      })));
-      
+      console.log('MainScreen: Events loaded:', loadedEvents.length);
       setEvents(loadedEvents);
-      console.log('MainScreen: State updated with events');
     } catch (error) {
       console.error('MainScreen: Error loading events:', error);
+      Alert.alert('Error', 'No se pudieron cargar los eventos');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDateSelect = (date: string) => {
     console.log('MainScreen: Date selected:', date);
+    setSelectedDate(date);
     
-    // Check if the date has any events (unavailable)
+    // Check if date has events
     const dateEvents = events.filter(event => event.date === date);
     console.log('MainScreen: Events for selected date:', dateEvents.length);
     
     if (dateEvents.length > 0) {
-      // Date is unavailable (red) - show event details
-      console.log('MainScreen: Date unavailable, showing event details for:', dateEvents[0].id);
+      // Navigate to event details for the first event on this date
+      console.log('MainScreen: Navigating to event details for:', dateEvents[0].id);
       router.push(`/event/${dateEvents[0].id}`);
     } else {
-      // Date is available (green) - go to schedule screen
-      console.log('MainScreen: Date available, navigating to schedule');
-      router.push(`/schedule?date=${date}`);
+      // Navigate to schedule screen for this date
+      console.log('MainScreen: Navigating to schedule for date:', date);
+      router.push({
+        pathname: '/schedule',
+        params: { date }
+      });
     }
   };
 
   const renderMainScreen = () => (
-    <ScrollView style={commonStyles.container}>
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 }}>
-        {/* Main Title */}
-        <Text style={[commonStyles.title, { 
-          fontSize: 48, 
-          fontWeight: '900',
-          color: colors.primary,
-          textAlign: 'center',
-          marginBottom: 40,
-          textShadowColor: 'rgba(0, 0, 0, 0.1)',
-          textShadowOffset: { width: 2, height: 2 },
-          textShadowRadius: 4
-        }]}>
-          ✨ Abrakadabra ✨
-        </Text>
+    <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.title}>Abrakadabra</Text>
+        <Text style={commonStyles.subtitle}>Gestión de Eventos</Text>
+      </View>
 
-        {/* Subtitle */}
-        <Text style={[commonStyles.text, {
-          fontSize: 18,
-          textAlign: 'center',
-          color: colors.textLight,
-          marginBottom: 60,
-          paddingHorizontal: 20
-        }]}>
-          Sistema de gestión para eventos infantiles
-        </Text>
-
-        {/* Google Sheets Connection Status */}
-        <View style={[commonStyles.card, { 
-          marginHorizontal: 20,
-          marginBottom: 30,
-          backgroundColor: colors.warning + '20',
-          borderColor: colors.warning
-        }]}>
-          <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 8, fontWeight: '600' }]}>
-            🔗 Conexión con Google Sheets
-          </Text>
-          <Text style={[commonStyles.textLight, { textAlign: 'center', fontSize: 12 }]}>
-            Los datos se sincronizan automáticamente con tu hoja de cálculo
-          </Text>
-        </View>
-
-        {/* Main Action Button */}
+      <View style={commonStyles.buttonContainer}>
         <TouchableOpacity
-          style={[commonStyles.card, {
-            backgroundColor: colors.primary,
-            paddingVertical: 20,
-            paddingHorizontal: 40,
-            marginHorizontal: 20,
-            marginBottom: 30,
-            borderRadius: 16,
-            boxShadow: '0px 4px 12px rgba(74, 144, 226, 0.3)',
-            elevation: 6,
-            borderWidth: 0
-          }]}
-          onPress={() => {
-            console.log('MainScreen: Opening calendar view');
-            setShowCalendar(true);
-          }}
+          style={[commonStyles.primaryButton, { backgroundColor: colors.success }]}
+          onPress={() => setCurrentView('calendar')}
         >
-          <Text style={[commonStyles.text, {
-            color: colors.backgroundAlt,
-            textAlign: 'center',
-            fontWeight: '700',
-            fontSize: 18,
-            marginBottom: 0
-          }]}>
-            📅 REVISAR DISPONIBILIDAD
-          </Text>
+          <Text style={commonStyles.buttonText}>REVISAR DISPONIBILIDAD</Text>
         </TouchableOpacity>
 
-        {/* Quick Stats */}
-        <View style={[commonStyles.card, { 
-          marginHorizontal: 20,
-          backgroundColor: colors.backgroundAlt,
-          borderColor: colors.border
-        }]}>
-          <Text style={[commonStyles.subtitle, { textAlign: 'center', marginBottom: 16 }]}>
-            Resumen Rápido
-          </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color: colors.success }}>
-                {events.filter(e => new Date(e.date) >= new Date()).length}
-              </Text>
-              <Text style={[commonStyles.textLight, { fontSize: 12 }]}>Próximos</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color: colors.warning }}>
-                {events.filter(e => !e.isPaid).length}
-              </Text>
-              <Text style={[commonStyles.textLight, { fontSize: 12 }]}>Pendientes</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 24, color: colors.primary }}>
-                {events.length}
-              </Text>
-              <Text style={[commonStyles.textLight, { fontSize: 12 }]}>Total</Text>
-            </View>
-          </View>
-        </View>
+        <TouchableOpacity
+          style={[commonStyles.secondaryButton, { marginTop: 16 }]}
+          onPress={() => router.push('/events')}
+        >
+          <Text style={[commonStyles.buttonText, { color: colors.primary }]}>Ver Todos los Eventos</Text>
+        </TouchableOpacity>
 
-        {/* Quick Access Buttons */}
-        <View style={{ width: '100%', paddingHorizontal: 20, marginTop: 30 }}>
-          <TouchableOpacity
-            style={[commonStyles.card, {
-              backgroundColor: colors.secondary,
-              paddingVertical: 16,
-              marginBottom: 16,
-              borderWidth: 0
-            }]}
-            onPress={() => router.push('/events')}
-          >
-            <Text style={[commonStyles.text, {
-              color: colors.backgroundAlt,
-              textAlign: 'center',
-              fontWeight: '600',
-              marginBottom: 0
-            }]}>
-              📋 Ver Todos los Eventos
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[commonStyles.card, {
-              backgroundColor: colors.success,
-              paddingVertical: 16,
-              borderWidth: 0
-            }]}
-            onPress={() => router.push('/packages')}
-          >
-            <Text style={[commonStyles.text, {
-              color: colors.backgroundAlt,
-              textAlign: 'center',
-              fontWeight: '600',
-              marginBottom: 0
-            }]}>
-              📦 Ver Paquetes Disponibles
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[commonStyles.secondaryButton, { marginTop: 8 }]}
+          onPress={() => router.push('/packages')}
+        >
+          <Text style={[commonStyles.buttonText, { color: colors.primary }]}>Ver Paquetes</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Recent Events */}
+      <View style={{ marginTop: 32 }}>
+        <Text style={[commonStyles.sectionTitle, { marginBottom: 16 }]}>Eventos Recientes</Text>
+        {loading ? (
+          <Text style={{ textAlign: 'center', color: colors.textLight, fontSize: 16 }}>
+            Cargando eventos...
+          </Text>
+        ) : events.length > 0 ? (
+          events
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 3)
+            .map(event => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onPress={() => router.push(`/event/${event.id}`)}
+              />
+            ))
+        ) : (
+          <Text style={{ textAlign: 'center', color: colors.textLight, fontSize: 16 }}>
+            No hay eventos registrados
+          </Text>
+        )}
+      </View>
+
+      {/* Refresh Button */}
+      <TouchableOpacity
+        style={[commonStyles.secondaryButton, { marginTop: 24, marginBottom: 32 }]}
+        onPress={loadEventsData}
+        disabled={loading}
+      >
+        <Text style={[commonStyles.buttonText, { color: colors.primary }]}>
+          {loading ? 'Actualizando...' : 'Actualizar Eventos'}
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 
   const renderCalendarScreen = () => (
-    <ScrollView style={commonStyles.container}>
-      {/* Header with back button */}
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 20,
-        paddingBottom: 10
-      }}>
+    <View style={commonStyles.container}>
+      <View style={[commonStyles.header, { paddingHorizontal: 16 }]}>
         <TouchableOpacity
-          style={{
-            backgroundColor: colors.text,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 8,
-            marginRight: 16
-          }}
-          onPress={() => {
-            console.log('MainScreen: Closing calendar view');
-            setShowCalendar(false);
-          }}
+          style={[commonStyles.backButton, { backgroundColor: colors.primary }]}
+          onPress={() => setCurrentView('main')}
         >
-          <Text style={{
-            color: colors.backgroundAlt,
-            fontWeight: '600'
-          }}>
-            ← Volver
-          </Text>
+          <Text style={[commonStyles.backButtonText, { color: colors.backgroundAlt }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[commonStyles.title, { flex: 1, marginTop: 0, marginBottom: 0 }]}>
-          📅 Disponibilidad
-        </Text>
+        <Text style={[commonStyles.title, { flex: 1, textAlign: 'center' }]}>Calendario</Text>
+        <View style={{ width: 80 }} />
       </View>
 
-      {/* Instructions */}
-      <View style={[commonStyles.card, { marginHorizontal: 16, marginBottom: 16 }]}>
-        <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 12 }]}>
-          Selecciona una fecha para continuar:
-        </Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{
-              width: 16,
-              height: 16,
-              backgroundColor: colors.success,
-              borderRadius: 8,
-              marginRight: 8
-            }} />
-            <Text style={[commonStyles.textLight, { fontSize: 14 }]}>
-              Disponible → Agendar
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{
-              width: 16,
-              height: 16,
-              backgroundColor: colors.error,
-              borderRadius: 8,
-              marginRight: 8
-            }} />
-            <Text style={[commonStyles.textLight, { fontSize: 14 }]}>
-              Ocupado → Ver evento
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Calendar */}
       <CalendarView
         events={events}
         onDateSelect={handleDateSelect}
+        selectedDate={selectedDate}
       />
-    </ScrollView>
-  );
 
-  return (
-    <View style={commonStyles.container}>
-      {showCalendar ? renderCalendarScreen() : renderMainScreen()}
+      <View style={{ padding: 16 }}>
+        <Text style={[commonStyles.subtitle, { textAlign: 'center', marginBottom: 16 }]}>
+          Selecciona una fecha para agendar o ver eventos
+        </Text>
+        <Text style={{ textAlign: 'center', color: colors.textLight, fontSize: 14 }}>
+          Verde: Disponible para agendar{'\n'}
+          Rojo: Ocupado - Ver información del evento
+        </Text>
+      </View>
     </View>
   );
-}
+
+  return currentView === 'main' ? renderMainScreen() : renderCalendarScreen();
+};
+
+export default MainScreen;

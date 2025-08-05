@@ -1,106 +1,202 @@
+import { Event } from '../types';
 
-# Configuración de Google Sheets para Abrakadabra
+/**
+ * Google Sheets helpers for Abrakadabra
+ * -------------------------------------
+ * Lee y escribe filas en la pestaña "Sheet1" (columnas A‑I).
+ *
+ * Requisitos para que funcione el modo API Key (sin OAuth):
+ *  1) La hoja debe estar en modo «Anyone with the link **can edit**».
+ *  2) La clave API debe tener habilitada la Google Sheets API.
+ *  3) (Opcional) Restringe la clave a tu dominio en la consola de GCP.
+ *
+ * ⚠️  Para producción te conviene cambiar a Service Account u OAuth.
+ */
 
-## Pasos para conectar la aplicación con Google Sheets
+// -----------------------------------------------------------------------------
+// CONFIGURACIÓN ----------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-### 1. Preparar Google Cloud Console
-
-1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
-2. Crea un nuevo proyecto o selecciona uno existente
-3. Habilita la API de Google Sheets:
-   - Ve a "APIs & Services" > "Library"
-   - Busca "Google Sheets API"
-   - Haz clic en "Enable"
-
-### 2. Crear credenciales de API
-
-1. Ve a "APIs & Services" > "Credentials"
-2. Haz clic en "Create Credentials" > "API Key"
-3. Copia la API Key generada
-4. (Opcional) Restringe la API Key para mayor seguridad:
-   - Haz clic en la API Key creada
-   - En "Application restrictions", selecciona "HTTP referrers"
-   - Agrega tu dominio
-   - En "API restrictions", selecciona "Google Sheets API"
-
-### 3. Configurar tu Google Sheet
-
-1. Abre tu Google Sheet: https://docs.google.com/spreadsheets/d/13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s/edit
-2. Asegúrate de que la primera fila tenga exactamente estos encabezados:
-   ```
-   Fecha | Nombre | Teléfono | Paquete | Estado | AnticipoPagado | TotalEvento | FechaPago | NotificadoLunes
-   ```
-3. Haz el sheet público para lectura:
-   - Haz clic en "Share" (Compartir)
-   - Cambia a "Anyone with the link can view"
-   - Copia el link del sheet
-
-### 4. Actualizar el código de la aplicación
-
-Edita el archivo `utils/googleSheets.ts` y actualiza estas variables:
-
-```typescript
-// Reemplaza con tu API Key de Google Cloud
-const API_KEY = 'TU_API_KEY_AQUI';
-
-// Reemplaza con el ID de tu Google Sheet (ya está configurado)
+// ID de tu spreadsheet (el largo hash en la URL)
 const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s';
-```
 
-### 5. Activar las funciones reales
+// Nombre de la pestaña + rango de columnas que usamos
+const RANGE = 'Sheet1!A:I';
 
-En el archivo `utils/googleSheets.ts`, descomenta las secciones marcadas como "Real implementation" y comenta las secciones "Mock implementation".
+// Reemplázalo por tu propia clave de la consola de Google Cloud
+const API_KEY = '8aff616a2f0872fb097d6217fa4685715601daf5';
 
-### 6. Estructura de datos en Google Sheets
+// -----------------------------------------------------------------------------
+// MAPEO DE COLUMNAS ------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-La aplicación mapea los datos de la siguiente manera:
+const COL = {
+  fecha: 0,
+  nombre: 1,
+  telefono: 2,
+  paquete: 3,
+  estado: 4,
+  anticipoPagado: 5,
+  totalEvento: 6,
+  fechaPago: 7,
+  notificadoLunes: 8
+} as const;
 
-| Columna Google Sheets | Campo en la App | Descripción |
-|----------------------|-----------------|-------------|
-| Fecha | date | Fecha del evento (YYYY-MM-DD) |
-| Nombre | customerName + childName | "Nombre Cliente (Nombre Niño)" |
-| Teléfono | customerPhone | Número de WhatsApp |
-| Paquete | packageType | Abra, Kadabra, o Abrakadabra |
-| Estado | isPaid | "Pagado" o "Pendiente" |
-| AnticipoPagado | deposit | Monto del anticipo |
-| TotalEvento | totalAmount | Monto total del evento |
-| FechaPago | date (si está pagado) | Fecha de pago completo |
-| NotificadoLunes | - | "Sí" o "No" para recordatorios |
+type ColKey = keyof typeof COL;
 
-### 7. Permisos y seguridad
+interface GoogleSheetsRow {
+  [K in ColKey]: string;
+}
 
-Para mayor seguridad, considera:
+// -----------------------------------------------------------------------------
+// CONVERSORES ------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-1. **Restricciones de API Key**: Limita el uso de la API Key a tu dominio específico
-2. **Service Account**: Para aplicaciones en producción, usa Service Account en lugar de API Key
-3. **Validación de datos**: La app valida los datos antes de enviarlos a Google Sheets
+/** Convierte un objeto Event a la forma de fila que espera la hoja */
+const eventToSheetRow = (event: Event): GoogleSheetsRow => ({
+  fecha: event.date,
+  nombre: `${event.customerName} (${event.childName})`,
+  telefono: event.customerPhone,
+  paquete: event.packageType,
+  estado: event.isPaid ? 'Pagado' : 'Pendiente',
+  anticipoPagado: String(event.deposit),
+  totalEvento: String(event.totalAmount),
+  fechaPago: event.isPaid ? event.date : '',
+  notificadoLunes: 'No'
+});
 
-### 8. Solución de problemas
+/** Convierte una fila de la hoja en Event (o null si está mal formada) */
+const sheetRowToEvent = (row: any[], index: number): Event | null => {
+  if (!row || row.length < 4) return null;
 
-**Error de CORS**: Si encuentras errores de CORS, asegúrate de que:
-- La API Key esté configurada correctamente
-- El Google Sheet sea público para lectura
-- Las restricciones de la API Key incluyan tu dominio
+  const rawName = row[COL.nombre] ?? '';
+  const nameMatch = rawName.match(/^(.+?)\s*\((.+?)\)$/);
 
-**Datos no se guardan**: Verifica que:
-- El ID del spreadsheet sea correcto
-- Los encabezados de las columnas coincidan exactamente
-- La API Key tenga permisos para Google Sheets API
+  return {
+    id: `sheet_${index}`,
+    date: row[COL.fecha] ?? '',
+    time: '15:00', // no se guarda la hora en la hoja
+    customerName: nameMatch ? nameMatch[1].trim() : rawName,
+    childName: nameMatch ? nameMatch[2].trim() : '',
+    customerPhone: row[COL.telefono] ?? '',
+    packageType: (row[COL.paquete] as 'Abra' | 'Kadabra' | 'Abrakadabra') ?? 'Abra',
+    totalAmount: parseFloat(row[COL.totalEvento] ?? '0'),
+    deposit: parseFloat(row[COL.anticipoPagado] ?? '0'),
+    remainingAmount: parseFloat(row[COL.totalEvento] ?? '0') - parseFloat(row[COL.anticipoPagado] ?? '0'),
+    isPaid: String(row[COL.estado] ?? '').toLowerCase() === 'pagado',
+    notes: '',
+    createdAt: new Date().toISOString()
+  };
+};
 
-**Formato de fecha**: Las fechas deben estar en formato YYYY-MM-DD (ej: 2024-01-15)
+// -----------------------------------------------------------------------------
+// ENDPOINT BASE ----------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-### 9. Funcionalidades implementadas
+const sheetsBaseURL = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values`;
 
-✅ **Lectura de eventos**: La app carga eventos existentes desde Google Sheets
-✅ **Guardado de eventos**: Nuevos eventos se agregan automáticamente
-✅ **Sincronización**: Los datos se sincronizan al abrir la app
-✅ **Respaldo local**: Los datos se guardan localmente como respaldo
-✅ **Validación**: Se valida que no haya conflictos de fechas/horas
+// -----------------------------------------------------------------------------
+// FUNCIONES PÚBLICAS -----------------------------------------------------------
+// -----------------------------------------------------------------------------
 
-### 10. Próximos pasos
+/** Descarga todos los eventos de la hoja */
+export async function loadEventsFromGoogleSheets(): Promise<Event[]> {
+  try {
+    const res = await fetch(`${sheetsBaseURL}/${encodeURIComponent(RANGE)}?key=${API_KEY}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-Una vez configurado, la aplicación:
-- Cargará eventos existentes de tu Google Sheet
-- Guardará nuevos eventos automáticamente
-- Mantendrá sincronización entre la app y la hoja de cálculo
-- Mostrará el calendario actualizado en tiempo real
+    const data = await res.json();
+    const rows: any[][] = data.values ?? [];
+
+    const events: Event[] = [];
+    for (let i = 1; i < rows.length; i++) { // salta encabezado
+      const ev = sheetRowToEvent(rows[i], i);
+      if (ev) events.push(ev);
+    }
+
+    return events;
+  } catch (err) {
+    console.error('loadEventsFromGoogleSheets:', err);
+    return [];
+  }
+}
+
+/** Agrega un nuevo evento (append) */
+export async function saveEventToGoogleSheets(event: Event): Promise<boolean> {
+  try {
+    const r = eventToSheetRow(event);
+
+    const body = {
+      values: [[
+        r.fecha,
+        r.nombre,
+        r.telefono,
+        r.paquete,
+        r.estado,
+        r.anticipoPagado,
+        r.totalEvento,
+        r.fechaPago,
+        r.notificadoLunes
+      ]]
+    };
+
+    const res = await fetch(`${sheetsBaseURL}/${encodeURIComponent(RANGE)}:append?valueInputOption=RAW&key=${API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    );
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
+  } catch (err) {
+    console.error('saveEventToGoogleSheets:', err);
+    return false;
+  }
+}
+
+/** Actualiza la fila indicada (empieza en 1 sin contar encabezado) */
+export async function updateEventInGoogleSheets(event: Event, rowIndex: number): Promise<boolean> {
+  try {
+    const r = eventToSheetRow(event);
+    const range = `Sheet1!A${rowIndex + 1}:I${rowIndex + 1}`;
+
+    const body = {
+      values: [[
+        r.fecha,
+        r.nombre,
+        r.telefono,
+        r.paquete,
+        r.estado,
+        r.anticipoPagado,
+        r.totalEvento,
+        r.fechaPago,
+        r.notificadoLunes
+      ]]
+    };
+
+    const res = await fetch(`${sheetsBaseURL}/${encodeURIComponent(range)}?valueInputOption=RAW&key=${API_KEY}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }
+    );
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return true;
+  } catch (err) {
+    console.error('updateEventInGoogleSheets:', err);
+    return false;
+  }
+}
+
+/**
+ * Eliminar filas vía API Key requiere un batchUpdate y el sheetId numérico.
+ * Se deja como pendiente porque suele usarse poco en flujo móvil.
+ */
+export async function deleteEventFromGoogleSheets(_rowIndex: number): Promise<boolean> {
+  console.warn('deleteEventFromGoogleSheets: not implemented (API key mode)');
+  return false;
+}

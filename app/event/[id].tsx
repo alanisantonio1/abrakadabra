@@ -2,26 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
-import { Event } from '../../types';
-import { loadEvents, saveEvents } from '../../utils/storage';
+import { loadEvents, updateEvent, deleteEvent } from '../../utils/storage';
 import { sendWhatsAppReminder } from '../../utils/whatsapp';
 import Button from '../../components/Button';
+import { Event } from '../../types';
+import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 
-export default function EventDetailScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+const EventDetailScreen: React.FC = () => {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
+      console.log('EventDetailScreen: Loading event with ID:', id);
       loadEventData();
     }
   }, [id]);
 
   const loadEventData = async () => {
     try {
-      console.log('EventDetailScreen: Loading event with ID:', id);
+      setLoading(true);
+      console.log('EventDetailScreen: Loading events to find event with ID:', id);
       const events = await loadEvents();
       const foundEvent = events.find(e => e.id === id);
       
@@ -29,13 +31,13 @@ export default function EventDetailScreen() {
         console.log('EventDetailScreen: Event found:', foundEvent);
         setEvent(foundEvent);
       } else {
-        console.log('EventDetailScreen: Event not found');
+        console.log('EventDetailScreen: Event not found with ID:', id);
         Alert.alert('Error', 'Evento no encontrado');
         router.back();
       }
     } catch (error) {
       console.error('EventDetailScreen: Error loading event:', error);
-      Alert.alert('Error', 'Error al cargar el evento');
+      Alert.alert('Error', 'No se pudo cargar el evento');
     } finally {
       setLoading(false);
     }
@@ -53,26 +55,26 @@ export default function EventDetailScreen() {
           text: 'Confirmar',
           onPress: async () => {
             try {
-              const events = await loadEvents();
-              const updatedEvents = events.map(e => 
-                e.id === event.id 
-                  ? { ...e, isPaid: true, deposit: e.totalAmount, remainingAmount: 0 }
-                  : e
-              );
+              setLoading(true);
+              console.log('EventDetailScreen: Marking event as paid:', event.id);
               
-              await saveEvents(updatedEvents);
+              const updatedEvent: Event = {
+                ...event,
+                isPaid: true,
+                deposit: event.totalAmount,
+                remainingAmount: 0
+              };
+
+              await updateEvent(updatedEvent);
+              setEvent(updatedEvent);
               
-              setEvent(prev => prev ? { 
-                ...prev, 
-                isPaid: true, 
-                deposit: prev.totalAmount, 
-                remainingAmount: 0 
-              } : null);
-              
+              console.log('EventDetailScreen: Event marked as paid successfully');
               Alert.alert('Éxito', 'Evento marcado como pagado');
             } catch (error) {
-              console.error('Error marking as paid:', error);
-              Alert.alert('Error', 'Error al actualizar el pago');
+              console.error('EventDetailScreen: Error marking as paid:', error);
+              Alert.alert('Error', 'No se pudo actualizar el evento');
+            } finally {
+              setLoading(false);
             }
           }
         }
@@ -93,15 +95,27 @@ export default function EventDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const events = await loadEvents();
-              const updatedEvents = events.filter(e => e.id !== event.id);
-              await saveEvents(updatedEvents);
+              setLoading(true);
+              console.log('EventDetailScreen: Deleting event:', event.id);
               
-              Alert.alert('Éxito', 'Evento eliminado correctamente');
-              router.back();
+              await deleteEvent(event.id);
+              
+              console.log('EventDetailScreen: Event deleted successfully');
+              Alert.alert(
+                'Eliminado',
+                'Evento eliminado correctamente',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => router.replace('/')
+                  }
+                ]
+              );
             } catch (error) {
-              console.error('Error deleting event:', error);
-              Alert.alert('Error', 'Error al eliminar el evento');
+              console.error('EventDetailScreen: Error deleting event:', error);
+              Alert.alert('Error', 'No se pudo eliminar el evento');
+            } finally {
+              setLoading(false);
             }
           }
         }
@@ -110,15 +124,16 @@ export default function EventDetailScreen() {
   };
 
   const handleWhatsAppReminder = () => {
-    if (event) {
-      sendWhatsAppReminder(event);
-    }
+    if (!event) return;
+    
+    console.log('EventDetailScreen: Sending WhatsApp reminder for event:', event.id);
+    sendWhatsAppReminder(event);
   };
 
   if (loading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={commonStyles.text}>Cargando evento...</Text>
+        <Text style={{ fontSize: 18, color: colors.text }}>Cargando...</Text>
       </View>
     );
   }
@@ -126,8 +141,12 @@ export default function EventDetailScreen() {
   if (!event) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={commonStyles.text}>Evento no encontrado</Text>
-        <Button text="Volver" onPress={() => router.back()} />
+        <Text style={{ fontSize: 18, color: colors.text }}>Evento no encontrado</Text>
+        <Button
+          text="Volver"
+          onPress={() => router.back()}
+          style={[buttonStyles.secondary, { marginTop: 20 }]}
+        />
       </View>
     );
   }
@@ -141,196 +160,157 @@ export default function EventDetailScreen() {
   });
 
   return (
-    <ScrollView style={commonStyles.container}>
-      {/* Header with back button */}
-      <View style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 20,
-        paddingBottom: 10
-      }}>
+    <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
+      <View style={commonStyles.header}>
         <TouchableOpacity
-          style={{
-            backgroundColor: colors.text,
-            paddingHorizontal: 16,
-            paddingVertical: 8,
-            borderRadius: 8,
-            marginRight: 16
-          }}
+          style={[commonStyles.backButton, { backgroundColor: colors.primary }]}
           onPress={() => router.back()}
         >
-          <Text style={{
-            color: colors.backgroundAlt,
-            fontWeight: '600'
-          }}>
-            ← Volver
-          </Text>
+          <Text style={[commonStyles.backButtonText, { color: colors.backgroundAlt }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[commonStyles.title, { flex: 1, marginTop: 0, marginBottom: 0 }]}>
-          📋 Detalles del Evento
-        </Text>
+        <Text style={[commonStyles.title, { flex: 1, textAlign: 'center' }]}>Detalles del Evento</Text>
+        <View style={{ width: 80 }} />
       </View>
 
-      <View style={commonStyles.content}>
+      <View style={commonStyles.card}>
         {/* Event Status */}
         <View style={[
-          commonStyles.card, 
-          { 
-            backgroundColor: event.isPaid ? colors.success + '20' : colors.warning + '20',
-            borderColor: event.isPaid ? colors.success : colors.warning,
-            marginBottom: 20
-          }
+          commonStyles.statusBadge,
+          { backgroundColor: event.isPaid ? colors.success + '20' : colors.warning + '20' }
         ]}>
           <Text style={[
-            commonStyles.subtitle, 
-            { 
-              textAlign: 'center', 
-              color: event.isPaid ? colors.success : colors.warning,
-              marginBottom: 8
-            }
+            commonStyles.statusText,
+            { color: event.isPaid ? colors.success : colors.warning }
           ]}>
-            {event.isPaid ? '✅ EVENTO PAGADO' : '⏳ PAGO PENDIENTE'}
-          </Text>
-          <Text style={[commonStyles.textLight, { textAlign: 'center' }]}>
-            Estado del evento
+            {event.isPaid ? 'PAGADO' : 'PENDIENTE'}
           </Text>
         </View>
 
-        {/* Event Information */}
+        {/* Basic Information */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.subtitle}>📅 Información del Evento</Text>
+          <Text style={commonStyles.sectionTitle}>Información del Evento</Text>
           
-          <View style={commonStyles.card}>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Fecha:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600' }]}>{formattedDate}</Text>
-            </View>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Hora:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600' }]}>{event.time}</Text>
-            </View>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Paquete:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600', color: colors.primary }]}>
-                {event.packageType}
-              </Text>
-            </View>
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Fecha:</Text>
+            <Text style={commonStyles.infoValue}>{formattedDate}</Text>
+          </View>
+
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Hora:</Text>
+            <Text style={commonStyles.infoValue}>{event.time}</Text>
+          </View>
+
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Paquete:</Text>
+            <Text style={commonStyles.infoValue}>{event.packageType}</Text>
           </View>
         </View>
 
         {/* Customer Information */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.subtitle}>👤 Información del Cliente</Text>
+          <Text style={commonStyles.sectionTitle}>Información del Cliente</Text>
           
-          <View style={commonStyles.card}>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Cliente:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600' }]}>{event.customerName}</Text>
-            </View>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Teléfono:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600' }]}>{event.customerPhone}</Text>
-            </View>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Festejado/a:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600', color: colors.secondary }]}>
-                {event.childName}
-              </Text>
-            </View>
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Cliente:</Text>
+            <Text style={commonStyles.infoValue}>{event.customerName}</Text>
+          </View>
+
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Teléfono:</Text>
+            <Text style={commonStyles.infoValue}>{event.customerPhone}</Text>
+          </View>
+
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Festejado:</Text>
+            <Text style={commonStyles.infoValue}>{event.childName}</Text>
           </View>
         </View>
 
         {/* Payment Information */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.subtitle}>💰 Información de Pago</Text>
+          <Text style={commonStyles.sectionTitle}>Información de Pago</Text>
           
-          <View style={commonStyles.card}>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Monto Total:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '700', color: colors.primary }]}>
-                ${event.totalAmount}
-              </Text>
-            </View>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Anticipo:</Text>
-              <Text style={[commonStyles.text, { fontWeight: '600', color: colors.success }]}>
-                ${event.deposit}
-              </Text>
-            </View>
-            <View style={commonStyles.row}>
-              <Text style={commonStyles.text}>Saldo Pendiente:</Text>
-              <Text style={[
-                commonStyles.text, 
-                { 
-                  fontWeight: '700', 
-                  color: event.remainingAmount > 0 ? colors.error : colors.success 
-                }
-              ]}>
-                ${event.remainingAmount}
-              </Text>
-            </View>
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Total:</Text>
+            <Text style={[commonStyles.infoValue, { fontWeight: '700' }]}>
+              ${event.totalAmount.toLocaleString()}
+            </Text>
+          </View>
+
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Anticipo:</Text>
+            <Text style={commonStyles.infoValue}>
+              ${event.deposit.toLocaleString()}
+            </Text>
+          </View>
+
+          <View style={commonStyles.infoRow}>
+            <Text style={commonStyles.infoLabel}>Saldo:</Text>
+            <Text style={[
+              commonStyles.infoValue,
+              { 
+                color: event.remainingAmount > 0 ? colors.warning : colors.success,
+                fontWeight: '600'
+              }
+            ]}>
+              ${event.remainingAmount.toLocaleString()}
+            </Text>
           </View>
         </View>
 
         {/* Notes */}
         {event.notes && (
           <View style={commonStyles.section}>
-            <Text style={commonStyles.subtitle}>📝 Notas</Text>
-            <View style={commonStyles.card}>
-              <Text style={commonStyles.text}>{event.notes}</Text>
-            </View>
+            <Text style={commonStyles.sectionTitle}>Notas</Text>
+            <Text style={commonStyles.infoValue}>{event.notes}</Text>
           </View>
         )}
 
         {/* Action Buttons */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.subtitle}>⚡ Acciones</Text>
-          
+        <View style={commonStyles.buttonContainer}>
           {/* WhatsApp Reminder */}
-          <View style={commonStyles.buttonContainer}>
-            <Button
-              text="📱 Enviar Recordatorio WhatsApp"
-              onPress={handleWhatsAppReminder}
-              style={buttonStyles.success}
-            />
-          </View>
+          <Button
+            text="Enviar Recordatorio WhatsApp"
+            onPress={handleWhatsAppReminder}
+            style={[buttonStyles.secondary, { backgroundColor: colors.success }]}
+            textStyle={{ color: colors.backgroundAlt }}
+          />
 
-          {/* Mark as Paid (only if not paid) */}
+          {/* Mark as Paid */}
           {!event.isPaid && (
-            <View style={commonStyles.buttonContainer}>
-              <Button
-                text="💳 Marcar como Pagado"
-                onPress={handleMarkAsPaid}
-                style={buttonStyles.primary}
-              />
-            </View>
+            <Button
+              text="Marcar como Pagado"
+              onPress={handleMarkAsPaid}
+              style={[buttonStyles.primary, { marginTop: 12 }]}
+            />
           )}
 
           {/* Delete Event */}
-          <View style={commonStyles.buttonContainer}>
-            <Button
-              text="🗑️ Eliminar Evento"
-              onPress={handleDeleteEvent}
-              style={{
-                backgroundColor: colors.error,
-                alignSelf: 'center',
-                width: '100%',
-              }}
-            />
-          </View>
+          <Button
+            text="Eliminar Evento"
+            onPress={handleDeleteEvent}
+            style={[
+              buttonStyles.secondary,
+              { 
+                marginTop: 12,
+                backgroundColor: colors.error + '20',
+                borderColor: colors.error,
+                borderWidth: 1
+              }
+            ]}
+            textStyle={{ color: colors.error }}
+          />
         </View>
+      </View>
 
-        {/* Event Metadata */}
-        <View style={[commonStyles.card, { backgroundColor: colors.background, marginTop: 20 }]}>
-          <Text style={[commonStyles.textLight, { textAlign: 'center', fontSize: 12 }]}>
-            Evento creado: {new Date(event.createdAt).toLocaleDateString('es-ES')}
-          </Text>
-          <Text style={[commonStyles.textLight, { textAlign: 'center', fontSize: 12 }]}>
-            ID: {event.id}
-          </Text>
-        </View>
+      {/* Event Creation Info */}
+      <View style={[commonStyles.card, { marginTop: 16, marginBottom: 32 }]}>
+        <Text style={[commonStyles.subtitle, { textAlign: 'center', color: colors.textLight }]}>
+          Evento creado el {new Date(event.createdAt).toLocaleDateString('es-ES')}
+        </Text>
       </View>
     </ScrollView>
   );
-}
+};
+
+export default EventDetailScreen;

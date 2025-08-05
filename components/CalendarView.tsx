@@ -90,96 +90,101 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const dayNames = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigateMonth('prev')} style={styles.navButton}>
-          <Text style={styles.navButtonText}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.monthTitle}>
-          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-        </Text>
-        <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navButton}>
-          <Text style={styles.navButtonText}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.weekHeader}>
-        {dayNames.map(day => (
-          <Text key={day} style={styles.weekDay}>{day}</Text>
-        ))}
-      </View>
-
-      <View style={styles.calendar}>
-        {calendarDays.map((day, index) => {
-          const isCurrentMonthDay = isCurrentMonth(day.date);
-          const isTodayDay = isToday(day.date);
-          const isPast = isPastDate(day.date);
-          const isClickable = isCurrentMonthDay && !isPast;
-          const hasEvents = day.events.length > 0;
-
-          return (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.dayButton,
-                !isCurrentMonthDay && styles.otherMonth,
-                isPast && styles.pastDay,
-                isClickable && day.isAvailable && styles.availableDay,
-                isClickable && !day.isAvailable && styles.bookedDay,
-                isTodayDay && styles.today,
-                selectedDate === day.date && styles.selectedDay
-              ]}
-              onPress={() => {
-                if (isClickable) {
-                  console.log('CalendarView: Date selected:', day.date, 'Available:', day.isAvailable, 'Events:', day.events.length);
-                  onDateSelect(day.date);
-                }
-              }}
-              disabled={!isClickable}
-            >
-              <Text style={[
-                styles.dayText,
-                !isCurrentMonthDay && styles.otherMonthText,
-                isPast && styles.pastDayText,
-                isClickable && !day.isAvailable && styles.bookedDayText,
-                isClickable && day.isAvailable && styles.availableDayText,
-                selectedDate === day.date && styles.selectedDayText
-              ]}>
-                {new Date(day.date).getDate()}
-              </Text>
-              {hasEvents && isCurrentMonthDay && (
-                <View style={styles.eventIndicator}>
-                  <Text style={styles.eventCount}>{day.events.length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
-          <Text style={styles.legendText}>Disponible para agendar</Text>
+    <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigateMonth('prev')} style={styles.navButton}>
+            <Text style={styles.navButtonText}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.monthTitle}>
+            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          </Text>
+          <TouchableOpacity onPress={() => navigateMonth('next')} style={styles.navButton}>
+            <Text style={styles.navButtonText}>›</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.error }]} />
-          <Text style={styles.legendText}>Ocupado - Ver evento</Text>
+
+        <View style={styles.weekHeader}>
+          {dayNames.map(day => (
+            <Text key={day} style={styles.weekDay}>{day}</Text>
+          ))}
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.textLight }]} />
-          <Text style={styles.legendText}>Fecha pasada</Text>
+
+        <View style={styles.calendar}>
+          {calendarDays.map((day, index) => {
+            const isCurrentMonthDay = isCurrentMonth(day.date);
+            const isTodayDay = isToday(day.date);
+            const isPast = isPastDate(day.date);
+            const isClickable = isCurrentMonthDay && !isPast;
+            const hasEvents = day.events.length > 0;
+
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.dayButton,
+                  !isCurrentMonthDay && styles.otherMonth,
+                  isPast && styles.pastDay,
+                  isClickable && day.isAvailable && styles.availableDay,
+                  isClickable && !day.isAvailable && styles.bookedDay,
+                  isTodayDay && styles.today,
+                  selectedDate === day.date && styles.selectedDay
+                ]}
+                onPress={() => {
+                  if (isClickable) {
+                    console.log('CalendarView: Date selected:', day.date, 'Available:', day.isAvailable, 'Events:', day.events.length);
+                    onDateSelect(day.date);
+                  }
+                }}
+                disabled={!isClickable}
+              >
+                <Text style={[
+                  styles.dayText,
+                  !isCurrentMonthDay && styles.otherMonthText,
+                  isPast && styles.pastDayText,
+                  isClickable && !day.isAvailable && styles.bookedDayText,
+                  isClickable && day.isAvailable && styles.availableDayText,
+                  selectedDate === day.date && styles.selectedDayText
+                ]}>
+                  {new Date(day.date).getDate()}
+                </Text>
+                {hasEvents && isCurrentMonthDay && (
+                  <View style={styles.eventIndicator}>
+                    <Text style={styles.eventCount}>{day.events.length}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.legend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
+            <Text style={styles.legendText}>Disponible para agendar</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.error }]} />
+            <Text style={styles.legendText}>Ocupado - Ver evento</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.textLight }]} />
+            <Text style={styles.legendText}>Fecha pasada</Text>
+          </View>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flex: 1,
+  },
   container: {
     backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     margin: 16,
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
@@ -188,82 +193,88 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   navButton: {
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     backgroundColor: colors.primary,
-    minWidth: 44,
+    minWidth: 50,
     alignItems: 'center',
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
   navButtonText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: colors.backgroundAlt,
   },
   monthTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.text,
+    textAlign: 'center',
+    flex: 1,
   },
   weekHeader: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 12,
+    paddingHorizontal: 4,
   },
   weekDay: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.textLight,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   calendar: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
   dayButton: {
-    width: '14.28%',
+    width: '13.5%',
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    margin: 1,
+    borderRadius: 12,
     position: 'relative',
-    minHeight: 40,
+    minHeight: 48,
+    marginBottom: 4,
   },
   availableDay: {
-    backgroundColor: colors.success + '30',
+    backgroundColor: colors.success + '20',
     borderWidth: 2,
     borderColor: colors.success,
   },
   bookedDay: {
-    backgroundColor: colors.error + '30',
+    backgroundColor: colors.error + '20',
     borderWidth: 2,
     borderColor: colors.error,
   },
   pastDay: {
-    backgroundColor: colors.textLight + '20',
+    backgroundColor: colors.textLight + '15',
     borderWidth: 1,
-    borderColor: colors.textLight + '40',
+    borderColor: colors.textLight + '30',
   },
   today: {
-    backgroundColor: colors.warning + '40',
-    borderWidth: 2,
+    backgroundColor: colors.warning + '30',
+    borderWidth: 3,
     borderColor: colors.warning,
   },
   selectedDay: {
     backgroundColor: colors.primary,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: colors.primary,
   },
   otherMonth: {
     opacity: 0.3,
   },
   dayText: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
   },
   availableDayText: {
@@ -287,36 +298,36 @@ const styles = StyleSheet.create({
   },
   eventIndicator: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 4,
+    right: 4,
     backgroundColor: colors.secondary,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   eventCount: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 'bold',
     color: colors.backgroundAlt,
   },
   legend: {
-    marginTop: 20,
-    gap: 12,
+    marginTop: 24,
+    gap: 16,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   legendColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
   },
   legendText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
     fontWeight: '500',
   },
