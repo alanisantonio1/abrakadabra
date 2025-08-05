@@ -66,7 +66,7 @@ export const loadEvents = async (): Promise<Event[]> => {
 };
 
 // Save event (Google Sheets + local storage)
-export const saveEvent = async (event: Event): Promise<boolean> => {
+export const saveEvent = async (event: Event): Promise<{ success: boolean; savedToGoogleSheets: boolean }> => {
   try {
     console.log('💾 Starting to save event:', event.id);
     console.log('📝 Event details:', {
@@ -90,11 +90,11 @@ export const saveEvent = async (event: Event): Promise<boolean> => {
     
     if (googleSuccess) {
       console.log('✅ Event saved to Google Sheets successfully');
+      return { success: true, savedToGoogleSheets: true };
     } else {
       console.warn('⚠️ Google Sheets save failed, but event is saved locally');
+      return { success: true, savedToGoogleSheets: false };
     }
-    
-    return true; // Always return true since we have local backup
   } catch (error) {
     console.error('❌ Error saving event:', error);
     
@@ -104,10 +104,10 @@ export const saveEvent = async (event: Event): Promise<boolean> => {
       const updatedEvents = [...existingEvents, event];
       await saveEventsToLocalStorage(updatedEvents);
       console.log('✅ Event saved to local storage as fallback');
-      return true;
+      return { success: true, savedToGoogleSheets: false };
     } catch (localError) {
       console.error('❌ Failed to save to local storage:', localError);
-      return false;
+      return { success: false, savedToGoogleSheets: false };
     }
   }
 };

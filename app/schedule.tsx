@@ -167,29 +167,41 @@ export default function ScheduleScreen() {
 
       console.log('📝 Event data to save:', newEvent);
       
-      const success = await saveEvent(newEvent);
-      console.log('💾 Save result:', success);
+      const result = await saveEvent(newEvent);
+      console.log('💾 Save result:', result);
 
-      // Always show success message since saveEvent handles fallbacks
-      Alert.alert(
-        '✅ Evento Guardado Exitosamente',
-        `El evento ha sido agendado para ${formData.customerName}.\n\n` +
-        `📅 Fecha: ${formData.date}\n` +
-        `👶 Niño/a: ${formData.childName}\n` +
-        `🎉 Paquete: ${formData.packageType}\n` +
-        `💰 Total: $${formData.totalAmount}\n` +
-        `💵 Anticipo: $${formData.deposit}\n` +
-        `📊 Restante: $${formData.remainingAmount}`,
-        [
-          {
-            text: 'Ir al Menú Principal',
-            onPress: () => {
-              console.log('✅ Event saved successfully, navigating to main menu');
-              router.replace('/');
+      if (result.success) {
+        // Determine success message based on where it was saved
+        let successMessage = `El evento ha sido agendado exitosamente para ${formData.customerName}.\n\n` +
+          `📅 Fecha: ${formData.date}\n` +
+          `👶 Niño/a: ${formData.childName}\n` +
+          `🎉 Paquete: ${formData.packageType}\n` +
+          `💰 Total: $${formData.totalAmount}\n` +
+          `💵 Anticipo: $${formData.deposit}\n` +
+          `📊 Restante: $${formData.remainingAmount}\n\n`;
+
+        if (result.savedToGoogleSheets) {
+          successMessage += '✅ Guardado en Google Sheets y localmente';
+        } else {
+          successMessage += '⚠️ Guardado localmente (Google Sheets no disponible)';
+        }
+
+        Alert.alert(
+          '🎉 Evento Guardado Exitosamente',
+          successMessage,
+          [
+            {
+              text: 'Ir al Menú Principal',
+              onPress: () => {
+                console.log('✅ Event saved successfully, navigating to main menu');
+                router.replace('/');
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      } else {
+        throw new Error('Failed to save event');
+      }
     } catch (error) {
       console.error('❌ Error saving event:', error);
       Alert.alert(

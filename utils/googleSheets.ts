@@ -1,11 +1,10 @@
 
 import { Event } from '../types';
 
-// Google Sheets configuration - Updated for EVENTO spreadsheet
-// IMPORTANT: Replace this with your actual Google Sheets API key
-const GOOGLE_SHEETS_API_KEY = 'AIzaSyBvZQf8Kp2Lm3Nq4Ov5Pw6Rx7Sy8TzUv9Wx'; // Replace with your actual API key
-const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s'; // Your EVENTO spreadsheet ID from URL
-const RANGE = 'Sheet1!A:I'; // Sheet1 range as specified
+// Google Sheets configuration
+const GOOGLE_SHEETS_API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc'; // Updated with user's API key
+const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s'; // User's spreadsheet ID
+const RANGE = 'Sheet1!A:I'; // Range A to I as requested
 
 // Column mapping for Google Sheets (based on the documentation)
 const COLUMNS = {
@@ -77,9 +76,9 @@ export const testRangeAccess = async (): Promise<boolean> => {
     const response = await fetch(url);
     const data = await response.json();
     
-    if (response.ok && data.values) {
+    if (response.ok) {
       console.log('✅ Range access successful');
-      console.log('📊 Found rows:', data.values.length);
+      console.log('📊 Found rows:', data.values ? data.values.length : 0);
       return true;
     } else {
       console.error('❌ Range access failed:', data);
@@ -91,21 +90,48 @@ export const testRangeAccess = async (): Promise<boolean> => {
   }
 };
 
+// Format date for Google Sheets (ensure consistent format)
+const formatDateForSheets = (dateString: string): string => {
+  try {
+    // If it's already in YYYY-MM-DD format, return as is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      return dateString;
+    }
+    
+    // Try to parse and format the date
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    }
+    
+    // If all else fails, return the original string
+    return dateString;
+  } catch (error) {
+    console.warn('⚠️ Error formatting date:', dateString, error);
+    return dateString;
+  }
+};
+
 // Convert Event to Google Sheets row format
 const eventToSheetRow = (event: Event): string[] => {
-  // Format date as YYYY-MM-DD to match your sheet format
-  const formattedDate = event.date;
-  
+  const formattedDate = formatDateForSheets(event.date);
+  console.log('📅 Formatting event for sheets:', {
+    originalDate: event.date,
+    formattedDate: formattedDate,
+    customerName: event.customerName,
+    childName: event.childName
+  });
+
   return [
     formattedDate,                                    // A: Fecha
-    event.customerName,                               // B: Nombre  
+    `${event.customerName} (${event.childName})`,    // B: Nombre
     event.customerPhone,                              // C: Teléfono
     event.packageType,                                // D: Paquete
-    event.isPaid ? 'PAGADO' : 'RESERVADO',           // E: Estado
-    event.deposit.toString(),                         // F: AnticipoPagado
-    event.totalAmount.toString(),                     // G: TotalEvento
-    event.isPaid ? formattedDate : '',               // H: FechaPago
-    'No'                                             // I: NotificadoLunes
+    event.isPaid ? 'Pagado' : 'Pendiente',          // E: Estado
+    event.deposit.toString(),                         // F: Anticipo Pagado
+    event.totalAmount.toString(),                     // G: Total Evento
+    event.isPaid ? formattedDate : '',               // H: Fecha Pago
+    'No'                                             // I: Notificado Lunes
   ];
 };
 
@@ -187,18 +213,28 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
 export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> => {
   try {
     console.log('💾 Saving event to Google Sheets:', event.id);
+    console.log('📋 Event details:', {
+      date: event.date,
+      customerName: event.customerName,
+      childName: event.childName,
+      packageType: event.packageType,
+      totalAmount: event.totalAmount,
+      deposit: event.deposit
+    });
     
     // Prepare row data
     const rowData = eventToSheetRow(event);
-    console.log('📊 Row data to save:', rowData);
+    console.log('📊 Row data for sheets:', rowData);
     
     // Use append API to add new row
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
-    console.log('🔗 Request URL:', url);
+    
+    console.log('🌐 Making request to:', url);
     
     const requestBody = {
       values: [rowData]
     };
+    
     console.log('📤 Request body:', JSON.stringify(requestBody, null, 2));
     
     const response = await fetch(url, {
@@ -220,7 +256,6 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<boolean> =>
     } else {
       console.error('❌ Error saving to Google Sheets:', data);
       console.error('❌ Response status:', response.status);
-      console.error('❌ Response headers:', response.headers);
       return false;
     }
   } catch (error) {
@@ -327,33 +362,33 @@ export const deleteEventFromGoogleSheets = async (event: Event): Promise<boolean
   }
 };
 
-// Test saving a sample event to Google Sheets
+// Test save functionality
 export const testSaveToGoogleSheets = async (): Promise<boolean> => {
   try {
-    console.log('🧪 Testing save to Google Sheets...');
+    console.log('🧪 Testing save functionality...');
     
     const testEvent: Event = {
       id: 'test_' + Date.now(),
-      date: '2025-01-15',
+      date: '2024-12-31',
       time: '15:00',
       customerName: 'Test Cliente',
-      customerPhone: '5551234567',
+      customerPhone: '+52 55 1234 5678',
       childName: 'Test Niño',
       packageType: 'Abra',
-      totalAmount: 1500,
+      totalAmount: 1000,
       deposit: 500,
-      remainingAmount: 1000,
+      remainingAmount: 500,
       isPaid: false,
-      notes: 'Evento de prueba',
+      notes: 'Evento de prueba - ELIMINAR',
       createdAt: new Date().toISOString()
     };
     
-    const result = await saveEventToGoogleSheets(testEvent);
-    console.log('🧪 Test save result:', result);
+    const success = await saveEventToGoogleSheets(testEvent);
+    console.log('🧪 Test save result:', success);
     
-    return result;
+    return success;
   } catch (error) {
-    console.error('❌ Error testing save to Google Sheets:', error);
+    console.error('❌ Error testing save functionality:', error);
     return false;
   }
 };
@@ -408,8 +443,9 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
     }
     
     // Test 5: Test save functionality
+    diagnostics += '\n5. Probando funcionalidad de guardado...\n';
     const saveTest = await testSaveToGoogleSheets();
-    diagnostics += `5. Prueba de guardado: ${saveTest ? '✅ OK' : '❌ FALLO'}\n`;
+    diagnostics += `   - Prueba de guardado: ${saveTest ? '✅ OK' : '❌ FALLO'}\n`;
     
     diagnostics += '\n✅ Diagnósticos completados';
     diagnostics += '\n\n📋 Configuración actual:';
