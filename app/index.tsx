@@ -12,6 +12,8 @@ export default function MainScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
   const [loading, setLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isAddingTestEvents, setIsAddingTestEvents] = useState(false);
 
   useEffect(() => {
     loadEventsData();
@@ -80,64 +82,86 @@ export default function MainScreen() {
   };
 
   const importFromGoogleSheets = async () => {
+    if (isImporting) return;
+    
     try {
+      setIsImporting(true);
+      console.log('📥 Starting import from Google Sheets...');
+      
       Alert.alert(
         'Importar desde Google Sheets',
         'Importando eventos desde Google Sheets...',
         [{ text: 'OK' }]
       );
       
-      console.log('📥 Starting import from Google Sheets...');
       const success = await importEventsFromGoogleSheets();
       
       if (success) {
         Alert.alert(
           'Importación Exitosa',
           'Los eventos han sido importados desde Google Sheets.',
-          [{ text: 'OK' }]
+          [{ 
+            text: 'OK',
+            onPress: () => loadEventsData() // Refresh events after import
+          }]
         );
-        loadEventsData(); // Refresh events
       } else {
         Alert.alert(
           'Error de Importación',
-          'No se pudieron importar los eventos desde Google Sheets.',
+          'No se pudieron importar los eventos desde Google Sheets. Verifica la conexión y configuración.',
           [{ text: 'OK' }]
         );
       }
     } catch (error) {
       console.error('❌ Import error:', error);
-      Alert.alert('Error', 'Error importando desde Google Sheets');
+      Alert.alert(
+        'Error', 
+        `Error importando desde Google Sheets: ${error.message || error}`
+      );
+    } finally {
+      setIsImporting(false);
     }
   };
 
   const addTestEvents = async () => {
+    if (isAddingTestEvents) return;
+    
     try {
+      setIsAddingTestEvents(true);
+      console.log('🧪 Adding sample events...');
+      
       Alert.alert(
         'Agregar Eventos de Prueba',
         'Agregando eventos de prueba para verificar la funcionalidad...',
         [{ text: 'OK' }]
       );
       
-      console.log('🧪 Adding sample events...');
       const success = await addSampleEvents();
       
       if (success) {
         Alert.alert(
           'Eventos Agregados',
           'Se han agregado eventos de prueba exitosamente.',
-          [{ text: 'OK' }]
+          [{ 
+            text: 'OK',
+            onPress: () => loadEventsData() // Refresh events after adding
+          }]
         );
-        loadEventsData(); // Refresh events
       } else {
         Alert.alert(
           'Error',
-          'No se pudieron agregar los eventos de prueba.',
+          'No se pudieron agregar los eventos de prueba. Verifica la conexión a la base de datos.',
           [{ text: 'OK' }]
         );
       }
     } catch (error) {
       console.error('❌ Add sample events error:', error);
-      Alert.alert('Error', 'Error agregando eventos de prueba');
+      Alert.alert(
+        'Error', 
+        `Error agregando eventos de prueba: ${error.message || error}`
+      );
+    } finally {
+      setIsAddingTestEvents(false);
     }
   };
 
@@ -220,12 +244,16 @@ export default function MainScreen() {
               { 
                 width: '100%',
                 marginBottom: 16,
-                backgroundColor: '#4CAF50'
+                backgroundColor: isImporting ? '#cccccc' : '#4CAF50',
+                opacity: isImporting ? 0.6 : 1
               }
             ]}
             onPress={importFromGoogleSheets}
+            disabled={isImporting}
           >
-            <Text style={commonStyles.buttonText}>📥 Importar desde Google Sheets</Text>
+            <Text style={commonStyles.buttonText}>
+              {isImporting ? '⏳ Importando...' : '📥 Importar desde Google Sheets'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -234,12 +262,16 @@ export default function MainScreen() {
               { 
                 width: '100%',
                 marginBottom: 16,
-                backgroundColor: '#FF9800'
+                backgroundColor: isAddingTestEvents ? '#cccccc' : '#FF9800',
+                opacity: isAddingTestEvents ? 0.6 : 1
               }
             ]}
             onPress={addTestEvents}
+            disabled={isAddingTestEvents}
           >
-            <Text style={commonStyles.buttonText}>🧪 Agregar Eventos de Prueba</Text>
+            <Text style={commonStyles.buttonText}>
+              {isAddingTestEvents ? '⏳ Agregando...' : '🧪 Agregar Eventos de Prueba'}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -266,7 +298,7 @@ export default function MainScreen() {
       ) : (
         <View style={[commonStyles.section, { paddingHorizontal: 20 }]}>
           <Text style={[commonStyles.sectionTitle, { textAlign: 'center', marginBottom: 20 }]}>
-            Próximos Eventos
+            Próximos Eventos ({events.length} total)
           </Text>
           {getUpcomingEvents().length > 0 ? (
             getUpcomingEvents().map((event) => (
@@ -277,9 +309,14 @@ export default function MainScreen() {
               />
             ))
           ) : (
-            <Text style={[commonStyles.text, { textAlign: 'center' }]}>
-              No hay eventos próximos
-            </Text>
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 10 }]}>
+                No hay eventos próximos
+              </Text>
+              <Text style={[commonStyles.text, { textAlign: 'center', fontSize: 14, color: '#666' }]}>
+                Usa los botones de arriba para agregar eventos de prueba o importar desde Google Sheets
+              </Text>
+            </View>
           )}
         </View>
       )}

@@ -42,17 +42,38 @@ const eventToSupabaseRow = (event: Event) => {
   };
 };
 
+// Convert Event to Supabase insert format (without id for auto-generation)
+const eventToSupabaseInsert = (event: Omit<Event, 'id' | 'createdAt'>) => {
+  return {
+    date: event.date,
+    time: event.time,
+    customer_name: event.customerName,
+    customer_phone: event.customerPhone,
+    child_name: event.childName,
+    package_type: event.packageType,
+    total_amount: event.totalAmount,
+    deposit: event.deposit,
+    remaining_amount: event.remainingAmount,
+    is_paid: event.isPaid,
+    notes: event.notes
+  };
+};
+
 // Sync event to Google Sheets via Edge Function
 const syncToGoogleSheets = async (event: Event): Promise<boolean> => {
   try {
     console.log('🔄 Syncing event to Google Sheets:', event.id);
     
-    const { data: { url } } = await supabase.functions.invoke('sync-google-sheets', {
-      body: event,
-      method: 'POST'
+    const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
+      body: event
     });
     
-    console.log('✅ Successfully synced to Google Sheets');
+    if (error) {
+      console.error('❌ Error syncing to Google Sheets:', error);
+      return false;
+    }
+    
+    console.log('✅ Successfully synced to Google Sheets:', data);
     return true;
   } catch (error) {
     console.error('❌ Error syncing to Google Sheets:', error);
@@ -239,7 +260,6 @@ export const importEventsFromGoogleSheets = async (): Promise<boolean> => {
     console.log('📥 Importing events from Google Sheets...');
     
     const { data, error } = await supabase.functions.invoke('sync-google-sheets', {
-      method: 'GET',
       body: { action: 'import' }
     });
     
@@ -249,7 +269,7 @@ export const importEventsFromGoogleSheets = async (): Promise<boolean> => {
     }
     
     console.log('✅ Import completed:', data);
-    return true;
+    return data?.success || false;
   } catch (error) {
     console.error('❌ Error importing events:', error);
     return false;
@@ -267,66 +287,75 @@ export const addSampleEvents = async (): Promise<boolean> => {
     const nextWeek = new Date(today);
     nextWeek.setDate(nextWeek.getDate() + 7);
     
-    const sampleEvents: Event[] = [
+    const sampleEventsData = [
       {
-        id: generateEventId(),
         date: tomorrow.toISOString().split('T')[0],
         time: '15:00',
         customerName: 'María González',
         customerPhone: '+52 55 1234 5678',
         childName: 'Sofia',
-        packageType: 'Kadabra',
+        packageType: 'Kadabra' as const,
         totalAmount: 2500,
         deposit: 1000,
         remainingAmount: 1500,
         isPaid: false,
-        notes: 'Evento de prueba - Cumpleaños de Sofia',
-        createdAt: new Date().toISOString()
+        notes: 'Evento de prueba - Cumpleaños de Sofia'
       },
       {
-        id: generateEventId(),
         date: nextWeek.toISOString().split('T')[0],
         time: '16:30',
         customerName: 'Carlos Rodríguez',
         customerPhone: '+52 55 9876 5432',
         childName: 'Diego',
-        packageType: 'Abrakadabra',
+        packageType: 'Abrakadabra' as const,
         totalAmount: 3500,
         deposit: 2000,
         remainingAmount: 1500,
         isPaid: false,
-        notes: 'Evento de prueba - Fiesta de Diego',
-        createdAt: new Date().toISOString()
+        notes: 'Evento de prueba - Fiesta de Diego'
       },
       {
-        id: generateEventId(),
         date: '2025-02-15',
         time: '14:00',
         customerName: 'Ana Martínez',
         customerPhone: '+52 55 5555 1234',
         childName: 'Isabella',
-        packageType: 'Abra',
+        packageType: 'Abra' as const,
         totalAmount: 1800,
         deposit: 1800,
         remainingAmount: 0,
         isPaid: true,
-        notes: 'Evento de prueba - Pagado completo',
-        createdAt: new Date().toISOString()
+        notes: 'Evento de prueba - Pagado completo'
       }
     ];
     
-    const supabaseRows = sampleEvents.map(eventToSupabaseRow);
+    // Convert to Supabase insert format (without id and createdAt)
+    const supabaseInserts = sampleEventsData.map(eventToSupabaseInsert);
     
-    const { error } = await supabase
+    console.log('📝 Inserting sample events:', supabaseInserts);
+    
+    const { data, error } = await supabase
       .from('events')
-      .insert(supabaseRows);
+      .insert(supabaseInserts)
+      .select();
     
     if (error) {
       console.error('❌ Error adding sample events:', error);
       return false;
     }
     
-    console.log('✅ Sample events added successfully');
+    console.log('✅ Sample events added successfully:', data);
+    
+    // Sync each event to Google Sheets in background
+    if (data) {
+      data.forEach(row => {
+        const event = supabaseRowToEvent(row);
+        syncToGoogleSheets(event).catch(error => {
+          console.warn('⚠️ Google Sheets sync failed for sample event:', error);
+        });
+      });
+    }
+    
     return true;
   } catch (error) {
     console.error('❌ Error adding sample events:', error);
@@ -340,7 +369,7 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
     console.log('🧪 Running diagnostics...');
     
     // Test Supabase connection
-    const { data: countData, error: countError } = await supabase
+    const { count, error: countError } = await supabase
       .from('events')
       .select('*', { count: 'exact', head: true });
     
@@ -348,12 +377,11 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
       return `❌ Supabase connection failed: ${countError.message}`;
     }
     
-    const eventCount = countData?.length || 0;
+    const eventCount = count || 0;
     
-    // Test Google Sheets sync
+    // Test Google Sheets sync function
     try {
       const { data: functionData, error: functionError } = await supabase.functions.invoke('sync-google-sheets', {
-        method: 'GET',
         body: { action: 'test' }
       });
       
