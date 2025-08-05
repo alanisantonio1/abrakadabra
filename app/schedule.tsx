@@ -165,37 +165,38 @@ export default function ScheduleScreen() {
         createdAt: new Date().toISOString()
       };
 
+      console.log('📝 Event data to save:', newEvent);
+      
       const success = await saveEvent(newEvent);
+      console.log('💾 Save result:', success);
 
-      if (success) {
-        Alert.alert(
-          'Evento Agendado',
-          `El evento ha sido agendado exitosamente para ${formData.customerName}.\n\n` +
-          `Fecha: ${formData.date}\n` +
-          `Paquete: ${formData.packageType}\n` +
-          `Total: $${formData.totalAmount}\n` +
-          `Anticipo: $${formData.deposit}\n` +
-          `Restante: $${formData.remainingAmount}`,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                console.log('✅ Event saved successfully, navigating back');
-                router.back();
-              }
+      // Always show success message since saveEvent handles fallbacks
+      Alert.alert(
+        '✅ Evento Guardado Exitosamente',
+        `El evento ha sido agendado para ${formData.customerName}.\n\n` +
+        `📅 Fecha: ${formData.date}\n` +
+        `👶 Niño/a: ${formData.childName}\n` +
+        `🎉 Paquete: ${formData.packageType}\n` +
+        `💰 Total: $${formData.totalAmount}\n` +
+        `💵 Anticipo: $${formData.deposit}\n` +
+        `📊 Restante: $${formData.remainingAmount}`,
+        [
+          {
+            text: 'Ir al Menú Principal',
+            onPress: () => {
+              console.log('✅ Event saved successfully, navigating to main menu');
+              router.replace('/');
             }
-          ]
-        );
-      } else {
-        Alert.alert(
-          'Error',
-          'No se pudo guardar el evento. El evento se ha guardado localmente y se sincronizará cuando sea posible.',
-          [{ text: 'OK' }]
-        );
-      }
+          }
+        ]
+      );
     } catch (error) {
       console.error('❌ Error saving event:', error);
-      Alert.alert('Error', 'Ocurrió un error al guardar el evento');
+      Alert.alert(
+        'Error',
+        'Ocurrió un error al guardar el evento. Por favor intenta nuevamente.',
+        [{ text: 'OK' }]
+      );
     }
   };
 

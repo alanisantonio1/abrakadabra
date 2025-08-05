@@ -1,5 +1,6 @@
 
 import { loadEvents } from '../utils/storage';
+import { runGoogleSheetsDiagnostics, testSaveToGoogleSheets } from '../utils/googleSheets';
 import { Event } from '../types';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { commonStyles, colors } from '../styles/commonStyles';
@@ -61,6 +62,31 @@ export default function MainScreen() {
       .filter(event => event.date >= todayString)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 3);
+  };
+
+  const testGoogleSheets = async () => {
+    try {
+      console.log('🧪 Testing Google Sheets connection...');
+      const diagnostics = await runGoogleSheetsDiagnostics();
+      Alert.alert('Diagnósticos Google Sheets', diagnostics);
+    } catch (error) {
+      console.error('❌ Error testing Google Sheets:', error);
+      Alert.alert('Error', 'Error al probar Google Sheets: ' + error);
+    }
+  };
+
+  const testSaveEvent = async () => {
+    try {
+      console.log('🧪 Testing save event to Google Sheets...');
+      const result = await testSaveToGoogleSheets();
+      Alert.alert(
+        'Prueba de Guardado',
+        result ? '✅ Evento de prueba guardado exitosamente' : '❌ Error al guardar evento de prueba'
+      );
+    } catch (error) {
+      console.error('❌ Error testing save:', error);
+      Alert.alert('Error', 'Error al probar guardado: ' + error);
+    }
   };
 
   const renderMainScreen = () => (
@@ -135,6 +161,42 @@ export default function MainScreen() {
           >
             <Text style={commonStyles.buttonText}>Ver Paquetes</Text>
           </TouchableOpacity>
+
+          {/* Debug buttons - temporary */}
+          <View style={{ width: '100%', marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#eee' }}>
+            <Text style={{ textAlign: 'center', fontSize: 12, color: '#666', marginBottom: 10 }}>
+              Herramientas de Diagnóstico
+            </Text>
+            <TouchableOpacity
+              style={[
+                commonStyles.primaryButton, 
+                { 
+                  width: '100%',
+                  marginBottom: 8,
+                  backgroundColor: '#666',
+                  paddingVertical: 8
+                }
+              ]}
+              onPress={testGoogleSheets}
+            >
+              <Text style={[commonStyles.buttonText, { fontSize: 12 }]}>Probar Conexión Google Sheets</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                commonStyles.primaryButton, 
+                { 
+                  width: '100%',
+                  marginBottom: 8,
+                  backgroundColor: '#888',
+                  paddingVertical: 8
+                }
+              ]}
+              onPress={testSaveEvent}
+            >
+              <Text style={[commonStyles.buttonText, { fontSize: 12 }]}>Probar Guardar Evento</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
