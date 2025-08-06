@@ -252,7 +252,7 @@ export const testWritePermissions = async (): Promise<{ canWrite: boolean; error
 Email de cuenta de servicio: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}
 
 Para compartir la hoja:
-1. Abre tu Google Sheet
+1. Abre tu Google Sheet en el navegador
 2. Haz clic en "Compartir"
 3. Agrega: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}
 4. Dale permisos de "Editor"` 
@@ -263,6 +263,58 @@ Para compartir la hoja:
     return { 
       canWrite: false, 
       error: `Error de conexión: ${error}` 
+    };
+  }
+};
+
+// Check if the sheet is shared with service account
+export const checkSheetPermissions = async (): Promise<{ hasAccess: boolean; details: string }> => {
+  try {
+    console.log('🔍 Checking sheet permissions for service account...');
+    
+    // Try to get spreadsheet metadata which includes sharing info
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=properties,sheets,spreadsheetUrl`;
+    
+    const response = await makeRequestWithFallback(url);
+    const data = await response.json();
+    
+    if (response.ok) {
+      console.log('✅ Sheet metadata retrieved');
+      
+      // Try a simple write test to check actual permissions
+      const writeTest = await testWritePermissions();
+      
+      if (writeTest.canWrite) {
+        return {
+          hasAccess: true,
+          details: `✅ La hoja está correctamente compartida con ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`
+        };
+      } else {
+        return {
+          hasAccess: false,
+          details: `❌ La hoja NO está compartida con ${SERVICE_ACCOUNT_CREDENTIALS.client_email} o no tiene permisos de escritura.
+
+🔧 SOLUCIÓN:
+1. Abre tu Google Sheet: https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}
+2. Haz clic en "Compartir" (botón azul en la esquina superior derecha)
+3. En "Agregar personas y grupos", escribe: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}
+4. Cambia los permisos de "Visualizador" a "Editor"
+5. Haz clic en "Enviar"
+
+⚠️ IMPORTANTE: Asegúrate de que el email sea exactamente: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`
+        };
+      }
+    } else {
+      return {
+        hasAccess: false,
+        details: `❌ No se puede acceder a la hoja. Error: ${data.error?.message || 'Error desconocido'}`
+      };
+    }
+  } catch (error) {
+    console.error('❌ Error checking sheet permissions:', error);
+    return {
+      hasAccess: false,
+      details: `❌ Error verificando permisos: ${error}`
     };
   }
 };
@@ -672,8 +724,14 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
       diagnostics += `   - Último evento: ${events[events.length - 1].customerName} - ${events[events.length - 1].date}\n`;
     }
     
-    // Test 6: Write permissions
-    diagnostics += '\n6. Probando permisos de escritura...\n';
+    // Test 6: Check sheet permissions
+    diagnostics += '\n6. Verificando permisos de la hoja...\n';
+    const permissionCheck = await checkSheetPermissions();
+    diagnostics += `   - Acceso a la hoja: ${permissionCheck.hasAccess ? '✅ OK' : '❌ LIMITADO'}\n`;
+    diagnostics += `   - Detalles: ${permissionCheck.details}\n`;
+    
+    // Test 7: Write permissions
+    diagnostics += '\n7. Probando permisos de escritura...\n';
     const writeTest = await testWritePermissions();
     diagnostics += `   - Permisos de escritura: ${writeTest.canWrite ? '✅ OK' : '❌ LIMITADO'}\n`;
     
@@ -688,23 +746,33 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
     diagnostics += `\n   - Cuenta de servicio: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
     diagnostics += `\n   - Proyecto: ${SERVICE_ACCOUNT_CREDENTIALS.project_id}`;
     
-    diagnostics += '\n\n🔧 PARA HABILITAR ESCRITURA COMPLETA:';
-    diagnostics += '\n\n📝 OPCIÓN 1 - Compartir hoja con cuenta de servicio:';
-    diagnostics += '\n1. Abre tu Google Sheet en el navegador';
-    diagnostics += '\n2. Haz clic en "Compartir" (botón azul)';
-    diagnostics += `\n3. Agrega: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
-    diagnostics += '\n4. Selecciona "Editor" en los permisos';
-    diagnostics += '\n5. Haz clic en "Enviar"';
-    
-    diagnostics += '\n\n🖥️ OPCIÓN 2 - Backend con autenticación JWT:';
-    diagnostics += '\n1. Crear un servidor backend (Node.js, Python, etc.)';
-    diagnostics += '\n2. Implementar autenticación JWT con la clave privada';
-    diagnostics += '\n3. Hacer las llamadas a Google Sheets desde el backend';
-    diagnostics += '\n4. La app React Native se conecta al backend';
+    if (!writeTest.canWrite) {
+      diagnostics += '\n\n🔧 SOLUCIÓN RECOMENDADA:';
+      diagnostics += '\n\n📝 COMPARTIR HOJA CON CUENTA DE SERVICIO:';
+      diagnostics += '\n1. Abre tu Google Sheet en el navegador:';
+      diagnostics += `\n   https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}`;
+      diagnostics += '\n2. Haz clic en "Compartir" (botón azul en la esquina superior derecha)';
+      diagnostics += '\n3. En "Agregar personas y grupos", copia y pega exactamente:';
+      diagnostics += `\n   ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
+      diagnostics += '\n4. Cambia los permisos de "Visualizador" a "Editor"';
+      diagnostics += '\n5. Haz clic en "Enviar"';
+      diagnostics += '\n6. Vuelve a ejecutar los diagnósticos para verificar';
+      
+      diagnostics += '\n\n⚠️ IMPORTANTE:';
+      diagnostics += '\n- El email debe ser exactamente como se muestra arriba';
+      diagnostics += '\n- Los permisos deben ser "Editor", no "Visualizador"';
+      diagnostics += '\n- No agregues espacios extra al copiar el email';
+      
+      diagnostics += '\n\n🖥️ ALTERNATIVA - Backend con autenticación JWT:';
+      diagnostics += '\n1. Crear un servidor backend (Node.js, Python, etc.)';
+      diagnostics += '\n2. Implementar autenticación JWT con la clave privada';
+      diagnostics += '\n3. Hacer las llamadas a Google Sheets desde el backend';
+      diagnostics += '\n4. La app React Native se conecta al backend';
+    }
     
     diagnostics += '\n\n📊 ESTADO ACTUAL:';
     diagnostics += '\n✅ Lectura desde Google Sheets: Funcionando';
-    diagnostics += `\n${writeTest.canWrite ? '✅' : '⚠️'} Escritura a Google Sheets: ${writeTest.canWrite ? 'Funcionando' : 'Requiere configuración adicional'}`;
+    diagnostics += `\n${writeTest.canWrite ? '✅' : '⚠️'} Escritura a Google Sheets: ${writeTest.canWrite ? 'Funcionando' : 'Requiere compartir hoja'}`;
     diagnostics += '\n✅ Almacenamiento local: Funcionando como respaldo';
     diagnostics += '\n✅ Credenciales de cuenta de servicio: Configuradas';
     
@@ -713,6 +781,8 @@ export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
       diagnostics += '\nReact Native no puede hacer autenticación JWT directamente por seguridad.';
       diagnostics += '\nLa opción más simple es compartir la hoja con la cuenta de servicio.';
       diagnostics += '\nPara máxima seguridad, usa un backend servidor.';
+      diagnostics += '\n\n🎯 PRÓXIMO PASO:';
+      diagnostics += `\nCompartir la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
     }
     
     return diagnostics;
