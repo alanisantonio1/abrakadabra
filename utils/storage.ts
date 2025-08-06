@@ -8,18 +8,21 @@ import {
   deleteEventFromGoogleSheets,
   runGoogleSheetsDiagnostics as runGSDiagnostics
 } from './googleSheets';
+import { getConfigurationStatus } from './serviceAccountConfig';
 
 const EVENTS_KEY = 'abrakadabra_events';
 
 // Load events from local storage
 const loadEventsFromLocalStorage = async (): Promise<Event[]> => {
   try {
+    console.log('📱 Loading events from local storage...');
     const eventsJson = await AsyncStorage.getItem(EVENTS_KEY);
     if (eventsJson) {
       const events = JSON.parse(eventsJson);
-      console.log('📱 Loaded events from local storage:', events.length);
+      console.log('✅ Loaded events from local storage:', events.length);
       return events;
     }
+    console.log('📱 No events found in local storage');
     return [];
   } catch (error) {
     console.error('❌ Error loading events from local storage:', error);
@@ -30,225 +33,271 @@ const loadEventsFromLocalStorage = async (): Promise<Event[]> => {
 // Save events to local storage
 const saveEventsToLocalStorage = async (events: Event[]): Promise<void> => {
   try {
+    console.log('💾 Saving events to local storage:', events.length);
     await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events));
-    console.log('💾 Saved events to local storage:', events.length);
+    console.log('✅ Events saved to local storage');
   } catch (error) {
     console.error('❌ Error saving events to local storage:', error);
   }
 };
 
-// Load events (Google Sheets first, then local storage)
-export const loadEvents = async (): Promise<Event[]> => {
-  try {
-    console.log('🔄 Loading events...');
-    
-    // Try Google Sheets first (primary source)
-    console.log('📊 Loading from Google Sheets...');
-    const googleEvents = await loadEventsFromGoogleSheets();
-    
-    if (googleEvents.length > 0) {
-      console.log('✅ Loaded events from Google Sheets:', googleEvents.length);
-      // Save to local storage as backup
-      await saveEventsToLocalStorage(googleEvents);
-      return googleEvents;
-    }
-    
-    // Fallback to local storage
-    console.log('📱 No events in Google Sheets, trying local storage...');
-    const localEvents = await loadEventsFromLocalStorage();
-    console.log('📱 Loaded events from local storage:', localEvents.length);
-    
-    return localEvents;
-  } catch (error) {
-    console.error('❌ Error loading events:', error);
-    // Final fallback to local storage
-    return await loadEventsFromLocalStorage();
-  }
-};
-
-// Save event (Google Sheets primary, local storage backup)
-export const saveEvent = async (event: Event): Promise<{ 
-  success: boolean; 
-  savedToGoogleSheets: boolean; 
-  error?: string;
-  googleSheetsError?: string;
-}> => {
-  try {
-    console.log('💾 Starting to save event:', event.id);
-    console.log('📝 Event details:', {
-      date: event.date,
-      customerName: event.customerName,
-      childName: event.childName,
-      packageType: event.packageType,
-      totalAmount: event.totalAmount,
-      deposit: event.deposit
-    });
-    
-    // Save to local storage first (immediate backup)
-    const existingEvents = await loadEventsFromLocalStorage();
-    const updatedEvents = [...existingEvents, event];
-    await saveEventsToLocalStorage(updatedEvents);
-    console.log('✅ Event saved to local storage');
-    
-    let savedToGoogleSheets = false;
-    let googleSheetsError: string | undefined;
-    
-    // Try to save to Google Sheets (primary storage)
-    console.log('🔄 Attempting to save to Google Sheets...');
-    const googleSheetsResult = await saveEventToGoogleSheets(event);
-    
-    if (googleSheetsResult.success) {
-      console.log('✅ Event saved to Google Sheets successfully');
-      savedToGoogleSheets = true;
-    } else {
-      console.warn('⚠️ Google Sheets save failed:', googleSheetsResult.error);
-      googleSheetsError = googleSheetsResult.error;
-    }
-    
-    // Determine overall success
-    const overallSuccess = savedToGoogleSheets || true; // Always succeed if saved locally
-    
-    return { 
-      success: overallSuccess, 
-      savedToGoogleSheets,
-      googleSheetsError
-    };
-  } catch (error) {
-    console.error('❌ Error saving event:', error);
-    
-    // Try to save to local storage as final fallback
-    try {
-      const existingEvents = await loadEventsFromLocalStorage();
-      const updatedEvents = [...existingEvents, event];
-      await saveEventsToLocalStorage(updatedEvents);
-      console.log('✅ Event saved to local storage as fallback');
-      return { 
-        success: true, 
-        savedToGoogleSheets: false,
-        error: `Error general: ${error}`
-      };
-    } catch (localError) {
-      console.error('❌ Failed to save to local storage:', localError);
-      return { 
-        success: false, 
-        savedToGoogleSheets: false,
-        error: `Error crítico: ${localError}`
-      };
-    }
-  }
-};
-
-// Update event (Google Sheets primary, local storage backup)
-export const updateEvent = async (event: Event): Promise<{ success: boolean; error?: string }> => {
-  try {
-    console.log('🔄 Updating event:', event.id);
-    
-    // Update in local storage first
-    const existingEvents = await loadEventsFromLocalStorage();
-    const updatedEvents = existingEvents.map(e => e.id === event.id ? event : e);
-    await saveEventsToLocalStorage(updatedEvents);
-    
-    // Try to update in Google Sheets
-    const googleSheetsResult = await updateEventInGoogleSheets(event);
-    
-    if (googleSheetsResult.success) {
-      console.log('✅ Event updated in Google Sheets successfully');
-    } else {
-      console.warn('⚠️ Google Sheets update failed, but event is updated locally');
-      console.warn('⚠️ Google Sheets error:', googleSheetsResult.error);
-    }
-    
-    return { success: true }; // Always return true since we have local backup
-  } catch (error) {
-    console.error('❌ Error updating event:', error);
-    return { success: false, error: `Error: ${error}` };
-  }
-};
-
-// Delete event (Google Sheets primary, local storage backup)
-export const deleteEvent = async (eventId: string): Promise<{ success: boolean; error?: string }> => {
-  try {
-    console.log('🗑️ Deleting event:', eventId);
-    
-    // Remove from local storage first
-    const existingEvents = await loadEventsFromLocalStorage();
-    const eventToDelete = existingEvents.find(e => e.id === eventId);
-    
-    if (!eventToDelete) {
-      console.warn('⚠️ Event not found in local storage');
-      return { success: false, error: 'Evento no encontrado' };
-    }
-    
-    const updatedEvents = existingEvents.filter(e => e.id !== eventId);
-    await saveEventsToLocalStorage(updatedEvents);
-    
-    // Try to delete from Google Sheets
-    const googleSheetsResult = await deleteEventFromGoogleSheets(eventToDelete);
-    
-    if (googleSheetsResult.success) {
-      console.log('✅ Event deleted from Google Sheets successfully');
-    } else {
-      console.warn('⚠️ Google Sheets delete failed, but event is deleted locally');
-      console.warn('⚠️ Google Sheets error:', googleSheetsResult.error);
-    }
-    
-    return { success: true }; // Always return true since we have local backup
-  } catch (error) {
-    console.error('❌ Error deleting event:', error);
-    return { success: false, error: `Error: ${error}` };
-  }
-};
-
-// Save multiple events (Google Sheets primary, local storage backup)
-export const saveEvents = async (events: Event[]): Promise<boolean> => {
-  try {
-    console.log('💾 Saving multiple events:', events.length);
-    
-    // Save to local storage first
-    await saveEventsToLocalStorage(events);
-    
-    // Try to save each event to Google Sheets
-    let successCount = 0;
-    for (const event of events) {
-      const result = await saveEventToGoogleSheets(event);
-      if (result.success) successCount++;
-    }
-    
-    console.log(`✅ Saved ${successCount}/${events.length} events to Google Sheets`);
-    return true; // Always return true since we have local backup
-  } catch (error) {
-    console.error('❌ Error saving events:', error);
-    return false;
-  }
-};
-
-// Generate a unique event ID
+// Generate unique event ID
 export const generateEventId = (): string => {
   return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Test Google Sheets connection
-export const testDatabaseConnections = async (): Promise<string> => {
-  let diagnostics = '🔍 DIAGNÓSTICOS DE GOOGLE SHEETS\n\n';
-  
-  // Test Google Sheets
-  console.log('🧪 Testing Google Sheets connection...');
-  const googleSheetsDiagnostics = await runGSDiagnostics();
-  diagnostics += googleSheetsDiagnostics;
-  
-  // Test local storage
-  const localEvents = await loadEventsFromLocalStorage();
-  diagnostics += `\n\n📱 Almacenamiento local: ✅ OK\n`;
-  diagnostics += `   - Eventos locales: ${localEvents.length}\n`;
-  
-  diagnostics += '\n✅ CONFIGURACIÓN ACTUAL:\n';
-  diagnostics += 'Google Sheets como fuente principal de datos.\n';
-  diagnostics += 'Almacenamiento local como respaldo.\n';
-  
-  return diagnostics;
+// Load events from both Google Sheets and local storage
+export const loadEvents = async (): Promise<Event[]> => {
+  try {
+    console.log('📥 Loading events from all sources...');
+    
+    // Try to load from Google Sheets first
+    let googleSheetsEvents: Event[] = [];
+    try {
+      googleSheetsEvents = await loadEventsFromGoogleSheets();
+      console.log('📊 Google Sheets events:', googleSheetsEvents.length);
+    } catch (error) {
+      console.warn('⚠️ Failed to load from Google Sheets:', error);
+    }
+    
+    // Load from local storage as backup
+    const localEvents = await loadEventsFromLocalStorage();
+    console.log('📱 Local storage events:', localEvents.length);
+    
+    // If we have Google Sheets events, use those and update local storage
+    if (googleSheetsEvents.length > 0) {
+      await saveEventsToLocalStorage(googleSheetsEvents);
+      console.log('✅ Using Google Sheets events and updated local storage');
+      return googleSheetsEvents;
+    }
+    
+    // Otherwise, use local storage events
+    console.log('✅ Using local storage events');
+    return localEvents;
+  } catch (error) {
+    console.error('❌ Error loading events:', error);
+    // Fallback to local storage
+    return await loadEventsFromLocalStorage();
+  }
 };
 
-// Run Google Sheets diagnostics (for compatibility)
+// Save event to both Google Sheets and local storage
+export const saveEvent = async (event: Event): Promise<{ 
+  googleSheets: boolean; 
+  localStorage: boolean; 
+  message: string 
+}> => {
+  try {
+    console.log('💾 Saving event to all storage systems:', event.id);
+    
+    let googleSheetsSuccess = false;
+    let googleSheetsError = '';
+    
+    // Try to save to Google Sheets
+    try {
+      const result = await saveEventToGoogleSheets(event);
+      googleSheetsSuccess = result.success;
+      if (!result.success) {
+        googleSheetsError = result.error || 'Error desconocido';
+        console.warn('⚠️ Google Sheets save failed:', googleSheetsError);
+      } else {
+        console.log('✅ Event saved to Google Sheets successfully');
+      }
+    } catch (error) {
+      console.error('❌ Error saving to Google Sheets:', error);
+      googleSheetsError = `Error de conexión: ${error}`;
+    }
+    
+    // Always save to local storage as backup
+    let localStorageSuccess = false;
+    try {
+      const existingEvents = await loadEventsFromLocalStorage();
+      const updatedEvents = [...existingEvents, event];
+      await saveEventsToLocalStorage(updatedEvents);
+      localStorageSuccess = true;
+      console.log('✅ Event saved to local storage successfully');
+    } catch (error) {
+      console.error('❌ Error saving to local storage:', error);
+    }
+    
+    // Generate appropriate message
+    let message = '';
+    if (googleSheetsSuccess && localStorageSuccess) {
+      message = '✅ Evento guardado exitosamente en Google Sheets y localmente';
+    } else if (googleSheetsSuccess) {
+      message = '✅ Evento guardado en Google Sheets (error en almacenamiento local)';
+    } else if (localStorageSuccess) {
+      const configStatus = getConfigurationStatus();
+      if (!configStatus.configured) {
+        message = '⚠️ Evento guardado localmente. Cuenta de servicio no configurada para Google Sheets.';
+      } else {
+        message = `⚠️ Evento guardado localmente. Error en Google Sheets: ${googleSheetsError}`;
+      }
+    } else {
+      message = '❌ Error guardando evento en todos los sistemas';
+    }
+    
+    return {
+      googleSheets: googleSheetsSuccess,
+      localStorage: localStorageSuccess,
+      message
+    };
+  } catch (error) {
+    console.error('❌ Error in saveEvent:', error);
+    return {
+      googleSheets: false,
+      localStorage: false,
+      message: `❌ Error crítico: ${error}`
+    };
+  }
+};
+
+// Update event in both Google Sheets and local storage
+export const updateEvent = async (updatedEvent: Event): Promise<void> => {
+  try {
+    console.log('🔄 Updating event in all storage systems:', updatedEvent.id);
+    
+    // Try to update in Google Sheets
+    try {
+      const result = await updateEventInGoogleSheets(updatedEvent);
+      if (result.success) {
+        console.log('✅ Event updated in Google Sheets successfully');
+      } else {
+        console.warn('⚠️ Google Sheets update failed:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error updating in Google Sheets:', error);
+    }
+    
+    // Update in local storage
+    try {
+      const existingEvents = await loadEventsFromLocalStorage();
+      const eventIndex = existingEvents.findIndex(e => e.id === updatedEvent.id);
+      
+      if (eventIndex !== -1) {
+        existingEvents[eventIndex] = updatedEvent;
+        await saveEventsToLocalStorage(existingEvents);
+        console.log('✅ Event updated in local storage successfully');
+      } else {
+        console.warn('⚠️ Event not found in local storage, adding as new');
+        existingEvents.push(updatedEvent);
+        await saveEventsToLocalStorage(existingEvents);
+      }
+    } catch (error) {
+      console.error('❌ Error updating in local storage:', error);
+    }
+  } catch (error) {
+    console.error('❌ Error in updateEvent:', error);
+    throw error;
+  }
+};
+
+// Delete event from both Google Sheets and local storage
+export const deleteEvent = async (eventId: string): Promise<void> => {
+  try {
+    console.log('🗑️ Deleting event from all storage systems:', eventId);
+    
+    // Load the event to get its details for Google Sheets deletion
+    const events = await loadEventsFromLocalStorage();
+    const eventToDelete = events.find(e => e.id === eventId);
+    
+    if (!eventToDelete) {
+      console.warn('⚠️ Event not found for deletion:', eventId);
+      return;
+    }
+    
+    // Try to delete from Google Sheets
+    try {
+      const result = await deleteEventFromGoogleSheets(eventToDelete);
+      if (result.success) {
+        console.log('✅ Event deleted from Google Sheets successfully');
+      } else {
+        console.warn('⚠️ Google Sheets deletion failed:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error deleting from Google Sheets:', error);
+    }
+    
+    // Delete from local storage
+    try {
+      const updatedEvents = events.filter(e => e.id !== eventId);
+      await saveEventsToLocalStorage(updatedEvents);
+      console.log('✅ Event deleted from local storage successfully');
+    } catch (error) {
+      console.error('❌ Error deleting from local storage:', error);
+    }
+  } catch (error) {
+    console.error('❌ Error in deleteEvent:', error);
+    throw error;
+  }
+};
+
+// Test database connections
+export const testDatabaseConnections = async (): Promise<string> => {
+  try {
+    console.log('🧪 Testing all database connections...');
+    
+    let report = '🔍 PRUEBA DE CONEXIONES\n\n';
+    
+    // Test Google Sheets
+    report += '📊 GOOGLE SHEETS:\n';
+    const googleSheetsReport = await runGSDiagnostics();
+    report += googleSheetsReport;
+    
+    // Test local storage
+    report += '\n\n📱 ALMACENAMIENTO LOCAL:\n';
+    try {
+      const localEvents = await loadEventsFromLocalStorage();
+      report += `✅ Almacenamiento local funcionando\n`;
+      report += `📊 Eventos en almacenamiento local: ${localEvents.length}\n`;
+      
+      // Test write to local storage
+      const testEvent: Event = {
+        id: 'test_local_' + Date.now(),
+        date: '2024-12-31',
+        time: '15:00',
+        customerName: 'Test Local',
+        customerPhone: '+52 55 0000 0000',
+        childName: 'Test Niño Local',
+        packageType: 'Abra',
+        totalAmount: 1000,
+        deposit: 500,
+        remainingAmount: 500,
+        isPaid: false,
+        notes: 'Prueba de almacenamiento local',
+        createdAt: new Date().toISOString()
+      };
+      
+      await saveEventsToLocalStorage([...localEvents, testEvent]);
+      report += `✅ Escritura en almacenamiento local: OK\n`;
+      
+      // Clean up test event
+      await saveEventsToLocalStorage(localEvents);
+      report += `✅ Limpieza de prueba: OK\n`;
+    } catch (error) {
+      report += `❌ Error en almacenamiento local: ${error}\n`;
+    }
+    
+    // Service account status
+    report += '\n\n🔐 CUENTA DE SERVICIO:\n';
+    const configStatus = getConfigurationStatus();
+    report += `Configurada: ${configStatus.configured ? '✅ SÍ' : '❌ NO'}\n`;
+    report += `Email: ${configStatus.serviceAccountEmail}\n`;
+    report += `Client ID: ${configStatus.clientId}\n`;
+    
+    if (!configStatus.configured) {
+      report += `Campos faltantes: ${configStatus.missingFields.join(', ')}\n`;
+    }
+    
+    report += '\n✅ Prueba de conexiones completada';
+    
+    return report;
+  } catch (error) {
+    return `❌ Error en prueba de conexiones: ${error}`;
+  }
+};
+
+// Run Google Sheets diagnostics
 export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
   return await runGSDiagnostics();
 };

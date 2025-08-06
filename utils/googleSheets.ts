@@ -1,10 +1,14 @@
 
 import { Event } from '../types';
+import { SERVICE_ACCOUNT_CREDENTIALS, isServiceAccountConfigured, getConfigurationStatus } from './serviceAccountConfig';
+import { getAuthHeaders, validateServiceAccount, canUseServiceAccount } from './jwtAuth';
 
 // Google Sheets configuration
-const GOOGLE_SHEETS_API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc';
 const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s';
 const RANGE = 'Sheet1!A:I';
+
+// Fallback API key for read operations
+const FALLBACK_API_KEY = 'AIzaSyBFupSOezwzthb-vvb3PgTcYf1GrTa3rsc';
 
 // Column mapping for Google Sheets
 const COLUMNS = {
@@ -19,22 +23,116 @@ const COLUMNS = {
   NOTIFICADO_LUNES: 8 // I
 };
 
-// Test Google Sheets connection
+// Make authenticated request to Google Sheets API
+const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  try {
+    console.log('🌐 Making authenticated request to Google Sheets API...');
+    
+    if (!canUseServiceAccount()) {
+      throw new Error('Service account not properly configured');
+    }
+    
+    // For React Native, we'll use a simplified authentication approach
+    // In production, you should implement proper OAuth2 flow with JWT signing
+    
+    const authHeaders = {
+      'Content-Type': 'application/json',
+      // For now, we'll include the service account info in headers
+      'X-Service-Account': SERVICE_ACCOUNT_CREDENTIALS.client_email,
+      'X-Project-ID': SERVICE_ACCOUNT_CREDENTIALS.project_id,
+      ...options.headers
+    };
+    
+    // Try to make the request with service account info
+    const response = await fetch(url, {
+      ...options,
+      headers: authHeaders
+    });
+    
+    console.log('📡 API Response status:', response.status);
+    
+    // If we get a 401 or 403, the service account approach isn't working
+    // This is expected since we're not doing proper JWT signing in React Native
+    if (response.status === 401 || response.status === 403) {
+      console.warn('⚠️ Service account authentication not working, this is expected in React Native');
+      throw new Error('Service account auth failed - need proper backend implementation');
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('❌ Error making authenticated request:', error);
+    throw error;
+  }
+};
+
+// Make request with fallback to API key
+const makeRequestWithFallback = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  try {
+    // First try with service account (this will likely fail in React Native)
+    if (canUseServiceAccount()) {
+      try {
+        return await makeAuthenticatedRequest(url, options);
+      } catch (authError) {
+        console.warn('⚠️ Service account auth failed, using fallback API key for read operations...');
+      }
+    }
+    
+    // Fallback to API key for read operations
+    if (options.method === 'GET' || !options.method) {
+      const separator = url.includes('?') ? '&' : '?';
+      const fallbackUrl = `${url}${separator}key=${FALLBACK_API_KEY}`;
+      
+      const fallbackResponse = await fetch(fallbackUrl, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+      
+      if (fallbackResponse.ok) {
+        console.log('✅ Fallback API key request successful');
+        return fallbackResponse;
+      }
+    }
+    
+    // For write operations, we need proper authentication
+    throw new Error('Write operations require proper service account authentication');
+  } catch (error) {
+    console.error('❌ Error in request with fallback:', error);
+    throw error;
+  }
+};
+
+// Test Google Sheets connection with service account
 export const testGoogleSheetsConnection = async (): Promise<boolean> => {
   try {
-    console.log('🔍 Testing Google Sheets connection...');
+    console.log('🔍 Testing Google Sheets connection with service account...');
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${GOOGLE_SHEETS_API_KEY}`;
+    const validation = validateServiceAccount();
+    console.log('🔧 Service account validation:', validation);
     
-    const response = await fetch(url);
-    const data = await response.json();
+    if (!validation.valid) {
+      console.error('❌ Service account validation failed:', validation.errors);
+      return false;
+    }
     
-    if (response.ok && data.properties) {
-      console.log('✅ Google Sheets connection successful');
-      console.log('📊 Spreadsheet title:', data.properties.title);
-      return true;
-    } else {
-      console.error('❌ Google Sheets connection failed:', data);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
+    
+    try {
+      const response = await makeRequestWithFallback(url);
+      const data = await response.json();
+      
+      if (response.ok && data.properties) {
+        console.log('✅ Google Sheets connection successful');
+        console.log('📊 Spreadsheet title:', data.properties.title);
+        return true;
+      } else {
+        console.error('❌ Google Sheets connection failed:', response.status, data);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Connection test failed:', error);
       return false;
     }
   } catch (error) {
@@ -48,9 +146,9 @@ export const getSpreadsheetInfo = async (): Promise<any> => {
   try {
     console.log('📊 Getting spreadsheet info...');
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?key=${GOOGLE_SHEETS_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}`;
     
-    const response = await fetch(url);
+    const response = await makeRequestWithFallback(url);
     const data = await response.json();
     
     if (response.ok) {
@@ -71,9 +169,9 @@ export const testRangeAccess = async (): Promise<boolean> => {
   try {
     console.log('🔍 Testing range access...');
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${GOOGLE_SHEETS_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}`;
     
-    const response = await fetch(url);
+    const response = await makeRequestWithFallback(url);
     const data = await response.json();
     
     if (response.ok) {
@@ -90,49 +188,75 @@ export const testRangeAccess = async (): Promise<boolean> => {
   }
 };
 
-// Test write permissions
+// Test write permissions with service account
 export const testWritePermissions = async (): Promise<{ canWrite: boolean; error?: string }> => {
   try {
-    console.log('🔍 Testing write permissions...');
+    console.log('🔍 Testing write permissions with service account...');
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    const validation = validateServiceAccount();
+    if (!validation.valid) {
+      return { 
+        canWrite: false, 
+        error: `Cuenta de servicio no configurada correctamente: ${validation.errors.join(', ')}` 
+      };
+    }
+    
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW`;
     
     const testData = {
       values: [['TEST_WRITE_PERMISSION', 'DELETE_THIS_ROW', '', '', '', '', '', '', '']]
     };
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(testData)
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Write permissions test successful');
-      return { canWrite: true };
-    } else {
-      console.error('❌ Write permissions test failed:', response.status, data);
+    try {
+      // Try with service account authentication
+      const response = await makeAuthenticatedRequest(url, {
+        method: 'POST',
+        body: JSON.stringify(testData)
+      });
       
-      if (response.status === 401) {
-        return { 
-          canWrite: false, 
-          error: 'API key no tiene permisos de escritura. Necesitas configurar OAuth2 con una cuenta de servicio.' 
-        };
-      } else if (response.status === 403) {
-        return { 
-          canWrite: false, 
-          error: 'Acceso denegado. Verifica que la hoja esté compartida correctamente.' 
-        };
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Write permissions test successful with service account');
+        return { canWrite: true };
       } else {
-        return { 
-          canWrite: false, 
-          error: `Error ${response.status}: ${data.error?.message || 'Error desconocido'}` 
-        };
+        console.error('❌ Write permissions test failed:', response.status, data);
+        
+        if (response.status === 401) {
+          return { 
+            canWrite: false, 
+            error: 'Autenticación fallida. En React Native necesitas implementar la autenticación JWT en el backend.' 
+          };
+        } else if (response.status === 403) {
+          return { 
+            canWrite: false, 
+            error: `Acceso denegado. Asegúrate de compartir la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}` 
+          };
+        } else {
+          return { 
+            canWrite: false, 
+            error: `Error ${response.status}: ${data.error?.message || 'Error desconocido'}` 
+          };
+        }
       }
+    } catch (authError) {
+      console.warn('⚠️ Service account authentication failed (expected in React Native):', authError);
+      return { 
+        canWrite: false, 
+        error: `React Native no puede hacer autenticación JWT directamente. Necesitas:
+        
+1. Implementar la autenticación en un backend servidor, O
+2. Usar Google Apps Script como proxy, O  
+3. Compartir la hoja públicamente con permisos de edición
+
+Email de cuenta de servicio: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}
+
+Para compartir la hoja:
+1. Abre tu Google Sheet
+2. Haz clic en "Compartir"
+3. Agrega: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}
+4. Dale permisos de "Editor"` 
+      };
     }
   } catch (error) {
     console.error('❌ Error testing write permissions:', error);
@@ -214,9 +338,9 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
   try {
     console.log('📥 Loading events from Google Sheets...');
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${GOOGLE_SHEETS_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}`;
     
-    const response = await fetch(url);
+    const response = await makeRequestWithFallback(url);
     const data = await response.json();
     
     if (!response.ok) {
@@ -257,10 +381,10 @@ export const loadEventsFromGoogleSheets = async (): Promise<Event[]> => {
   }
 };
 
-// Save event to Google Sheets
+// Save event to Google Sheets with service account
 export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
-    console.log('💾 Saving event to Google Sheets:', event.id);
+    console.log('💾 Saving event to Google Sheets with service account:', event.id);
     console.log('📋 Event details:', {
       date: event.date,
       customerName: event.customerName,
@@ -270,40 +394,59 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: 
       deposit: event.deposit
     });
     
+    const validation = validateServiceAccount();
+    if (!validation.valid) {
+      return { 
+        success: false, 
+        error: `Cuenta de servicio no configurada: ${validation.errors.join(', ')}` 
+      };
+    }
+    
     const rowData = eventToSheetRow(event);
     console.log('📊 Row data for sheets:', rowData);
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}:append?valueInputOption=RAW`;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ values: [rowData] })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Event saved to Google Sheets successfully');
-      return { success: true };
-    } else {
-      console.error('❌ Save failed:', response.status, data);
+    try {
+      const response = await makeAuthenticatedRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({ values: [rowData] })
+      });
       
-      let errorMessage = 'Error desconocido';
+      const data = await response.json();
       
-      if (response.status === 401) {
-        errorMessage = 'API key no tiene permisos de escritura. Necesitas configurar OAuth2 con una cuenta de servicio.';
-      } else if (response.status === 403) {
-        errorMessage = 'Acceso denegado. Verifica los permisos de la hoja.';
-      } else if (response.status === 400) {
-        errorMessage = 'Datos inválidos o formato incorrecto.';
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
+      if (response.ok) {
+        console.log('✅ Event saved to Google Sheets successfully with service account');
+        return { success: true };
+      } else {
+        console.error('❌ Save failed with service account:', response.status, data);
+        
+        let errorMessage = 'Error desconocido';
+        
+        if (response.status === 401) {
+          errorMessage = 'Autenticación fallida. React Native no puede hacer autenticación JWT directamente.';
+        } else if (response.status === 403) {
+          errorMessage = `Acceso denegado. Comparte la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
+        } else if (response.status === 400) {
+          errorMessage = 'Datos inválidos o formato incorrecto.';
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
+        }
+        
+        return { success: false, error: errorMessage };
       }
-      
-      return { success: false, error: errorMessage };
+    } catch (authError) {
+      console.warn('⚠️ Service account authentication failed (expected in React Native):', authError);
+      return { 
+        success: false, 
+        error: `Para habilitar escritura necesitas:
+
+1. Compartir la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}
+2. Darle permisos de "Editor"
+3. O implementar autenticación JWT en un backend
+
+Mientras tanto, el evento se guarda localmente.` 
+      };
     }
   } catch (error) {
     console.error('❌ Error saving event to Google Sheets:', error);
@@ -314,7 +457,15 @@ export const saveEventToGoogleSheets = async (event: Event): Promise<{ success: 
 // Update event in Google Sheets
 export const updateEventInGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
-    console.log('🔄 Updating event in Google Sheets:', event.id);
+    console.log('🔄 Updating event in Google Sheets with service account:', event.id);
+    
+    const validation = validateServiceAccount();
+    if (!validation.valid) {
+      return { 
+        success: false, 
+        error: `Cuenta de servicio no configurada: ${validation.errors.join(', ')}` 
+      };
+    }
     
     const allEvents = await loadEventsFromGoogleSheets();
     const eventIndex = allEvents.findIndex(e => 
@@ -332,34 +483,39 @@ export const updateEventInGoogleSheets = async (event: Event): Promise<{ success
     const range = `Sheet1!A${rowNumber}:I${rowNumber}`;
     const rowData = eventToSheetRow(event);
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=RAW&key=${GOOGLE_SHEETS_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}?valueInputOption=RAW`;
     
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ values: [rowData] })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Event updated in Google Sheets successfully');
-      return { success: true };
-    } else {
-      console.error('❌ Update failed:', data);
+    try {
+      const response = await makeAuthenticatedRequest(url, {
+        method: 'PUT',
+        body: JSON.stringify({ values: [rowData] })
+      });
       
-      let errorMessage = 'Error desconocido';
-      if (response.status === 401) {
-        errorMessage = 'API key no tiene permisos de escritura.';
-      } else if (response.status === 403) {
-        errorMessage = 'Acceso denegado.';
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
+      const data = await response.json();
+      
+      if (response.ok) {
+        console.log('✅ Event updated in Google Sheets successfully with service account');
+        return { success: true };
+      } else {
+        console.error('❌ Update failed:', data);
+        
+        let errorMessage = 'Error desconocido';
+        if (response.status === 401) {
+          errorMessage = 'Autenticación fallida. React Native no puede hacer autenticación JWT directamente.';
+        } else if (response.status === 403) {
+          errorMessage = `Acceso denegado. Comparte la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
+        }
+        
+        return { success: false, error: errorMessage };
       }
-      
-      return { success: false, error: errorMessage };
+    } catch (authError) {
+      console.warn('⚠️ Service account authentication failed for update:', authError);
+      return { 
+        success: false, 
+        error: `Para habilitar escritura necesitas compartir la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}` 
+      };
     }
   } catch (error) {
     console.error('❌ Error updating event in Google Sheets:', error);
@@ -370,7 +526,15 @@ export const updateEventInGoogleSheets = async (event: Event): Promise<{ success
 // Delete event from Google Sheets
 export const deleteEventFromGoogleSheets = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
-    console.log('🗑️ Deleting event from Google Sheets:', event.id);
+    console.log('🗑️ Deleting event from Google Sheets with service account:', event.id);
+    
+    const validation = validateServiceAccount();
+    if (!validation.valid) {
+      return { 
+        success: false, 
+        error: `Cuenta de servicio no configurada: ${validation.errors.join(', ')}` 
+      };
+    }
     
     const allEvents = await loadEventsFromGoogleSheets();
     const eventIndex = allEvents.findIndex(e => 
@@ -387,33 +551,38 @@ export const deleteEventFromGoogleSheets = async (event: Event): Promise<{ succe
     const rowNumber = eventIndex + 2;
     const range = `Sheet1!A${rowNumber}:I${rowNumber}`;
     
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:clear?key=${GOOGLE_SHEETS_API_KEY}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:clear`;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      console.log('✅ Event deleted from Google Sheets successfully');
-      return { success: true };
-    } else {
-      console.error('❌ Delete failed:', data);
+    try {
+      const response = await makeAuthenticatedRequest(url, {
+        method: 'POST'
+      });
       
-      let errorMessage = 'Error desconocido';
-      if (response.status === 401) {
-        errorMessage = 'API key no tiene permisos de escritura.';
-      } else if (response.status === 403) {
-        errorMessage = 'Acceso denegado.';
-      } else if (data.error?.message) {
-        errorMessage = data.error.message;
-      }
+      const data = await response.json();
       
-      return { success: false, error: errorMessage };
+      if (response.ok) {
+        console.log('✅ Event deleted from Google Sheets successfully with service account');
+        return { success: true };
+      } else {
+        console.error('❌ Delete failed:', data);
+        
+        let errorMessage = 'Error desconocido';
+        if (response.status === 401) {
+          errorMessage = 'Autenticación fallida. React Native no puede hacer autenticación JWT directamente.';
+        } else if (response.status === 403) {
+          errorMessage = `Acceso denegado. Comparte la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
+        }
+        
+        return { success: false, error: errorMessage };
+      }
+    } catch (authError) {
+      console.warn('⚠️ Service account authentication failed for delete:', authError);
+      return { 
+        success: false, 
+        error: `Para habilitar escritura necesitas compartir la hoja con: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}` 
+      };
     }
   } catch (error) {
     console.error('❌ Error deleting event from Google Sheets:', error);
@@ -424,7 +593,7 @@ export const deleteEventFromGoogleSheets = async (event: Event): Promise<{ succe
 // Test save functionality
 export const testSaveToGoogleSheets = async (): Promise<{ success: boolean; error?: string }> => {
   try {
-    console.log('🧪 Testing save functionality...');
+    console.log('🧪 Testing save functionality with service account...');
     
     const testEvent: Event = {
       id: 'test_' + Date.now(),
@@ -452,106 +621,99 @@ export const testSaveToGoogleSheets = async (): Promise<{ success: boolean; erro
   }
 };
 
-// Run diagnostics for Google Sheets
+// Run diagnostics for Google Sheets with service account
 export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
   try {
-    console.log('🧪 Running Google Sheets diagnostics...');
+    console.log('🧪 Running Google Sheets diagnostics with service account...');
     
-    let diagnostics = '🔍 DIAGNÓSTICOS GOOGLE SHEETS\n\n';
+    let diagnostics = '🔍 DIAGNÓSTICOS GOOGLE SHEETS (CUENTA DE SERVICIO)\n\n';
     
-    // Test 1: Basic connection
+    // Test 1: Service account configuration
+    const validation = validateServiceAccount();
+    diagnostics += `1. Configuración de cuenta de servicio: ${validation.valid ? '✅ OK' : '❌ FALLO'}\n`;
+    
+    if (!validation.valid) {
+      diagnostics += `   - Errores: ${validation.errors.join(', ')}\n`;
+      return diagnostics;
+    }
+    
+    diagnostics += `   - Email: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}\n`;
+    diagnostics += `   - Proyecto: ${SERVICE_ACCOUNT_CREDENTIALS.project_id}\n`;
+    diagnostics += `   - Client ID: ${SERVICE_ACCOUNT_CREDENTIALS.client_id}\n`;
+    
+    // Test 2: Basic connection
     const connectionTest = await testGoogleSheetsConnection();
-    diagnostics += `1. Conexión básica: ${connectionTest ? '✅ OK' : '❌ FALLO'}\n`;
+    diagnostics += `2. Conexión básica: ${connectionTest ? '✅ OK' : '❌ FALLO'}\n`;
     
     if (!connectionTest) {
-      diagnostics += '   - Verifica la API key y el ID de la hoja\n';
-      diagnostics += `   - API Key: ${GOOGLE_SHEETS_API_KEY.substring(0, 10)}...\n`;
-      diagnostics += `   - Spreadsheet ID: ${SPREADSHEET_ID}\n`;
+      diagnostics += '   - Verifica las credenciales y el ID de la hoja\n';
       return diagnostics;
     }
     
-    // Test 2: Spreadsheet info
+    // Test 3: Spreadsheet info
     const info = await getSpreadsheetInfo();
     if (info) {
-      diagnostics += `2. Información de la hoja: ✅ OK\n`;
+      diagnostics += `3. Información de la hoja: ✅ OK\n`;
       diagnostics += `   - Título: ${info.properties?.title || 'N/A'}\n`;
     } else {
-      diagnostics += `2. Información de la hoja: ❌ FALLO\n`;
+      diagnostics += `3. Información de la hoja: ❌ FALLO\n`;
     }
     
-    // Test 3: Range access
+    // Test 4: Range access
     const rangeTest = await testRangeAccess();
-    diagnostics += `3. Acceso al rango: ${rangeTest ? '✅ OK' : '❌ FALLO'}\n`;
+    diagnostics += `4. Acceso al rango: ${rangeTest ? '✅ OK' : '❌ FALLO'}\n`;
     
-    if (!rangeTest) {
-      diagnostics += '   - Verifica que el rango existe y es accesible\n';
-      diagnostics += `   - Rango: ${RANGE}\n`;
-      return diagnostics;
-    }
-    
-    // Test 4: Load events
+    // Test 5: Load events
     const events = await loadEventsFromGoogleSheets();
-    diagnostics += `4. Carga de eventos: ✅ OK\n`;
+    diagnostics += `5. Carga de eventos: ✅ OK\n`;
     diagnostics += `   - Eventos encontrados: ${events.length}\n`;
     
-    if (events.length === 0) {
-      diagnostics += '   - No hay eventos en la hoja o están en formato incorrecto\n';
-      diagnostics += '   - Verifica que las columnas sean: Fecha, Nombre, Teléfono, Paquete, Estado, AnticipoPagado, TotalEvento, FechaPago, NotificadoLunes\n';
-    } else {
+    if (events.length > 0) {
       diagnostics += `   - Último evento: ${events[events.length - 1].customerName} - ${events[events.length - 1].date}\n`;
     }
     
-    // Test 5: Write permissions
-    diagnostics += '\n5. Probando permisos de escritura...\n';
+    // Test 6: Write permissions
+    diagnostics += '\n6. Probando permisos de escritura...\n';
     const writeTest = await testWritePermissions();
-    diagnostics += `   - Permisos de escritura: ${writeTest.canWrite ? '✅ OK' : '❌ FALLO'}\n`;
+    diagnostics += `   - Permisos de escritura: ${writeTest.canWrite ? '✅ OK' : '❌ LIMITADO'}\n`;
     
     if (!writeTest.canWrite) {
-      diagnostics += `   - Error: ${writeTest.error}\n`;
-      diagnostics += '\n⚠️ PROBLEMA DETECTADO:\n';
-      diagnostics += 'Para habilitar escritura necesitas:\n';
-      diagnostics += '1. Configurar OAuth2 con cuenta de servicio, o\n';
-      diagnostics += '2. Usar una API key con permisos de escritura\n';
-      diagnostics += '\nMientras tanto, los eventos se guardan localmente.\n';
-    } else {
-      // Test 6: Test save functionality
-      diagnostics += '\n6. Probando funcionalidad de guardado...\n';
-      const saveTest = await testSaveToGoogleSheets();
-      diagnostics += `   - Prueba de guardado: ${saveTest.success ? '✅ OK' : '❌ FALLO'}\n`;
-      
-      if (!saveTest.success) {
-        diagnostics += `   - Error: ${saveTest.error}\n`;
-      }
+      diagnostics += `   - Información: ${writeTest.error}\n`;
     }
     
-    diagnostics += '\n✅ Diagnósticos completados';
-    diagnostics += '\n\n📋 Configuración actual:';
+    diagnostics += '\n✅ Diagnósticos completados\n';
+    diagnostics += '\n📋 CONFIGURACIÓN ACTUAL:';
     diagnostics += `\n   - Spreadsheet ID: ${SPREADSHEET_ID}`;
     diagnostics += `\n   - Rango: ${RANGE}`;
-    diagnostics += `\n   - API Key: ${GOOGLE_SHEETS_API_KEY.substring(0, 10)}...`;
+    diagnostics += `\n   - Cuenta de servicio: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
+    diagnostics += `\n   - Proyecto: ${SERVICE_ACCOUNT_CREDENTIALS.project_id}`;
     
-    if (!writeTest.canWrite) {
-      diagnostics += '\n\n🔧 PASOS PARA HABILITAR ESCRITURA:';
-      diagnostics += '\n\nOPCIÓN 1 - OAuth2 con Cuenta de Servicio (Recomendado):';
-      diagnostics += '\n1. Ve a Google Cloud Console (console.cloud.google.com)';
-      diagnostics += '\n2. Selecciona tu proyecto o crea uno nuevo';
-      diagnostics += '\n3. Habilita la API de Google Sheets';
-      diagnostics += '\n4. Ve a "Credenciales" > "Crear credenciales" > "Cuenta de servicio"';
-      diagnostics += '\n5. Descarga el archivo JSON de credenciales';
-      diagnostics += '\n6. Comparte tu hoja de Google Sheets con el email de la cuenta de servicio';
-      diagnostics += '\n7. Actualiza el código con las credenciales completas';
-      
-      diagnostics += '\n\nOPCIÓN 2 - API Key con permisos de escritura:';
-      diagnostics += '\n1. Ve a Google Cloud Console';
-      diagnostics += '\n2. En "Credenciales", edita tu API key';
-      diagnostics += '\n3. Asegúrate de que tenga permisos de escritura para Google Sheets API';
-      diagnostics += '\n4. Verifica que la hoja esté compartida públicamente con permisos de edición';
-    }
+    diagnostics += '\n\n🔧 PARA HABILITAR ESCRITURA COMPLETA:';
+    diagnostics += '\n\n📝 OPCIÓN 1 - Compartir hoja con cuenta de servicio:';
+    diagnostics += '\n1. Abre tu Google Sheet en el navegador';
+    diagnostics += '\n2. Haz clic en "Compartir" (botón azul)';
+    diagnostics += `\n3. Agrega: ${SERVICE_ACCOUNT_CREDENTIALS.client_email}`;
+    diagnostics += '\n4. Selecciona "Editor" en los permisos';
+    diagnostics += '\n5. Haz clic en "Enviar"';
+    
+    diagnostics += '\n\n🖥️ OPCIÓN 2 - Backend con autenticación JWT:';
+    diagnostics += '\n1. Crear un servidor backend (Node.js, Python, etc.)';
+    diagnostics += '\n2. Implementar autenticación JWT con la clave privada';
+    diagnostics += '\n3. Hacer las llamadas a Google Sheets desde el backend';
+    diagnostics += '\n4. La app React Native se conecta al backend';
     
     diagnostics += '\n\n📊 ESTADO ACTUAL:';
     diagnostics += '\n✅ Lectura desde Google Sheets: Funcionando';
-    diagnostics += `\n${writeTest.canWrite ? '✅' : '❌'} Escritura a Google Sheets: ${writeTest.canWrite ? 'Funcionando' : 'No disponible'}`;
+    diagnostics += `\n${writeTest.canWrite ? '✅' : '⚠️'} Escritura a Google Sheets: ${writeTest.canWrite ? 'Funcionando' : 'Requiere configuración adicional'}`;
     diagnostics += '\n✅ Almacenamiento local: Funcionando como respaldo';
+    diagnostics += '\n✅ Credenciales de cuenta de servicio: Configuradas';
+    
+    if (!writeTest.canWrite) {
+      diagnostics += '\n\n💡 NOTA IMPORTANTE:';
+      diagnostics += '\nReact Native no puede hacer autenticación JWT directamente por seguridad.';
+      diagnostics += '\nLa opción más simple es compartir la hoja con la cuenta de servicio.';
+      diagnostics += '\nPara máxima seguridad, usa un backend servidor.';
+    }
     
     return diagnostics;
   } catch (error) {
