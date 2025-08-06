@@ -300,8 +300,9 @@ export default function ScheduleScreen() {
 
       <View style={commonStyles.section}>
         <Button
-          title="Guardar Evento"
+          text="Reservar Evento"
           onPress={() => {
+            console.log('🎯 Reservar Evento button pressed');
             if (validateForm()) {
               continueValidation();
             }
