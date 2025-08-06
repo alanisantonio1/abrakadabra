@@ -137,6 +137,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
                   }
                 }}
                 disabled={!isClickable}
+                activeOpacity={isClickable ? 0.7 : 1}
               >
                 <Text style={[
                   styles.dayText,
@@ -153,6 +154,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
                     <Text style={styles.eventCount}>{day.events.length}</Text>
                   </View>
                 )}
+                {isClickable && day.isAvailable && (
+                  <View style={styles.availableIndicator}>
+                    <Text style={styles.availableText}>+</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             );
           })}
@@ -161,11 +167,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
-            <Text style={styles.legendText}>Disponible para agendar</Text>
+            <Text style={styles.legendText}>Disponible - Toca para agendar</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: colors.error }]} />
-            <Text style={styles.legendText}>Ocupado - Ver evento</Text>
+            <Text style={styles.legendText}>Ocupado - Toca para ver evento</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: colors.textLight }]} />
@@ -308,6 +314,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   eventCount: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.backgroundAlt,
+  },
+  availableIndicator: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: colors.success,
+    borderRadius: 10,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  availableText: {
     fontSize: 12,
     fontWeight: 'bold',
     color: colors.backgroundAlt,

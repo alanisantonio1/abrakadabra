@@ -9,7 +9,6 @@ import EventCard from '../components/EventCard';
 import DiagnosticsModal from '../components/DiagnosticsModal';
 import { loadEvents } from '../utils/storage';
 import { testDatabaseConnections } from '../utils/storage';
-import { runAllCompatibilityTests } from '../utils/testRNCompatibility';
 
 const MainScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -41,8 +40,24 @@ const MainScreen: React.FC = () => {
   };
 
   const handleDateSelect = (date: string) => {
+    console.log('📅 Date selected in calendar:', date);
     setSelectedDate(date);
-    setCurrentView('main');
+    
+    // Check if the date has events
+    const dateEvents = events.filter(event => event.date === date);
+    
+    if (dateEvents.length > 0) {
+      // If date has events, show them in the calendar view
+      console.log('📋 Date has events, staying in calendar view');
+      // Don't navigate away, just update selected date to show events
+    } else {
+      // If date is available, navigate to schedule with pre-selected date
+      console.log('➕ Date is available, navigating to schedule');
+      router.push({
+        pathname: '/schedule',
+        params: { date: date }
+      });
+    }
   };
 
   const getUpcomingEvents = (): Event[] => {
@@ -164,12 +179,9 @@ const MainScreen: React.FC = () => {
             <Text style={commonStyles.cardText}>
               No hay eventos próximos programados
             </Text>
-            <TouchableOpacity
-              style={[commonStyles.button, { backgroundColor: colors.primary, marginTop: 12 }]}
-              onPress={() => router.push('/schedule')}
-            >
-              <Text style={commonStyles.buttonText}>➕ Agendar Primer Evento</Text>
-            </TouchableOpacity>
+            <Text style={[commonStyles.cardText, { fontSize: 14, marginTop: 8, color: colors.textSecondary }]}>
+              Usa el calendario para seleccionar una fecha disponible y agendar un evento
+            </Text>
           </View>
         )}
       </View>
@@ -204,6 +216,15 @@ const MainScreen: React.FC = () => {
         <Text style={commonStyles.title}>📅 Calendario</Text>
       </View>
 
+      <View style={[commonStyles.card, { margin: 16, padding: 16, backgroundColor: colors.info + '20' }]}>
+        <Text style={[commonStyles.cardText, { color: colors.text, textAlign: 'center', fontWeight: '600' }]}>
+          💡 Toca una fecha verde para agendar un evento
+        </Text>
+        <Text style={[commonStyles.cardText, { color: colors.textSecondary, textAlign: 'center', fontSize: 14, marginTop: 4 }]}>
+          Las fechas rojas muestran eventos existentes
+        </Text>
+      </View>
+
       <CalendarView
         events={events}
         onDateSelect={handleDateSelect}
@@ -213,7 +234,12 @@ const MainScreen: React.FC = () => {
       {selectedDate && (
         <View style={commonStyles.section}>
           <Text style={commonStyles.sectionTitle}>
-            Eventos para {selectedDate}
+            Eventos para {new Date(selectedDate).toLocaleDateString('es-ES', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
           </Text>
           {events
             .filter(event => event.date === selectedDate)
@@ -224,6 +250,23 @@ const MainScreen: React.FC = () => {
                 onPress={() => router.push(`/event/${event.id}`)}
               />
             ))}
+          
+          {events.filter(event => event.date === selectedDate).length === 0 && (
+            <View style={commonStyles.card}>
+              <Text style={[commonStyles.cardText, { textAlign: 'center', color: colors.success, fontWeight: '600' }]}>
+                ✅ Fecha disponible para agendar
+              </Text>
+              <TouchableOpacity
+                style={[commonStyles.button, { backgroundColor: colors.primary, marginTop: 12 }]}
+                onPress={() => router.push({
+                  pathname: '/schedule',
+                  params: { date: selectedDate }
+                })}
+              >
+                <Text style={commonStyles.buttonText}>➕ Agendar Evento</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </View>
