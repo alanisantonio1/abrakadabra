@@ -15,6 +15,7 @@ const MainScreen: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showTools, setShowTools] = useState(false);
 
   // Load events when screen comes into focus
   useFocusEffect(
@@ -94,49 +95,54 @@ const MainScreen: React.FC = () => {
       {/* Header */}
       <View style={commonStyles.header}>
         <Text style={commonStyles.title}>🎪 Abrakadabra</Text>
-        <Text style={commonStyles.subtitle}>Gestión de Eventos</Text>
+        <Text style={commonStyles.subtitle}>Calendario y ver eventos</Text>
       </View>
 
-      {/* Quick Actions */}
+      {/* Main Actions */}
       <View style={commonStyles.section}>
         <View style={commonStyles.buttonRow}>
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.primary, flex: 1 }]}
-            onPress={() => router.push('/schedule')}
-          >
-            <Text style={commonStyles.buttonText}>➕ Nuevo Evento</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity
             style={[commonStyles.button, { backgroundColor: colors.secondary, flex: 1 }]}
             onPress={() => setCurrentView('calendar')}
           >
             <Text style={commonStyles.buttonText}>📅 Calendario</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={commonStyles.buttonRow}>
+          
           <TouchableOpacity
             style={[commonStyles.button, { backgroundColor: colors.accent, flex: 1 }]}
             onPress={() => router.push('/events')}
           >
             <Text style={commonStyles.buttonText}>📋 Ver Eventos</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.warning, flex: 1 }]}
-            onPress={() => setShowDiagnostics(true)}
-          >
-            <Text style={commonStyles.buttonText}>🔍 Diagnósticos</Text>
-          </TouchableOpacity>
         </View>
 
+        {/* Tools Section */}
         <TouchableOpacity
           style={[commonStyles.button, { backgroundColor: colors.info }]}
-          onPress={() => router.push('/packages')}
+          onPress={() => setShowTools(!showTools)}
         >
-          <Text style={commonStyles.buttonText}>📦 Ver Paquetes</Text>
+          <Text style={commonStyles.buttonText}>
+            🛠️ Herramientas {showTools ? '▼' : '▶'}
+          </Text>
         </TouchableOpacity>
+
+        {showTools && (
+          <View style={[commonStyles.card, { marginTop: 8, backgroundColor: colors.surface }]}>
+            <TouchableOpacity
+              style={[commonStyles.button, { backgroundColor: colors.warning, marginBottom: 8 }]}
+              onPress={() => setShowDiagnostics(true)}
+            >
+              <Text style={commonStyles.buttonText}>🔍 Diagnósticos</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[commonStyles.button, { backgroundColor: colors.primary }]}
+              onPress={() => router.push('/packages')}
+            >
+              <Text style={commonStyles.buttonText}>📦 Ver Paquetes</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Google Sheets Status */}
@@ -258,12 +264,36 @@ const MainScreen: React.FC = () => {
               </Text>
               <TouchableOpacity
                 style={[commonStyles.button, { backgroundColor: colors.primary, marginTop: 12 }]}
-                onPress={() => router.push({
-                  pathname: '/schedule',
-                  params: { date: selectedDate }
-                })}
+                onPress={() => {
+                  console.log('🎯 Reservar evento button clicked for date:', selectedDate);
+                  Alert.alert(
+                    'Confirmar Reserva',
+                    `¿Deseas agendar un evento para el ${new Date(selectedDate).toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}?`,
+                    [
+                      {
+                        text: 'Cancelar',
+                        style: 'cancel'
+                      },
+                      {
+                        text: 'Sí, agendar',
+                        onPress: () => {
+                          console.log('✅ User confirmed, navigating to schedule');
+                          router.push({
+                            pathname: '/schedule',
+                            params: { date: selectedDate }
+                          });
+                        }
+                      }
+                    ]
+                  );
+                }}
               >
-                <Text style={commonStyles.buttonText}>➕ Agendar Evento</Text>
+                <Text style={commonStyles.buttonText}>🎉 Reservar Evento</Text>
               </TouchableOpacity>
             </View>
           )}
