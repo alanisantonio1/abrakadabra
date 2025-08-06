@@ -14,6 +14,7 @@ const MainScreen: React.FC = () => {
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+  const [showTools, setShowTools] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useFocusEffect(
@@ -93,14 +94,14 @@ const MainScreen: React.FC = () => {
       {/* Main Action Buttons */}
       <View style={commonStyles.buttonContainer}>
         <TouchableOpacity
-          style={[commonStyles.primaryButton, { backgroundColor: colors.primary }]}
+          style={[commonStyles.primaryButton, { backgroundColor: colors.secondary }]}
           onPress={() => setCurrentView('calendar')}
         >
           <Text style={commonStyles.buttonText}>📅 Calendario</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[commonStyles.primaryButton, { backgroundColor: colors.secondary }]}
+          style={[commonStyles.primaryButton, { backgroundColor: colors.accent }]}
           onPress={() => router.push('/events')}
         >
           <Text style={commonStyles.buttonText}>📋 Ver Eventos</Text>
@@ -129,14 +130,14 @@ const MainScreen: React.FC = () => {
       <View style={commonStyles.section}>
         <TouchableOpacity
           style={[commonStyles.collapsibleHeader, { backgroundColor: colors.accent }]}
-          onPress={() => setShowDiagnostics(!showDiagnostics)}
+          onPress={() => setShowTools(!showTools)}
         >
           <Text style={[commonStyles.buttonText, { color: 'white' }]}>
-            🔧 Herramientas {showDiagnostics ? '▼' : '▶'}
+            🔧 HERRAMIENTAS {showTools ? '▼' : '▶'}
           </Text>
         </TouchableOpacity>
 
-        {showDiagnostics && (
+        {showTools && (
           <View style={commonStyles.toolsContainer}>
             <TouchableOpacity
               style={[commonStyles.secondaryButton, { backgroundColor: colors.info }]}
@@ -144,15 +145,6 @@ const MainScreen: React.FC = () => {
             >
               <Text style={[commonStyles.buttonText, { color: 'white' }]}>
                 🔍 Diagnósticos
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[commonStyles.secondaryButton, { backgroundColor: colors.warning }]}
-              onPress={testDatabaseConnection}
-            >
-              <Text style={[commonStyles.buttonText, { color: 'white' }]}>
-                🧪 Probar Conexión
               </Text>
             </TouchableOpacity>
 
