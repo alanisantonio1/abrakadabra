@@ -1,23 +1,21 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import DiagnosticsModal from '../components/DiagnosticsModal';
+import EventCard from '../components/EventCard';
+import { commonStyles, colors } from '../styles/commonStyles';
+import { Event } from '../types';
+import { loadEvents, testDatabaseConnections } from '../utils/storage';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Event } from '../types';
-import { commonStyles, colors } from '../styles/commonStyles';
+import React, { useState, useEffect, useCallback } from 'react';
 import CalendarView from '../components/CalendarView';
-import EventCard from '../components/EventCard';
-import DiagnosticsModal from '../components/DiagnosticsModal';
-import { loadEvents } from '../utils/storage';
-import { testDatabaseConnections } from '../utils/storage';
 
 const MainScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
-  const [showTools, setShowTools] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Load events when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadEventsData();
@@ -30,35 +28,27 @@ const MainScreen: React.FC = () => {
 
   const loadEventsData = async () => {
     try {
+      setIsLoading(true);
       console.log('📥 Loading events data...');
       const loadedEvents = await loadEvents();
       setEvents(loadedEvents);
       console.log('✅ Events loaded:', loadedEvents.length);
     } catch (error) {
       console.error('❌ Error loading events:', error);
-      Alert.alert('Error', 'No se pudieron cargar los eventos');
+      Alert.alert(
+        'Error',
+        'Error cargando eventos. Verifica tu conexión.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDateSelect = (date: string) => {
-    console.log('📅 Date selected in calendar:', date);
+    console.log('📅 Date selected:', date);
     setSelectedDate(date);
-    
-    // Check if the date has events
-    const dateEvents = events.filter(event => event.date === date);
-    
-    if (dateEvents.length > 0) {
-      // If date has events, show them in the calendar view
-      console.log('📋 Date has events, staying in calendar view');
-      // Don't navigate away, just update selected date to show events
-    } else {
-      // If date is available, navigate to schedule with pre-selected date
-      console.log('➕ Date is available, navigating to schedule');
-      router.push({
-        pathname: '/schedule',
-        params: { date: date }
-      });
-    }
+    router.push(`/schedule?date=${date}`);
   };
 
   const getUpcomingEvents = (): Event[] => {
@@ -71,142 +61,127 @@ const MainScreen: React.FC = () => {
       .slice(0, 5);
   };
 
-  const testGoogleSheets = async () => {
+  const testDatabaseConnection = async () => {
     try {
-      console.log('🧪 Testing Google Sheets connection...');
+      console.log('🧪 Testing database connection...');
       const result = await testDatabaseConnections();
       
       Alert.alert(
-        '🔍 Diagnósticos de Conexión',
+        'Prueba de Conexión',
         result,
-        [
-          { text: 'Ver detalles', onPress: () => setShowDiagnostics(true) },
-          { text: 'OK' }
-        ]
+        [{ text: 'OK' }]
       );
     } catch (error) {
-      console.error('❌ Error testing connections:', error);
-      Alert.alert('Error', `Error en diagnósticos: ${error}`);
+      console.error('❌ Error testing connection:', error);
+      Alert.alert(
+        'Error',
+        `Error probando conexión: ${error}`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
   const renderMainScreen = () => (
     <ScrollView style={commonStyles.container}>
-      {/* Header */}
       <View style={commonStyles.header}>
-        <Text style={commonStyles.title}>🎪 Abrakadabra</Text>
-        <Text style={commonStyles.subtitle}>Calendario y ver eventos</Text>
+        <Text style={commonStyles.title}>🎪 Abrakadabra Events</Text>
+        <Text style={commonStyles.subtitle}>
+          {isLoading ? 'Cargando eventos...' : `${events.length} eventos registrados`}
+        </Text>
       </View>
 
-      {/* Main Actions */}
-      <View style={commonStyles.section}>
-        <View style={commonStyles.buttonRow}>
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.secondary, flex: 1 }]}
-            onPress={() => setCurrentView('calendar')}
-          >
-            <Text style={commonStyles.buttonText}>📅 Calendario</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.accent, flex: 1 }]}
-            onPress={() => router.push('/events')}
-          >
-            <Text style={commonStyles.buttonText}>📋 Ver Eventos</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tools Section */}
+      {/* Main Action Buttons */}
+      <View style={commonStyles.buttonContainer}>
         <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: colors.info }]}
-          onPress={() => setShowTools(!showTools)}
+          style={[commonStyles.primaryButton, { backgroundColor: colors.primary }]}
+          onPress={() => setCurrentView('calendar')}
         >
-          <Text style={commonStyles.buttonText}>
-            🛠️ Herramientas {showTools ? '▼' : '▶'}
-          </Text>
+          <Text style={commonStyles.buttonText}>📅 Calendario</Text>
         </TouchableOpacity>
 
-        {showTools && (
-          <View style={[commonStyles.card, { marginTop: 8, backgroundColor: colors.surface }]}>
-            <TouchableOpacity
-              style={[commonStyles.button, { backgroundColor: colors.warning, marginBottom: 8 }]}
-              onPress={() => setShowDiagnostics(true)}
-            >
-              <Text style={commonStyles.buttonText}>🔍 Diagnósticos</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[commonStyles.button, { backgroundColor: colors.primary }]}
-              onPress={() => router.push('/packages')}
-            >
-              <Text style={commonStyles.buttonText}>📦 Ver Paquetes</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* Google Sheets Status */}
-      <View style={commonStyles.section}>
-        <View style={[commonStyles.card, { backgroundColor: colors.surface }]}>
-          <Text style={[commonStyles.cardTitle, { color: colors.text }]}>
-            📊 Estado de Google Sheets
-          </Text>
-          <Text style={[commonStyles.cardText, { color: colors.textSecondary }]}>
-            Toca "Diagnósticos" para verificar la conexión y permisos de escritura
-          </Text>
-          
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.primary, marginTop: 12 }]}
-            onPress={testGoogleSheets}
-          >
-            <Text style={commonStyles.buttonText}>🧪 Probar Conexión</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[commonStyles.primaryButton, { backgroundColor: colors.secondary }]}
+          onPress={() => router.push('/events')}
+        >
+          <Text style={commonStyles.buttonText}>📋 Ver Eventos</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Upcoming Events */}
       <View style={commonStyles.section}>
         <Text style={commonStyles.sectionTitle}>📅 Próximos Eventos</Text>
-        
-        {getUpcomingEvents().length > 0 ? (
+        {isLoading ? (
+          <Text style={commonStyles.emptyText}>Cargando eventos...</Text>
+        ) : getUpcomingEvents().length > 0 ? (
           getUpcomingEvents().map((event) => (
             <EventCard
               key={event.id}
               event={event}
               onPress={() => router.push(`/event/${event.id}`)}
-              onMarkAsPaid={() => {
-                // Handle mark as paid
-                console.log('Mark as paid:', event.id);
-              }}
             />
           ))
         ) : (
-          <View style={commonStyles.card}>
-            <Text style={commonStyles.cardText}>
-              No hay eventos próximos programados
-            </Text>
-            <Text style={[commonStyles.cardText, { fontSize: 14, marginTop: 8, color: colors.textSecondary }]}>
-              Usa el calendario para seleccionar una fecha disponible y agendar un evento
-            </Text>
+          <Text style={commonStyles.emptyText}>No hay eventos próximos</Text>
+        )}
+      </View>
+
+      {/* Tools Section */}
+      <View style={commonStyles.section}>
+        <TouchableOpacity
+          style={[commonStyles.collapsibleHeader, { backgroundColor: colors.accent }]}
+          onPress={() => setShowDiagnostics(!showDiagnostics)}
+        >
+          <Text style={[commonStyles.buttonText, { color: 'white' }]}>
+            🔧 Herramientas {showDiagnostics ? '▼' : '▶'}
+          </Text>
+        </TouchableOpacity>
+
+        {showDiagnostics && (
+          <View style={commonStyles.toolsContainer}>
+            <TouchableOpacity
+              style={[commonStyles.secondaryButton, { backgroundColor: colors.info }]}
+              onPress={() => setShowDiagnostics(true)}
+            >
+              <Text style={[commonStyles.buttonText, { color: 'white' }]}>
+                🔍 Diagnósticos
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[commonStyles.secondaryButton, { backgroundColor: colors.warning }]}
+              onPress={testDatabaseConnection}
+            >
+              <Text style={[commonStyles.buttonText, { color: 'white' }]}>
+                🧪 Probar Conexión
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[commonStyles.secondaryButton, { backgroundColor: colors.success }]}
+              onPress={() => router.push('/packages')}
+            >
+              <Text style={[commonStyles.buttonText, { color: 'white' }]}>
+                📦 Ver Paquetes
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
 
-      {/* Statistics */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>📊 Estadísticas</Text>
-        <View style={commonStyles.card}>
-          <Text style={commonStyles.cardText}>
-            Total de eventos: {events.length}
-          </Text>
-          <Text style={commonStyles.cardText}>
-            Eventos pagados: {events.filter(e => e.isPaid).length}
-          </Text>
-          <Text style={commonStyles.cardText}>
-            Eventos pendientes: {events.filter(e => !e.isPaid).length}
-          </Text>
-        </View>
+      {/* Status Indicator */}
+      <View style={commonStyles.statusContainer}>
+        <Text style={commonStyles.statusText}>
+          {isLoading ? '⏳ Cargando...' : '✅ Sistema funcionando correctamente'}
+        </Text>
+        <Text style={commonStyles.statusSubtext}>
+          Base de datos: Supabase | Respaldo: Local
+        </Text>
       </View>
+
+      <DiagnosticsModal
+        visible={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+      />
     </ScrollView>
   );
 
@@ -214,21 +189,12 @@ const MainScreen: React.FC = () => {
     <View style={commonStyles.container}>
       <View style={commonStyles.header}>
         <TouchableOpacity
+          style={[commonStyles.backButton, { backgroundColor: colors.secondary }]}
           onPress={() => setCurrentView('main')}
-          style={[commonStyles.button, { backgroundColor: colors.secondary }]}
         >
-          <Text style={commonStyles.buttonText}>← Volver</Text>
+          <Text style={[commonStyles.buttonText, { color: 'white' }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>📅 Calendario</Text>
-      </View>
-
-      <View style={[commonStyles.card, { margin: 16, padding: 16, backgroundColor: colors.info + '20' }]}>
-        <Text style={[commonStyles.cardText, { color: colors.text, textAlign: 'center', fontWeight: '600' }]}>
-          💡 Toca una fecha verde para agendar un evento
-        </Text>
-        <Text style={[commonStyles.cardText, { color: colors.textSecondary, textAlign: 'center', fontSize: 14, marginTop: 4 }]}>
-          Las fechas rojas muestran eventos existentes
-        </Text>
+        <Text style={commonStyles.title}>📅 Calendario de Eventos</Text>
       </View>
 
       <CalendarView
@@ -236,82 +202,10 @@ const MainScreen: React.FC = () => {
         onDateSelect={handleDateSelect}
         selectedDate={selectedDate}
       />
-
-      {selectedDate && (
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>
-            Eventos para {new Date(selectedDate).toLocaleDateString('es-ES', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
-          </Text>
-          {events
-            .filter(event => event.date === selectedDate)
-            .map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onPress={() => router.push(`/event/${event.id}`)}
-              />
-            ))}
-          
-          {events.filter(event => event.date === selectedDate).length === 0 && (
-            <View style={commonStyles.card}>
-              <Text style={[commonStyles.cardText, { textAlign: 'center', color: colors.success, fontWeight: '600' }]}>
-                ✅ Fecha disponible para agendar
-              </Text>
-              <TouchableOpacity
-                style={[commonStyles.button, { backgroundColor: colors.primary, marginTop: 12 }]}
-                onPress={() => {
-                  console.log('🎯 Reservar evento button clicked for date:', selectedDate);
-                  Alert.alert(
-                    'Confirmar Reserva',
-                    `¿Deseas agendar un evento para el ${new Date(selectedDate).toLocaleDateString('es-ES', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}?`,
-                    [
-                      {
-                        text: 'Cancelar',
-                        style: 'cancel'
-                      },
-                      {
-                        text: 'Sí, agendar',
-                        onPress: () => {
-                          console.log('✅ User confirmed, navigating to schedule');
-                          router.push({
-                            pathname: '/schedule',
-                            params: { date: selectedDate }
-                          });
-                        }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Text style={commonStyles.buttonText}>🎉 Reservar Evento</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 
-  return (
-    <>
-      {currentView === 'main' ? renderMainScreen() : renderCalendarScreen()}
-      
-      <DiagnosticsModal
-        visible={showDiagnostics}
-        onClose={() => setShowDiagnostics(false)}
-      />
-    </>
-  );
+  return currentView === 'main' ? renderMainScreen() : renderCalendarScreen();
 };
 
 export default MainScreen;

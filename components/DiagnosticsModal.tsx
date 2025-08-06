@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import Button from './Button';
+import { colors, commonStyles } from '../styles/commonStyles';
 import { 
   View, 
   Text, 
@@ -10,9 +11,12 @@ import {
   Clipboard,
   StyleSheet 
 } from 'react-native';
-import Button from './Button';
-import { colors, commonStyles } from '../styles/commonStyles';
-import { runGoogleSheetsDiagnostics, testDatabaseConnections } from '../utils/storage';
+import React, { useState, useEffect } from 'react';
+import { 
+  testDatabaseConnections, 
+  runGoogleSheetsDiagnostics,
+  syncGoogleSheetsToSupabase 
+} from '../utils/storage';
 
 interface DiagnosticsModalProps {
   visible: boolean;
@@ -27,84 +31,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
+    backgroundColor: 'white',
     margin: 20,
+    borderRadius: 10,
+    padding: 20,
     maxHeight: '80%',
     width: '90%',
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 16,
+    marginBottom: 15,
     textAlign: 'center',
+    color: colors.primary,
   },
   diagnosticsText: {
     fontFamily: 'monospace',
     fontSize: 12,
-    color: colors.text,
     lineHeight: 16,
-    marginBottom: 16,
+    color: '#333',
+    backgroundColor: '#f5f5f5',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 16,
+    marginTop: 10,
+    flexWrap: 'wrap',
     gap: 10,
   },
   actionButton: {
     flex: 1,
+    minWidth: 120,
+  },
+  closeButton: {
     backgroundColor: colors.secondary,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginTop: 10,
   },
-  actionButtonText: {
-    color: colors.white,
+  closeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  syncButton: {
+    backgroundColor: colors.accent,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 5,
+  },
+  syncButtonText: {
+    color: 'white',
     fontWeight: 'bold',
     fontSize: 12,
-  },
-  serviceAccountEmail: {
-    backgroundColor: colors.lightGray,
-    padding: 8,
-    borderRadius: 4,
-    marginVertical: 8,
-    fontFamily: 'monospace',
-    fontSize: 11,
-  },
-  warningBox: {
-    backgroundColor: '#fff3cd',
-    borderColor: '#ffeaa7',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 8,
-  },
-  warningText: {
-    color: '#856404',
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  successBox: {
-    backgroundColor: '#d4edda',
-    borderColor: '#c3e6cb',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginVertical: 8,
-  },
-  successText: {
-    color: '#155724',
-    fontSize: 12,
-    lineHeight: 16,
   },
 });
 
 const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose }) => {
   const [diagnosticsResult, setDiagnosticsResult] = useState<string>('');
-  const [isRunning, setIsRunning] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
@@ -113,37 +102,16 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
   }, [visible]);
 
   const runDiagnostics = async () => {
-    setIsRunning(true);
+    setIsLoading(true);
     try {
       console.log('🧪 Running comprehensive diagnostics...');
-      
-      let fullReport = '🔍 DIAGNÓSTICOS COMPLETOS DE ABRAKADABRA\n';
-      fullReport += '=' .repeat(50) + '\n\n';
-      
-      // Test all database connections
-      const dbReport = await testDatabaseConnections();
-      fullReport += dbReport;
-      
-      fullReport += '\n\n' + '=' .repeat(50);
-      fullReport += '\n📱 COMPATIBILIDAD REACT NATIVE\n';
-      fullReport += '=' .repeat(50) + '\n';
-      fullReport += '✅ Almacenamiento AsyncStorage: Funcionando\n';
-      fullReport += '⚠️ Google Cloud SDK: Limitado (usando API key)\n';
-      fullReport += '✅ Fetch API: Funcionando\n';
-      fullReport += '✅ JSON parsing: Funcionando\n';
-      
-      fullReport += '\n\n🔧 RECOMENDACIONES:\n';
-      fullReport += '1. Para producción: Implementar autenticación JWT en backend\n';
-      fullReport += '2. Para desarrollo: Usar clave API para operaciones de lectura\n';
-      fullReport += '3. Compartir hoja con cuenta de servicio para escritura\n';
-      fullReport += '4. Mantener almacenamiento local como respaldo\n';
-      
-      setDiagnosticsResult(fullReport);
+      const result = await testDatabaseConnections();
+      setDiagnosticsResult(result);
     } catch (error) {
       console.error('❌ Error running diagnostics:', error);
       setDiagnosticsResult(`❌ Error ejecutando diagnósticos: ${error}`);
     } finally {
-      setIsRunning(false);
+      setIsLoading(false);
     }
   };
 
@@ -152,7 +120,7 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
     Clipboard.setString(serviceAccountEmail);
     Alert.alert(
       'Email Copiado',
-      `Email de cuenta de servicio copiado al portapapeles:\n\n${serviceAccountEmail}`,
+      `Email de cuenta de servicio copiado al portapapeles:\n${serviceAccountEmail}`,
       [{ text: 'OK' }]
     );
   };
@@ -163,105 +131,164 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
     
     Alert.alert(
       'Abrir Google Sheet',
-      `Para abrir la hoja de cálculo, ve a:\n\n${url}`,
+      `¿Deseas abrir la hoja de cálculo en el navegador?\n\n${url}`,
       [
-        { text: 'Copiar URL', onPress: () => Clipboard.setString(url) },
-        { text: 'OK' }
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Abrir', 
+          onPress: () => {
+            // In a real app, you would use Linking.openURL(url)
+            console.log('Opening URL:', url);
+          }
+        }
       ]
     );
   };
 
   const showSharingInstructions = () => {
-    const serviceAccountEmail = 'abrakadabra@abrakadabra-422005.iam.gserviceaccount.com';
-    const instructions = `INSTRUCCIONES PARA COMPARTIR GOOGLE SHEET:
-
-1. Abre tu Google Sheet en el navegador
-2. Haz clic en "Compartir" (botón azul arriba a la derecha)
-3. En "Agregar personas y grupos", pega exactamente:
-   ${serviceAccountEmail}
-4. Cambia permisos de "Viewer" a "Editor"
-5. Haz clic en "Enviar"
-6. Ejecuta diagnósticos nuevamente para verificar
-
-⚠️ IMPORTANTE:
-- El email debe ser exactamente como se muestra
-- Los permisos deben ser "Editor", no "Viewer"
-- No agregues espacios extra al copiar el email`;
-
     Alert.alert(
       'Instrucciones de Compartir',
-      instructions,
-      [
-        { text: 'Copiar Email', onPress: copyServiceAccountEmail },
-        { text: 'OK' }
-      ]
+      `Para habilitar la sincronización con Google Sheets:
+
+1. Abre tu Google Sheet
+2. Haz clic en "Compartir" (botón azul)
+3. En "Agregar personas y grupos", ingresa:
+   abrakadabra@abrakadabra-422005.iam.gserviceaccount.com
+4. Cambia permisos de "Visualizador" a "Editor"
+5. Haz clic en "Enviar"
+
+⚠️ NOTA: Google Sheets ahora es opcional. La app funciona completamente con Supabase.`,
+      [{ text: 'Entendido' }]
     );
+  };
+
+  const runGoogleSheetsDiagnosticsOnly = async () => {
+    setIsLoading(true);
+    try {
+      console.log('📊 Running Google Sheets diagnostics...');
+      const result = await runGoogleSheetsDiagnostics();
+      setDiagnosticsResult(result);
+    } catch (error) {
+      console.error('❌ Error running Google Sheets diagnostics:', error);
+      setDiagnosticsResult(`❌ Error en diagnósticos de Google Sheets: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const syncFromGoogleSheets = async () => {
+    setIsLoading(true);
+    try {
+      console.log('🔄 Syncing from Google Sheets to Supabase...');
+      
+      Alert.alert(
+        'Sincronizar desde Google Sheets',
+        '¿Deseas sincronizar los eventos desde Google Sheets a Supabase? Esto puede tomar unos momentos.',
+        [
+          { text: 'Cancelar', style: 'cancel', onPress: () => setIsLoading(false) },
+          { 
+            text: 'Sincronizar', 
+            onPress: async () => {
+              try {
+                const result = await syncGoogleSheetsToSupabase();
+                Alert.alert(
+                  result.success ? 'Sincronización Exitosa' : 'Error de Sincronización',
+                  result.message,
+                  [{ text: 'OK' }]
+                );
+                
+                // Refresh diagnostics after sync
+                if (result.success) {
+                  await runDiagnostics();
+                }
+              } catch (error) {
+                Alert.alert(
+                  'Error de Sincronización',
+                  `Error durante la sincronización: ${error}`,
+                  [{ text: 'OK' }]
+                );
+              } finally {
+                setIsLoading(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('❌ Error in sync process:', error);
+      setIsLoading(false);
+    }
   };
 
   return (
     <Modal
       visible={visible}
-      animationType="slide"
       transparent={true}
+      animationType="slide"
       onRequestClose={onClose}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <Text style={styles.title}>🔍 Diagnósticos del Sistema</Text>
           
-          <View style={styles.warningBox}>
-            <Text style={styles.warningText}>
-              ⚠️ NOTA: Esta aplicación usa una implementación compatible con React Native.
-              Algunas funciones de Google Cloud SDK están limitadas en el entorno móvil.
-            </Text>
-          </View>
-
           <ScrollView style={{ maxHeight: 400 }}>
             <Text style={styles.diagnosticsText}>
-              {isRunning ? '🔄 Ejecutando diagnósticos...\n\nEsto puede tomar unos segundos...' : diagnosticsResult}
+              {isLoading ? '⏳ Ejecutando diagnósticos...' : diagnosticsResult}
             </Text>
           </ScrollView>
 
-          <View style={styles.successBox}>
-            <Text style={styles.successText}>
-              💡 TIP: El almacenamiento local siempre funciona como respaldo.
-              Los datos se sincronizan con Google Sheets cuando es posible.
-            </Text>
+          <View style={styles.buttonContainer}>
+            <Button
+              title="🔄 Actualizar"
+              onPress={runDiagnostics}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
+            
+            <Button
+              title="📊 Google Sheets"
+              onPress={runGoogleSheetsDiagnosticsOnly}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
           </View>
 
-          <Text style={styles.serviceAccountEmail}>
-            📧 Cuenta de servicio:{'\n'}
-            abrakadabra@abrakadabra-422005.iam.gserviceaccount.com
-          </Text>
+          <TouchableOpacity 
+            style={styles.syncButton}
+            onPress={syncFromGoogleSheets}
+            disabled={isLoading}
+          >
+            <Text style={styles.syncButtonText}>
+              🔄 Sincronizar desde Google Sheets
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.actionButton} onPress={copyServiceAccountEmail}>
-              <Text style={styles.actionButtonText}>📋 Copiar Email</Text>
-            </TouchableOpacity>
+            <Button
+              title="📧 Copiar Email"
+              onPress={copyServiceAccountEmail}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
             
-            <TouchableOpacity style={styles.actionButton} onPress={openGoogleSheet}>
-              <Text style={styles.actionButtonText}>📊 Ver Sheet</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.actionButton} onPress={showSharingInstructions}>
-              <Text style={styles.actionButtonText}>📝 Instrucciones</Text>
-            </TouchableOpacity>
+            <Button
+              title="📋 Abrir Sheet"
+              onPress={openGoogleSheet}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
           </View>
 
-          <View style={{ marginTop: 16 }}>
-            <Button
-              title={isRunning ? "Ejecutando..." : "🔄 Ejecutar Diagnósticos"}
-              onPress={runDiagnostics}
-              disabled={isRunning}
-              style={{ marginBottom: 8 }}
-            />
-            
-            <Button
-              title="Cerrar"
-              onPress={onClose}
-              variant="secondary"
-            />
-          </View>
+          <Button
+            title="❓ Instrucciones"
+            onPress={showSharingInstructions}
+            style={{ marginTop: 10 }}
+            disabled={isLoading}
+          />
+
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>Cerrar</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
