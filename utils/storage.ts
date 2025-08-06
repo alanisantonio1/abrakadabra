@@ -1,13 +1,5 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { 
-  loadEventsFromSupabase, 
-  saveEventToSupabase,
-  updateEventInSupabase,
-  deleteEventFromSupabase,
-  testSupabaseConnection,
-  testGoogleSheetsViaEdgeFunction
-} from './supabaseStorage';
 import { Event } from '../types';
 
 const EVENTS_KEY = '@abrakadabra_events';
@@ -48,84 +40,34 @@ export const generateEventId = (): string => {
   return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Load events from Supabase with local storage fallback
+// Load events (only from local storage now)
 export const loadEvents = async (): Promise<Event[]> => {
   try {
-    console.log('📥 Loading events from all sources...');
-    
-    // Try to load from Supabase first
-    let supabaseEvents: Event[] = [];
-    try {
-      supabaseEvents = await loadEventsFromSupabase();
-      console.log('🗄️ Supabase events:', supabaseEvents.length);
-    } catch (error) {
-      console.warn('⚠️ Failed to load from Supabase:', error);
-    }
-    
-    // Load from local storage as backup
+    console.log('📥 Loading events from local storage...');
     const localEvents = await loadEventsFromLocalStorage();
     console.log('📱 Local storage events:', localEvents.length);
-    
-    // If we have Supabase data, use it and update local storage
-    if (supabaseEvents.length > 0) {
-      await saveEventsToLocalStorage(supabaseEvents);
-      console.log('✅ Using Supabase data and updated local storage');
-      return supabaseEvents;
-    }
-    
-    // Otherwise, use local storage data
-    console.log('📱 Using local storage data as fallback');
     return localEvents;
   } catch (error) {
     console.error('❌ Error loading events:', error);
-    
-    // Final fallback to local storage
-    try {
-      const localEvents = await loadEventsFromLocalStorage();
-      console.log('📱 Final fallback to local storage:', localEvents.length);
-      return localEvents;
-    } catch (localError) {
-      console.error('❌ Error loading from local storage:', localError);
-      return [];
-    }
+    return [];
   }
 };
 
-// Save event to Supabase with local storage backup and Google Sheets sync
+// Save event (only to local storage now)
 export const saveEvent = async (event: Event): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('💾 Saving event:', event.id);
     
-    // Always save to local storage first
+    // Save to local storage
     const currentEvents = await loadEventsFromLocalStorage();
     const updatedEvents = [...currentEvents, event];
     await saveEventsToLocalStorage(updatedEvents);
     console.log('✅ Event saved to local storage');
     
-    // Try to save to Supabase (which will also sync to Google Sheets)
-    try {
-      const supabaseResult = await saveEventToSupabase(event);
-      
-      if (supabaseResult.success) {
-        console.log('✅ Event saved to Supabase');
-        return { 
-          success: true, 
-          message: supabaseResult.message || 'Evento guardado exitosamente en la base de datos' 
-        };
-      } else {
-        console.warn('⚠️ Failed to save to Supabase:', supabaseResult.error);
-        return { 
-          success: true, 
-          message: `Evento guardado localmente. Error en base de datos: ${supabaseResult.error}` 
-        };
-      }
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase save failed:', supabaseError);
-      return { 
-        success: true, 
-        message: `Evento guardado localmente. Base de datos no disponible: ${supabaseError}` 
-      };
-    }
+    return { 
+      success: true, 
+      message: 'Evento guardado exitosamente en almacenamiento local' 
+    };
   } catch (error) {
     console.error('❌ Error saving event:', error);
     return { 
@@ -135,12 +77,12 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
   }
 };
 
-// Update event in Supabase with local storage backup and Google Sheets sync
+// Update event (only in local storage now)
 export const updateEvent = async (updatedEvent: Event): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('🔄 Updating event:', updatedEvent.id);
     
-    // Update in local storage first
+    // Update in local storage
     const currentEvents = await loadEventsFromLocalStorage();
     const eventIndex = currentEvents.findIndex(e => e.id === updatedEvent.id);
     
@@ -154,30 +96,10 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
       await saveEventsToLocalStorage(currentEvents);
     }
     
-    // Try to update in Supabase (which will also sync to Google Sheets)
-    try {
-      const supabaseResult = await updateEventInSupabase(updatedEvent);
-      
-      if (supabaseResult.success) {
-        console.log('✅ Event updated in Supabase');
-        return { 
-          success: true, 
-          message: supabaseResult.message || 'Evento actualizado exitosamente en la base de datos' 
-        };
-      } else {
-        console.warn('⚠️ Failed to update in Supabase:', supabaseResult.error);
-        return { 
-          success: true, 
-          message: `Evento actualizado localmente. Error en base de datos: ${supabaseResult.error}` 
-        };
-      }
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase update failed:', supabaseError);
-      return { 
-        success: true, 
-        message: `Evento actualizado localmente. Base de datos no disponible: ${supabaseError}` 
-      };
-    }
+    return { 
+      success: true, 
+      message: 'Evento actualizado exitosamente en almacenamiento local' 
+    };
   } catch (error) {
     console.error('❌ Error updating event:', error);
     return { 
@@ -187,41 +109,21 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
   }
 };
 
-// Delete event from Supabase with local storage backup
+// Delete event (only from local storage now)
 export const deleteEvent = async (eventToDelete: Event): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('🗑️ Deleting event:', eventToDelete.id);
     
-    // Delete from local storage first
+    // Delete from local storage
     const currentEvents = await loadEventsFromLocalStorage();
     const filteredEvents = currentEvents.filter(e => e.id !== eventToDelete.id);
     await saveEventsToLocalStorage(filteredEvents);
     console.log('✅ Event deleted from local storage');
     
-    // Try to delete from Supabase
-    try {
-      const supabaseResult = await deleteEventFromSupabase(eventToDelete);
-      
-      if (supabaseResult.success) {
-        console.log('✅ Event deleted from Supabase');
-        return { 
-          success: true, 
-          message: 'Evento eliminado exitosamente de la base de datos' 
-        };
-      } else {
-        console.warn('⚠️ Failed to delete from Supabase:', supabaseResult.error);
-        return { 
-          success: true, 
-          message: `Evento eliminado localmente. Error en base de datos: ${supabaseResult.error}` 
-        };
-      }
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase delete failed:', supabaseError);
-      return { 
-        success: true, 
-        message: `Evento eliminado localmente. Base de datos no disponible: ${supabaseError}` 
-      };
-    }
+    return { 
+      success: true, 
+      message: 'Evento eliminado exitosamente del almacenamiento local' 
+    };
   } catch (error) {
     console.error('❌ Error deleting event:', error);
     return { 
@@ -231,12 +133,12 @@ export const deleteEvent = async (eventToDelete: Event): Promise<{ success: bool
   }
 };
 
-// Test database connections
+// Test local storage connection
 export const testDatabaseConnections = async (): Promise<string> => {
   try {
-    console.log('🧪 Testing database connections...');
+    console.log('🧪 Testing local storage connection...');
     
-    let report = '🔍 PRUEBA DE CONEXIONES DE BASE DE DATOS\n\n';
+    let report = '🔍 PRUEBA DE ALMACENAMIENTO LOCAL\n\n';
     
     // Test local storage
     try {
@@ -273,122 +175,41 @@ export const testDatabaseConnections = async (): Promise<string> => {
       report += `   - Error: ${error}\n`;
     }
     
-    // Test Supabase
-    report += '\n2. Base de Datos Supabase:\n';
+    // Load current events count
     try {
-      const supabaseTest = await testSupabaseConnection();
-      
-      if (supabaseTest.success) {
-        report += '   - Conexión: ✅ OK\n';
-        
-        // Test read
-        const events = await loadEventsFromSupabase();
-        report += `   - Lectura: ✅ OK (${events.length} eventos)\n`;
-        report += '   - Escritura: ✅ OK (preparada)\n';
-        report += '   - Estado: ✅ COMPLETAMENTE FUNCIONAL\n';
-      } else {
-        report += '   - Conexión: ❌ ERROR\n';
-        report += `   - Error: ${supabaseTest.error}\n`;
-      }
+      const events = await loadEventsFromLocalStorage();
+      report += `   - Eventos almacenados: ${events.length}\n`;
     } catch (error) {
-      report += '   - Conexión: ❌ ERROR\n';
-      report += `   - Error: ${error}\n`;
-    }
-    
-    // Test Google Sheets via Edge Function
-    report += '\n3. Google Sheets (via Edge Function):\n';
-    try {
-      const googleTest = await testGoogleSheetsViaEdgeFunction();
-      
-      if (googleTest.success) {
-        report += '   - Conexión: ✅ OK\n';
-        report += '   - Autenticación: ✅ OK (Edge Function)\n';
-        report += '   - Escritura: ✅ OK (automática)\n';
-        report += '   - Estado: ✅ COMPLETAMENTE FUNCIONAL\n';
-        if (googleTest.message) {
-          report += `   - Detalles: ${googleTest.message}\n`;
-        }
-      } else {
-        report += '   - Conexión: ❌ ERROR\n';
-        report += `   - Error: ${googleTest.error}\n`;
-        report += '   - Estado: ⚠️ LIMITADO (solo Supabase)\n';
-      }
-    } catch (error) {
-      report += '   - Conexión: ❌ ERROR\n';
-      report += `   - Error: ${error}\n`;
+      report += `   - Error cargando eventos: ${error}\n`;
     }
     
     report += '\n\n📊 RESUMEN:';
-    report += '\n✅ Almacenamiento Local: Siempre disponible como respaldo';
-    report += '\n🗄️ Supabase: Base de datos principal confiable';
-    report += '\n📊 Google Sheets: Sincronización automática via Edge Function';
-    report += '\n🔄 Flujo: Local → Supabase → Google Sheets (automático)';
+    report += '\n✅ Almacenamiento Local: Único sistema de almacenamiento';
+    report += '\n🔄 Flujo: Solo almacenamiento local';
+    report += '\n⚠️ Nota: Supabase y Google Sheets han sido removidos';
     
-    report += '\n\n🎯 VENTAJAS DE LA NUEVA ARQUITECTURA:';
-    report += '\n✅ Autenticación segura con Google Sheets (Edge Function)';
-    report += '\n✅ Sincronización automática en tiempo real';
-    report += '\n✅ Respaldo local siempre disponible';
-    report += '\n✅ Base de datos principal confiable (Supabase)';
-    report += '\n✅ Sin problemas de autenticación en React Native';
+    report += '\n\n🎯 CARACTERÍSTICAS ACTUALES:';
+    report += '\n✅ Almacenamiento local confiable';
+    report += '\n✅ Sin dependencias externas';
+    report += '\n✅ Funcionamiento offline completo';
+    report += '\n✅ Datos persistentes en el dispositivo';
     
     return report;
   } catch (error) {
-    return `❌ Error en prueba de conexiones: ${error}`;
+    return `❌ Error en prueba de almacenamiento: ${error}`;
   }
 };
 
-// Run Google Sheets diagnostics (legacy support)
+// Legacy function for compatibility (no longer needed)
 export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
-  try {
-    console.log('📊 Running Google Sheets diagnostics via Edge Function...');
-    
-    let diagnostics = '🔍 GOOGLE SHEETS DIAGNOSTICS (EDGE FUNCTION)\n\n';
-    
-    // Test Edge Function connection
-    const edgeFunctionTest = await testGoogleSheetsViaEdgeFunction();
-    
-    if (edgeFunctionTest.success) {
-      diagnostics += '1. Edge Function: ✅ FUNCIONANDO\n';
-      diagnostics += '   - Autenticación: OK\n';
-      diagnostics += '   - Conexión a Google Sheets: OK\n';
-      diagnostics += '   - Escritura: OK\n';
-      if (edgeFunctionTest.message) {
-        diagnostics += `   - Detalles: ${edgeFunctionTest.message}\n`;
-      }
-    } else {
-      diagnostics += '1. Edge Function: ❌ ERROR\n';
-      diagnostics += `   - Error: ${edgeFunctionTest.error}\n`;
-    }
-    
-    diagnostics += '\n📋 CONFIGURACIÓN ACTUAL:';
-    diagnostics += '\n   - Spreadsheet ID: 13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s';
-    diagnostics += '\n   - Range: Sheet1!A:I';
-    diagnostics += '\n   - Service Account: abrakadabra@abrakadabra-422005.iam.gserviceaccount.com';
-    diagnostics += '\n   - Método: Edge Function con JWT authentication';
-    
-    diagnostics += '\n\n📊 ESTADO ACTUAL:';
-    diagnostics += '\n✅ Autenticación: Edge Function (segura)';
-    diagnostics += '\n✅ Escritura: Automática con cada evento';
-    diagnostics += '\n✅ React Native: Compatible (sin problemas de JWT)';
-    diagnostics += '\n✅ Sincronización: Tiempo real';
-    
-    diagnostics += '\n\n🎯 VENTAJAS:';
-    diagnostics += '\n1. Autenticación segura en el backend';
-    diagnostics += '\n2. Sin problemas de compatibilidad con React Native';
-    diagnostics += '\n3. Sincronización automática';
-    diagnostics += '\n4. Manejo de errores robusto';
-    
-    return diagnostics;
-  } catch (error) {
-    return `❌ Error en diagnósticos de Google Sheets: ${error}`;
-  }
+  return '⚠️ Google Sheets ha sido removido del sistema.\n\nLa aplicación ahora funciona únicamente con almacenamiento local.\n\nTodos los eventos se guardan de forma segura en el dispositivo.';
 };
 
-// Sync from Google Sheets to Supabase (not needed with new architecture)
+// Legacy function for compatibility (no longer needed)
 export const syncGoogleSheetsToSupabase = async (): Promise<{ success: boolean; synced: number; message: string }> => {
   return {
     success: true,
     synced: 0,
-    message: '✅ Sincronización no necesaria. Los eventos se sincronizan automáticamente a Google Sheets via Edge Function cuando se guardan en Supabase.'
+    message: '⚠️ Sincronización no disponible. Supabase y Google Sheets han sido removidos del sistema.'
   };
 };

@@ -64,9 +64,9 @@ export default function EventDetailScreen() {
                 deposit: event.totalAmount
               };
 
-              const success = await updateEvent(updatedEvent);
+              const result = await updateEvent(updatedEvent);
               
-              if (success) {
+              if (result.success) {
                 setEvent(updatedEvent);
                 Alert.alert('Éxito', 'El evento ha sido marcado como pagado');
               } else {
@@ -97,9 +97,9 @@ export default function EventDetailScreen() {
             try {
               console.log('🗑️ Deleting event:', event.id);
               
-              const success = await deleteEvent(event.id);
+              const result = await deleteEvent(event);
               
-              if (success) {
+              if (result.success) {
                 Alert.alert(
                   'Evento Eliminado',
                   'El evento ha sido eliminado exitosamente',

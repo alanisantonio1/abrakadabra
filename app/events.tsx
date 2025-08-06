@@ -89,9 +89,9 @@ export default function EventsScreen() {
         deposit: event.totalAmount
       };
 
-      const success = await updateEvent(updatedEvent);
+      const result = await updateEvent(updatedEvent);
       
-      if (success) {
+      if (result.success) {
         // Update local state
         setEvents(prevEvents =>
           prevEvents.map(e => e.id === eventId ? updatedEvent : e)
@@ -183,7 +183,7 @@ export default function EventsScreen() {
 
         {/* Refresh Button */}
         <Button
-          text="🔄 Actualizar desde Google Sheets"
+          text="🔄 Actualizar Eventos"
           onPress={loadEventsData}
           style={[
             buttonStyles.secondary,
@@ -222,7 +222,7 @@ export default function EventsScreen() {
               }
             </Text>
             <Text style={[commonStyles.text, { textAlign: 'center', fontSize: 14, color: '#666' }]}>
-              Los eventos se cargan automáticamente desde Google Sheets
+              Los eventos se almacenan localmente en el dispositivo
             </Text>
           </View>
         )}

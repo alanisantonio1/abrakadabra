@@ -38,7 +38,7 @@ const MainScreen: React.FC = () => {
       console.error('❌ Error loading events:', error);
       Alert.alert(
         'Error',
-        'Error cargando eventos. Verifica tu conexión.',
+        'Error cargando eventos del almacenamiento local.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -64,19 +64,19 @@ const MainScreen: React.FC = () => {
 
   const testDatabaseConnection = async () => {
     try {
-      console.log('🧪 Testing database connection...');
+      console.log('🧪 Testing local storage...');
       const result = await testDatabaseConnections();
       
       Alert.alert(
-        'Prueba de Conexión',
+        'Prueba de Almacenamiento',
         result,
         [{ text: 'OK' }]
       );
     } catch (error) {
-      console.error('❌ Error testing connection:', error);
+      console.error('❌ Error testing storage:', error);
       Alert.alert(
         'Error',
-        `Error probando conexión: ${error}`,
+        `Error probando almacenamiento: ${error}`,
         [{ text: 'OK' }]
       );
     }
@@ -166,7 +166,7 @@ const MainScreen: React.FC = () => {
           {isLoading ? '⏳ Cargando...' : '✅ Sistema funcionando correctamente'}
         </Text>
         <Text style={commonStyles.statusSubtext}>
-          Base de datos: Supabase | Respaldo: Local
+          Almacenamiento: Local | Estado: Offline Ready
         </Text>
       </View>
 

@@ -58,7 +58,7 @@ const ScheduleScreen: React.FC = () => {
       console.error('❌ Error loading existing events:', error);
       Alert.alert(
         'Error',
-        'Error cargando eventos existentes. Verifica tu conexión.',
+        'Error cargando eventos existentes del almacenamiento local.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -351,7 +351,7 @@ const ScheduleScreen: React.FC = () => {
       {/* Status */}
       {isSaving && (
         <View style={commonStyles.statusContainer}>
-          <Text style={commonStyles.statusText}>⏳ Guardando evento en la base de datos...</Text>
+          <Text style={commonStyles.statusText}>⏳ Guardando evento en almacenamiento local...</Text>
           <Text style={commonStyles.statusSubtext}>
             Por favor espera un momento
           </Text>
