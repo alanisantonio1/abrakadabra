@@ -1,18 +1,14 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Database } from './types';
-import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = "https://hfagsrdboeoxfdzpzgnn.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhmYWdzcmRib2VveGZkenB6Z25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MTk3NTcsImV4cCI6MjA2OTk5NTc1N30.G5056ar9KgYzXJm7DGXZ1zqfW-VGolCtPPp87CoIwRI";
+// This file has been removed as the app now uses Google Sheets exclusively
+// All Supabase functionality has been replaced with Google Sheets integration
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+console.log('⚠️ Supabase integration has been removed. The app now uses Google Sheets exclusively.');
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-})
+export const supabase = {
+  from: () => ({
+    select: () => ({ data: [], error: { message: 'Supabase integration removed' } }),
+    insert: () => ({ data: [], error: { message: 'Supabase integration removed' } }),
+    update: () => ({ data: [], error: { message: 'Supabase integration removed' } }),
+    delete: () => ({ data: [], error: { message: 'Supabase integration removed' } })
+  })
+};

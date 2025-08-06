@@ -6,7 +6,7 @@ import CalendarView from '../components/CalendarView';
 import EventCard from '../components/EventCard';
 import { Event } from '../types';
 import { loadEvents } from '../utils/storage';
-import { testDatabaseConnections, syncGoogleSheetsToSupabase } from '../utils/storage';
+import { testDatabaseConnections } from '../utils/storage';
 import { commonStyles, colors } from '../styles/commonStyles';
 
 export default function MainScreen() {
@@ -53,13 +53,13 @@ export default function MainScreen() {
       .slice(0, 3);
   };
 
-  const testDatabases = async () => {
+  const testGoogleSheets = async () => {
     try {
-      console.log('🧪 Running database diagnostics...');
+      console.log('🧪 Running Google Sheets diagnostics...');
       const diagnostics = await testDatabaseConnections();
       
       Alert.alert(
-        'Diagnósticos de Base de Datos',
+        'Diagnósticos de Google Sheets',
         diagnostics,
         [
           { text: 'OK' }
@@ -73,42 +73,6 @@ export default function MainScreen() {
       Alert.alert(
         'Error',
         'Error al ejecutar diagnósticos: ' + error,
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const syncFromGoogleSheets = async () => {
-    try {
-      Alert.alert(
-        'Sincronizar desde Google Sheets',
-        '¿Deseas sincronizar los eventos de Google Sheets a Supabase?\n\nEsto copiará eventos que no existan en Supabase.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Sincronizar',
-            onPress: async () => {
-              console.log('🔄 Starting sync from Google Sheets...');
-              const result = await syncGoogleSheetsToSupabase();
-              
-              if (result.success) {
-                Alert.alert(
-                  '✅ Sincronización Exitosa',
-                  `Se sincronizaron ${result.synced} eventos desde Google Sheets a Supabase.`
-                );
-                loadEventsData(); // Reload events
-              } else {
-                Alert.alert('❌ Error de Sincronización', result.error || 'Error desconocido');
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      console.error('❌ Error running sync:', error);
-      Alert.alert(
-        'Error',
-        'Error al ejecutar sincronización: ' + error,
         [{ text: 'OK' }]
       );
     }
@@ -149,24 +113,12 @@ export default function MainScreen() {
 
           <TouchableOpacity
             style={[commonStyles.gridButton, { backgroundColor: '#FF6B6B' }]}
-            onPress={testDatabases}
+            onPress={testGoogleSheets}
           >
             <Text style={commonStyles.gridButtonText}>🔧</Text>
-            <Text style={commonStyles.gridButtonLabel}>Diagnósticos</Text>
+            <Text style={commonStyles.gridButtonLabel}>Probar Google Sheets</Text>
           </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Sync Button */}
-      <View style={commonStyles.section}>
-        <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: '#4CAF50', marginBottom: 10 }]}
-          onPress={syncFromGoogleSheets}
-        >
-          <Text style={[commonStyles.buttonText, { color: 'white' }]}>
-            🔄 Sincronizar desde Google Sheets
-          </Text>
-        </TouchableOpacity>
       </View>
 
       <View style={commonStyles.section}>
@@ -211,6 +163,15 @@ export default function MainScreen() {
             <Text style={commonStyles.statLabel}>Pendientes</Text>
           </View>
         </View>
+      </View>
+
+      <View style={commonStyles.section}>
+        <Text style={[commonStyles.sectionTitle, { color: colors.primary }]}>
+          📊 Datos almacenados en Google Sheets
+        </Text>
+        <Text style={commonStyles.emptyStateSubtext}>
+          Todos los eventos se guardan directamente en tu hoja de cálculo de Google
+        </Text>
       </View>
     </ScrollView>
   );

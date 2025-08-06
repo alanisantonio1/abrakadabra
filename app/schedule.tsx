@@ -1,19 +1,17 @@
 
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { packages } from '../data/packages';
 import PackageCard from '../components/PackageCard';
 import { Event } from '../types';
-import { packages } from '../data/packages';
 import { saveEvent, generateEventId, loadEvents } from '../utils/storage';
-import Button from '../components/Button';
-import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
+import Button from '../components/Button';
 
 export default function ScheduleScreen() {
-  const { date } = useLocalSearchParams<{ date: string }>();
-  const [existingEvents, setExistingEvents] = useState<Event[]>([]);
   const [formData, setFormData] = useState({
-    date: date || '',
+    date: '',
     time: '15:00',
     customerName: '',
     customerPhone: '',
@@ -21,36 +19,40 @@ export default function ScheduleScreen() {
     packageType: 'Abra' as 'Abra' | 'Kadabra' | 'Abrakadabra',
     totalAmount: 0,
     deposit: 0,
-    remainingAmount: 0,
     notes: ''
   });
 
+  const [existingEvents, setExistingEvents] = useState<Event[]>([]);
+  const { date } = useLocalSearchParams();
+
   useEffect(() => {
-    if (date) {
+    if (date && typeof date === 'string') {
       setFormData(prev => ({ ...prev, date }));
-      loadExistingEvents();
     }
   }, [date]);
 
   useEffect(() => {
-    // Update pricing when package type or date changes
-    const selectedPackage = packages.find(p => p.name === formData.packageType);
-    if (selectedPackage && formData.date) {
-      const eventDate = new Date(formData.date);
-      const isWeekend = eventDate.getDay() === 0 || eventDate.getDay() === 6;
-      const price = isWeekend ? selectedPackage.weekendPrice : selectedPackage.weekdayPrice;
-      
-      setFormData(prev => ({
-        ...prev,
-        totalAmount: price,
-        remainingAmount: price - prev.deposit
-      }));
+    loadExistingEvents();
+  }, []);
+
+  useEffect(() => {
+    if (formData.packageType && formData.date) {
+      const selectedPackage = packages.find(p => p.name === formData.packageType);
+      if (selectedPackage) {
+        const eventDate = new Date(formData.date);
+        const isWeekend = eventDate.getDay() === 0 || eventDate.getDay() === 6;
+        const price = isWeekend ? selectedPackage.weekendPrice : selectedPackage.weekdayPrice;
+        setFormData(prev => ({ 
+          ...prev, 
+          totalAmount: price,
+          deposit: Math.round(price * 0.5) // 50% deposit by default
+        }));
+      }
     }
   }, [formData.packageType, formData.date]);
 
   const loadExistingEvents = async () => {
     try {
-      console.log('🔄 Loading existing events for date validation...');
       const events = await loadEvents();
       setExistingEvents(events);
     } catch (error) {
@@ -59,16 +61,7 @@ export default function ScheduleScreen() {
   };
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      
-      // Recalculate remaining amount when deposit changes
-      if (field === 'deposit') {
-        updated.remainingAmount = updated.totalAmount - (value as number);
-      }
-      
-      return updated;
-    });
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const validateForm = () => {
@@ -76,24 +69,24 @@ export default function ScheduleScreen() {
       Alert.alert('Error', 'Por favor selecciona una fecha');
       return false;
     }
-
     if (!formData.customerName.trim()) {
       Alert.alert('Error', 'Por favor ingresa el nombre del cliente');
       return false;
     }
-
     if (!formData.customerPhone.trim()) {
       Alert.alert('Error', 'Por favor ingresa el teléfono del cliente');
       return false;
     }
-
     if (!formData.childName.trim()) {
       Alert.alert('Error', 'Por favor ingresa el nombre del niño/a');
       return false;
     }
-
+    if (formData.totalAmount <= 0) {
+      Alert.alert('Error', 'El monto total debe ser mayor a 0');
+      return false;
+    }
     if (formData.deposit < 0 || formData.deposit > formData.totalAmount) {
-      Alert.alert('Error', 'El anticipo debe ser entre 0 y el total del evento');
+      Alert.alert('Error', 'El anticipo debe ser entre 0 y el monto total');
       return false;
     }
 
@@ -102,54 +95,32 @@ export default function ScheduleScreen() {
 
   const continueValidation = () => {
     // Check if date is already booked
-    const existingEvent = existingEvents.find(event => event.date === formData.date);
+    const eventDate = formData.date;
+    const existingEvent = existingEvents.find(event => event.date === eventDate);
     
     if (existingEvent) {
       Alert.alert(
         'Fecha Ocupada',
-        `Ya hay un evento agendado para esta fecha:\n\n` +
+        `Ya hay un evento programado para el ${eventDate}:\n\n` +
         `Cliente: ${existingEvent.customerName}\n` +
         `Niño/a: ${existingEvent.childName}\n` +
         `Paquete: ${existingEvent.packageType}\n\n` +
-        `¿Deseas ver los detalles del evento existente?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { 
-            text: 'Ver Evento', 
-            onPress: () => router.push(`/event/${existingEvent.id}`)
-          }
-        ]
-      );
-      return;
-    }
-
-    // Check if it's a past date
-    const selectedDate = new Date(formData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate < today) {
-      Alert.alert(
-        'Fecha Pasada',
-        'No se pueden agendar eventos en fechas pasadas. ¿Deseas continuar de todas formas?',
+        '¿Deseas continuar de todas formas?',
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Continuar', onPress: handleSubmit }
         ]
       );
-      return;
+    } else {
+      handleSubmit();
     }
-
-    handleSubmit();
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
-
     try {
-      console.log('💾 Saving new event...');
+      console.log('📝 Starting event submission...');
       
-      const newEvent: Event = {
+      const event: Event = {
         id: generateEventId(),
         date: formData.date,
         time: formData.time,
@@ -159,67 +130,51 @@ export default function ScheduleScreen() {
         packageType: formData.packageType,
         totalAmount: formData.totalAmount,
         deposit: formData.deposit,
-        remainingAmount: formData.remainingAmount,
-        isPaid: formData.remainingAmount === 0,
+        remainingAmount: formData.totalAmount - formData.deposit,
+        isPaid: formData.deposit >= formData.totalAmount,
         notes: formData.notes.trim(),
         createdAt: new Date().toISOString()
       };
 
-      console.log('📝 Event data to save:', newEvent);
+      console.log('💾 Saving event:', event);
+      const result = await saveEvent(event);
       
-      const result = await saveEvent(newEvent);
-      console.log('💾 Save result:', result);
-
       if (result.success) {
-        // Determine success message based on where it was saved
-        let successMessage = `El evento ha sido agendado exitosamente para ${formData.customerName}.\n\n` +
-          `📅 Fecha: ${formData.date}\n` +
-          `👶 Niño/a: ${formData.childName}\n` +
-          `🎉 Paquete: ${formData.packageType}\n` +
-          `💰 Total: $${formData.totalAmount}\n` +
-          `💵 Anticipo: $${formData.deposit}\n` +
-          `📊 Restante: $${formData.remainingAmount}\n\n`;
-
-        if (result.savedToSupabase) {
-          successMessage += '✅ Guardado en Supabase (base de datos principal)';
-          if (result.googleSheetsError) {
-            successMessage += '\n📝 Nota: Google Sheets está en modo solo lectura';
-          }
-        } else {
-          successMessage += '⚠️ Guardado localmente';
-          
-          if (result.supabaseError) {
-            successMessage += `\n\nError Supabase: ${result.supabaseError}`;
-          }
-          
-          if (result.googleSheetsError) {
-            successMessage += '\n📝 Google Sheets: Solo lectura';
-          }
-          
-          successMessage += '\n\n💡 El evento se sincronizará cuando se restablezca la conexión.';
+        let message = '✅ Evento guardado exitosamente';
+        
+        if (result.savedToGoogleSheets) {
+          message += '\n📊 Guardado en Google Sheets';
+        } else if (result.googleSheetsError) {
+          message += '\n⚠️ Google Sheets: ' + result.googleSheetsError;
+          message += '\n📱 Guardado localmente como respaldo';
         }
-
+        
         Alert.alert(
-          '🎉 Evento Guardado Exitosamente',
-          successMessage,
+          'Éxito',
+          message,
           [
             {
-              text: 'Ir al Menú Principal',
+              text: 'OK',
               onPress: () => {
-                console.log('✅ Event saved successfully, navigating to main menu');
-                router.replace('/');
+                console.log('✅ Event saved successfully, navigating back');
+                router.back();
               }
             }
           ]
         );
       } else {
-        throw new Error(result.error || 'Failed to save event');
+        console.error('❌ Failed to save event:', result.error);
+        Alert.alert(
+          'Error',
+          'Error al guardar el evento: ' + (result.error || 'Error desconocido'),
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
-      console.error('❌ Error saving event:', error);
+      console.error('❌ Error in handleSubmit:', error);
       Alert.alert(
         'Error',
-        'Ocurrió un error al guardar el evento. Por favor intenta nuevamente.',
+        'Error inesperado al guardar el evento: ' + error,
         [{ text: 'OK' }]
       );
     }
@@ -236,7 +191,7 @@ export default function ScheduleScreen() {
         </TouchableOpacity>
         <Text style={commonStyles.title}>Agendar Evento</Text>
         <Text style={commonStyles.subtitle}>
-          {formData.date ? `Fecha: ${formData.date}` : 'Selecciona los detalles del evento'}
+          {formData.date ? `Fecha: ${formData.date}` : 'Completa los datos del evento'}
         </Text>
       </View>
 
@@ -244,58 +199,36 @@ export default function ScheduleScreen() {
         <Text style={commonStyles.sectionTitle}>Información del Cliente</Text>
         
         <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Fecha del Evento</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={formData.date}
-            onChangeText={(value) => handleInputChange('date', value)}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Hora del Evento</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={formData.time}
-            onChangeText={(value) => handleInputChange('time', value)}
-            placeholder="15:00"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Nombre del Cliente</Text>
+          <Text style={commonStyles.label}>Nombre del Cliente *</Text>
           <TextInput
             style={commonStyles.input}
             value={formData.customerName}
             onChangeText={(value) => handleInputChange('customerName', value)}
             placeholder="Nombre completo del cliente"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
           />
         </View>
 
         <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Teléfono</Text>
+          <Text style={commonStyles.label}>Teléfono *</Text>
           <TextInput
             style={commonStyles.input}
             value={formData.customerPhone}
             onChangeText={(value) => handleInputChange('customerPhone', value)}
             placeholder="+52 55 1234 5678"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
           />
         </View>
 
         <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Nombre del Niño/a</Text>
+          <Text style={commonStyles.label}>Nombre del Niño/a *</Text>
           <TextInput
             style={commonStyles.input}
             value={formData.childName}
             onChangeText={(value) => handleInputChange('childName', value)}
             placeholder="Nombre del festejado"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
           />
         </View>
       </View>
@@ -308,7 +241,7 @@ export default function ScheduleScreen() {
           
           return (
             <PackageCard
-              key={pkg.id}
+              key={pkg.name}
               package={pkg}
               isWeekend={isWeekend}
               isSelected={formData.packageType === pkg.name}
@@ -322,50 +255,68 @@ export default function ScheduleScreen() {
         <Text style={commonStyles.sectionTitle}>Información de Pago</Text>
         
         <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Total del Evento</Text>
-          <Text style={[commonStyles.input, { backgroundColor: '#f5f5f5', color: '#666' }]}>
-            ${formData.totalAmount}
-          </Text>
-        </View>
-
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Anticipo Pagado</Text>
+          <Text style={commonStyles.label}>Monto Total</Text>
           <TextInput
             style={commonStyles.input}
-            value={formData.deposit.toString()}
-            onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
+            value={formData.totalAmount.toString()}
+            onChangeText={(value) => handleInputChange('totalAmount', parseFloat(value) || 0)}
             placeholder="0"
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textSecondary}
             keyboardType="numeric"
           />
         </View>
 
         <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Monto Restante</Text>
-          <Text style={[commonStyles.input, { backgroundColor: '#f5f5f5', color: '#666' }]}>
-            ${formData.remainingAmount}
-          </Text>
+          <Text style={commonStyles.label}>Anticipo</Text>
+          <TextInput
+            style={commonStyles.input}
+            value={formData.deposit.toString()}
+            onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
+            placeholder="0"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="numeric"
+          />
         </View>
 
         <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Notas Adicionales</Text>
-          <TextInput
-            style={[commonStyles.input, { height: 80, textAlignVertical: 'top' }]}
-            value={formData.notes}
-            onChangeText={(value) => handleInputChange('notes', value)}
-            placeholder="Notas especiales, alergias, etc."
-            placeholderTextColor="#999"
-            multiline
-          />
+          <Text style={commonStyles.label}>Saldo Restante</Text>
+          <Text style={[commonStyles.input, { backgroundColor: colors.backgroundSecondary, color: colors.textSecondary }]}>
+            ${(formData.totalAmount - formData.deposit).toFixed(2)}
+          </Text>
         </View>
       </View>
 
-      <View style={[commonStyles.section, { paddingBottom: 40 }]}>
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Notas Adicionales</Text>
+        <TextInput
+          style={[commonStyles.input, { height: 80, textAlignVertical: 'top' }]}
+          value={formData.notes}
+          onChangeText={(value) => handleInputChange('notes', value)}
+          placeholder="Notas opcionales sobre el evento..."
+          placeholderTextColor={colors.textSecondary}
+          multiline
+        />
+      </View>
+
+      <View style={commonStyles.section}>
         <Button
-          text="Agendar Evento"
-          onPress={continueValidation}
+          title="Guardar Evento"
+          onPress={() => {
+            if (validateForm()) {
+              continueValidation();
+            }
+          }}
           style={[buttonStyles.primary, { backgroundColor: colors.primary }]}
         />
+      </View>
+
+      <View style={commonStyles.section}>
+        <Text style={[commonStyles.sectionTitle, { color: colors.primary, textAlign: 'center' }]}>
+          📊 Se guardará en Google Sheets
+        </Text>
+        <Text style={[commonStyles.emptyStateSubtext, { textAlign: 'center' }]}>
+          El evento se almacenará directamente en tu hoja de cálculo
+        </Text>
       </View>
     </ScrollView>
   );
