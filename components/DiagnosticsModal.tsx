@@ -1,6 +1,5 @@
 
-import Button from './Button';
-import { colors, commonStyles } from '../styles/commonStyles';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -10,11 +9,12 @@ import {
   Alert,
   StyleSheet 
 } from 'react-native';
-import React, { useState, useEffect } from 'react';
+import { colors, commonStyles } from '../styles/commonStyles';
+import Button from './Button';
 import { 
   testDatabaseConnections, 
-  runGoogleSheetsDiagnostics,
-  syncGoogleSheetsToLocal 
+  runSupabaseDiagnostics,
+  syncSupabaseToLocal 
 } from '../utils/storage';
 import { runHealthCheck, formatHealthReport } from '../utils/healthCheck';
 
@@ -31,98 +31,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderRadius: 15,
     padding: 20,
-    maxHeight: '80%',
     width: '90%',
+    maxHeight: '80%',
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
     color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  diagnosticsText: {
-    fontFamily: 'monospace',
-    fontSize: 12,
-    lineHeight: 16,
-    color: '#333',
-    backgroundColor: '#f5f5f5',
-    padding: 10,
-    borderRadius: 5,
+  section: {
     marginBottom: 15,
   },
-  buttonContainer: {
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 10,
+  },
+  diagnosticText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: colors.text,
+    backgroundColor: colors.lightGray,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 10,
-    flexWrap: 'wrap',
-    gap: 10,
+    marginBottom: 10,
   },
-  actionButton: {
+  smallButton: {
     flex: 1,
-    minWidth: 120,
-  },
-  closeButton: {
-    backgroundColor: colors.secondary,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  closeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+    marginHorizontal: 5,
   },
   infoBox: {
-    backgroundColor: '#e8f5e8',
+    backgroundColor: colors.lightBlue,
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     marginBottom: 15,
-    borderLeftWidth: 4,
-    borderLeftColor: '#4caf50',
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#2e7d32',
+    color: colors.text,
     lineHeight: 20,
   },
-  warningBox: {
-    backgroundColor: '#fff3e0',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
-    borderLeftWidth: 4,
-    borderLeftColor: '#ff9800',
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#f57c00',
-    lineHeight: 20,
-  },
-  errorBox: {
-    backgroundColor: '#ffebee',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f44336',
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#c62828',
-    lineHeight: 20,
+  closeButton: {
+    marginTop: 15,
   },
 });
 
 const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose }) => {
-  const [diagnosticsResult, setDiagnosticsResult] = useState<string>('');
+  const [diagnosticResults, setDiagnosticResults] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentTest, setCurrentTest] = useState<string>('general');
-  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -132,37 +105,27 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
 
   const runGeneralDiagnostics = async () => {
     setIsLoading(true);
-    setCurrentTest('general');
-    setLastError(null);
-    
     try {
-      console.log('🧪 Running general diagnostics...');
-      const result = await testDatabaseConnections();
-      setDiagnosticsResult(result);
+      console.log('🔍 Running general diagnostics...');
+      const results = await testDatabaseConnections();
+      setDiagnosticResults(results);
     } catch (error: any) {
-      console.error('❌ Error running general diagnostics:', error);
-      const errorMessage = `❌ Error ejecutando diagnósticos: ${error.message || 'Unknown error'}`;
-      setDiagnosticsResult(errorMessage);
-      setLastError(error.message || 'Unknown error');
+      console.error('❌ Error running diagnostics:', error);
+      setDiagnosticResults(`❌ Error ejecutando diagnósticos: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const runGoogleSheetsDiagnosticsTest = async () => {
+  const runSupabaseDiagnosticsTest = async () => {
     setIsLoading(true);
-    setCurrentTest('google');
-    setLastError(null);
-    
     try {
-      console.log('📊 Running Google Sheets diagnostics...');
-      const result = await runGoogleSheetsDiagnostics();
-      setDiagnosticsResult(result);
+      console.log('🗄️ Running Supabase diagnostics...');
+      const results = await runSupabaseDiagnostics();
+      setDiagnosticResults(results);
     } catch (error: any) {
-      console.error('❌ Error running Google Sheets diagnostics:', error);
-      const errorMessage = `❌ Error en diagnósticos de Google Sheets: ${error.message || 'Unknown error'}`;
-      setDiagnosticsResult(errorMessage);
-      setLastError(error.message || 'Unknown error');
+      console.error('❌ Error running Supabase diagnostics:', error);
+      setDiagnosticResults(`❌ Error en diagnósticos de Supabase: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -170,51 +133,45 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
 
   const runSystemHealthCheck = async () => {
     setIsLoading(true);
-    setCurrentTest('health');
-    setLastError(null);
-    
     try {
       console.log('🏥 Running system health check...');
-      const health = await runHealthCheck();
-      const report = formatHealthReport(health);
-      setDiagnosticsResult(report);
-      
-      if (health.overall.status === 'error') {
-        setLastError('System has critical issues');
-      }
+      const healthData = await runHealthCheck();
+      const formattedReport = formatHealthReport(healthData);
+      setDiagnosticResults(formattedReport);
     } catch (error: any) {
       console.error('❌ Error running health check:', error);
-      const errorMessage = `❌ Error en chequeo de salud del sistema: ${error.message || 'Unknown error'}`;
-      setDiagnosticsResult(errorMessage);
-      setLastError(error.message || 'Unknown error');
+      setDiagnosticResults(`❌ Error en chequeo de salud: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const syncFromGoogleSheets = async () => {
+  const syncFromSupabase = async () => {
     setIsLoading(true);
-    setLastError(null);
-    
     try {
-      console.log('🔄 Syncing from Google Sheets...');
-      const result = await syncGoogleSheetsToLocal();
+      console.log('🔄 Syncing from Supabase...');
+      const result = await syncSupabaseToLocal();
       
-      Alert.alert(
-        'Sincronización Completada',
-        result.message,
-        [{ text: 'OK' }]
-      );
-      
-      // Refresh diagnostics after sync
-      await runGeneralDiagnostics();
+      if (result.success) {
+        Alert.alert(
+          '✅ Sincronización Exitosa',
+          result.message,
+          [{ text: 'OK' }]
+        );
+        // Refresh diagnostics after sync
+        await runGeneralDiagnostics();
+      } else {
+        Alert.alert(
+          '❌ Error de Sincronización',
+          result.message,
+          [{ text: 'OK' }]
+        );
+      }
     } catch (error: any) {
-      console.error('❌ Error syncing from Google Sheets:', error);
-      setLastError(error.message || 'Unknown error');
-      
+      console.error('❌ Error syncing from Supabase:', error);
       Alert.alert(
-        'Error de Sincronización',
-        `Error sincronizando desde Google Sheets: ${error.message || 'Unknown error'}`,
+        '❌ Error de Sincronización',
+        `Error sincronizando desde Supabase: ${error.message}`,
         [{ text: 'OK' }]
       );
     } finally {
@@ -222,67 +179,28 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
     }
   };
 
-  const showGoogleSheetsInfo = () => {
+  const showSupabaseInfo = () => {
     Alert.alert(
-      'Google Sheets Integration',
-      `🔄 SISTEMA HÍBRIDO ACTIVO
-
-✅ FUNCIONAMIENTO:
-• Almacenamiento local como base
-• Google Sheets como sincronización
-• Respaldo automático en ambos sistemas
-• Funcionamiento offline garantizado
-
-📊 GOOGLE SHEETS:
-• ID: 13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s
-• Email: abrakadabra@abrakadabra-422005.iam.gserviceaccount.com
-
-🔧 CONFIGURACIÓN:
-1. Compartir sheet con el email del service account
-2. Dar permisos de "Editor"
-3. Verificar conexión en diagnósticos
-
-⚠️ IMPORTANTE:
-Si Google Sheets no está disponible, la app funciona completamente con almacenamiento local.`,
+      '🗄️ Información de Supabase',
+      'Supabase es una plataforma de base de datos PostgreSQL en la nube que proporciona:\n\n' +
+      '• Base de datos PostgreSQL escalable\n' +
+      '• API REST automática\n' +
+      '• Sincronización en tiempo real\n' +
+      '• Respaldo automático\n' +
+      '• Seguridad avanzada con RLS\n\n' +
+      'La aplicación usa Supabase como almacenamiento principal con respaldo local.',
       [{ text: 'Entendido' }]
     );
   };
 
   const getInfoBoxContent = () => {
-    if (lastError) {
-      return (
-        <View style={styles.errorBox}>
-          <Text style={styles.errorText}>
-            ❌ Error detectado: {lastError}
-          </Text>
-        </View>
-      );
-    }
-    
-    if (currentTest === 'google') {
-      return (
-        <View style={styles.warningBox}>
-          <Text style={styles.warningText}>
-            📊 Diagnósticos específicos de Google Sheets
-          </Text>
-        </View>
-      );
-    }
-    
-    if (currentTest === 'health') {
-      return (
-        <View style={styles.infoBox}>
-          <Text style={styles.infoText}>
-            🏥 Chequeo completo de salud del sistema
-          </Text>
-        </View>
-      );
-    }
-    
     return (
       <View style={styles.infoBox}>
+        <Text style={styles.infoTitle}>🗄️ Sistema de Almacenamiento Supabase</Text>
         <Text style={styles.infoText}>
-          🔄 Sistema híbrido: Local + Google Sheets
+          La aplicación ahora utiliza Supabase como base de datos principal con PostgreSQL. 
+          Los datos se sincronizan automáticamente y se mantiene un respaldo local para 
+          funcionamiento offline.
         </Text>
       </View>
     );
@@ -301,56 +219,65 @@ Si Google Sheets no está disponible, la app funciona completamente con almacena
           
           {getInfoBoxContent()}
           
-          <ScrollView style={{ maxHeight: 400 }}>
-            <Text style={styles.diagnosticsText}>
-              {isLoading ? '⏳ Ejecutando diagnósticos...' : diagnosticsResult}
-            </Text>
-          </ScrollView>
-
-          <View style={styles.buttonContainer}>
-            <Button
-              title="🔄 General"
-              onPress={runGeneralDiagnostics}
-              style={styles.actionButton}
-              disabled={isLoading}
-            />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Herramientas de Diagnóstico</Text>
             
-            <Button
-              title="📊 Google Sheets"
-              onPress={runGoogleSheetsDiagnosticsTest}
-              style={styles.actionButton}
-              disabled={isLoading}
-            />
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <Button
-              title="🏥 Salud Sistema"
-              onPress={runSystemHealthCheck}
-              style={styles.actionButton}
-              disabled={isLoading}
-            />
+            <View style={styles.buttonRow}>
+              <Button
+                title="🔍 General"
+                onPress={runGeneralDiagnostics}
+                style={styles.smallButton}
+                disabled={isLoading}
+              />
+              <Button
+                title="🗄️ Supabase"
+                onPress={runSupabaseDiagnosticsTest}
+                style={styles.smallButton}
+                disabled={isLoading}
+              />
+            </View>
             
+            <View style={styles.buttonRow}>
+              <Button
+                title="🏥 Salud"
+                onPress={runSystemHealthCheck}
+                style={styles.smallButton}
+                disabled={isLoading}
+              />
+              <Button
+                title="ℹ️ Info"
+                onPress={showSupabaseInfo}
+                style={styles.smallButton}
+                disabled={isLoading}
+              />
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sincronización</Text>
             <Button
-              title="🔄 Sincronizar"
-              onPress={syncFromGoogleSheets}
-              style={styles.actionButton}
+              title="🔄 Sincronizar desde Supabase"
+              onPress={syncFromSupabase}
               disabled={isLoading}
             />
           </View>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              title="ℹ️ Info Google Sheets"
-              onPress={showGoogleSheetsInfo}
-              style={styles.actionButton}
-              disabled={isLoading}
-            />
-          </View>
+          {diagnosticResults ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Resultados</Text>
+              <ScrollView style={{ maxHeight: 200 }}>
+                <Text style={styles.diagnosticText}>
+                  {isLoading ? 'Ejecutando diagnósticos...' : diagnosticResults}
+                </Text>
+              </ScrollView>
+            </View>
+          ) : null}
 
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeButtonText}>Cerrar</Text>
-          </TouchableOpacity>
+          <Button
+            title="Cerrar"
+            onPress={onClose}
+            style={styles.closeButton}
+          />
         </View>
       </View>
     </Modal>

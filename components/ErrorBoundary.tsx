@@ -14,6 +14,64 @@ interface ErrorBoundaryProps {
   fallback?: React.ComponentType<{ error: Error; retry: () => void }>;
 }
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: colors.white,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.danger,
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  message: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 24,
+  },
+  errorDetails: {
+    backgroundColor: colors.lightGray,
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: '100%',
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.gray,
+    fontFamily: 'monospace',
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  reportButton: {
+    backgroundColor: colors.secondary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  reportButtonText: {
+    color: colors.white,
+    fontSize: 14,
+  },
+});
+
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -24,7 +82,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     console.error('🚨 ErrorBoundary caught an error:', error);
     return {
       hasError: true,
-      error
+      error,
     };
   }
 
@@ -33,45 +91,42 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
 
-    // Log the error for debugging
-    const errorDetails = {
+    // Log error details for debugging
+    console.error('Error details:', {
       message: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
-      timestamp: new Date().toISOString()
-    };
-
-    console.error('🔥 React Error Details:', errorDetails);
-
-    // Send error to parent window if available
-    try {
-      if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
-        window.parent.postMessage({
-          type: 'REACT_ERROR',
-          error: errorDetails,
-          timestamp: new Date().toISOString()
-        }, '*');
-      }
-    } catch (postMessageError) {
-      console.error('❌ Failed to send React error to parent:', postMessageError);
-    }
+    });
   }
 
   handleRetry = () => {
     console.log('🔄 Retrying after error...');
-    this.setState({ 
-      hasError: false, 
-      error: undefined, 
-      errorInfo: undefined 
-    });
+    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+  };
+
+  handleReportError = () => {
+    console.log('📧 Reporting error...');
+    // In a real app, you might send this to an error reporting service
+    const errorReport = {
+      message: this.state.error?.message,
+      stack: this.state.error?.stack,
+      componentStack: this.state.errorInfo?.componentStack,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+    };
+    
+    console.log('Error report:', errorReport);
+    
+    // For now, just log it
+    alert('Error reportado. Revisa la consola para más detalles.');
   };
 
   render() {
     if (this.state.hasError) {
-      // Custom fallback component if provided
+      // Custom fallback component
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
         return (
@@ -84,39 +139,39 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
       // Default error UI
       return (
-        <View style={styles.errorContainer}>
-          <View style={styles.errorContent}>
-            <Text style={styles.errorTitle}>🚨 Oops! Algo salió mal</Text>
-            
-            <Text style={styles.errorMessage}>
-              La aplicación encontró un error inesperado.
-            </Text>
+        <View style={styles.container}>
+          <Text style={styles.title}>🚨 ¡Oops! Algo salió mal</Text>
+          
+          <Text style={styles.message}>
+            La aplicación encontró un error inesperado. Esto puede deberse a:
+            {'\n\n'}
+            • Problemas de conectividad
+            {'\n'}
+            • Error en los datos
+            {'\n'}
+            • Problema temporal del sistema
+            {'\n\n'}
+            Intenta recargar la aplicación o contacta al soporte técnico si el problema persiste.
+          </Text>
 
-            {__DEV__ && this.state.error && (
-              <View style={styles.errorDetails}>
-                <Text style={styles.errorDetailsTitle}>Detalles del error:</Text>
-                <Text style={styles.errorDetailsText}>
-                  {this.state.error.message}
-                </Text>
-                {this.state.error.stack && (
-                  <Text style={styles.errorStack}>
-                    {this.state.error.stack.substring(0, 500)}...
-                  </Text>
-                )}
-              </View>
-            )}
+          {this.state.error && (
+            <View style={styles.errorDetails}>
+              <Text style={styles.errorText}>
+                Error: {this.state.error.message}
+                {'\n\n'}
+                {this.state.error.stack?.substring(0, 500)}
+                {this.state.error.stack && this.state.error.stack.length > 500 ? '...' : ''}
+              </Text>
+            </View>
+          )}
 
-            <TouchableOpacity 
-              style={styles.retryButton} 
-              onPress={this.handleRetry}
-            >
-              <Text style={styles.retryButtonText}>🔄 Intentar de nuevo</Text>
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.retryButton} onPress={this.handleRetry}>
+            <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
+          </TouchableOpacity>
 
-            <Text style={styles.helpText}>
-              Si el problema persiste, reinicia la aplicación.
-            </Text>
-          </View>
+          <TouchableOpacity style={styles.reportButton} onPress={this.handleReportError}>
+            <Text style={styles.reportButtonText}>📧 Reportar Error</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -124,87 +179,5 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     return this.props.children;
   }
 }
-
-const styles = StyleSheet.create({
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorContent: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    maxWidth: 400,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.error || '#e74c3c',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: '#333',
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  errorDetails: {
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    width: '100%',
-  },
-  errorDetailsTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
-    marginBottom: 8,
-  },
-  errorDetailsText: {
-    fontSize: 12,
-    color: '#e74c3c',
-    fontFamily: 'monospace',
-    marginBottom: 8,
-  },
-  errorStack: {
-    fontSize: 10,
-    color: '#999',
-    fontFamily: 'monospace',
-  },
-  retryButton: {
-    backgroundColor: colors.primary || '#8B5CF6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 15,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-});
 
 export default ErrorBoundary;

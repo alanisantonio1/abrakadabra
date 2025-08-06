@@ -1,14 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Event } from '../types';
-import { 
-  loadEventsFromGoogleSheets, 
-  saveEventToGoogleSheets, 
-  updateEventInGoogleSheets, 
-  deleteEventFromGoogleSheets,
-  testGoogleSheetsConnection,
-  runGoogleSheetsDiagnostics as runGoogleSheetsRNDiagnostics
-} from './googleSheetsRN';
+import { supabase } from '../app/integrations/supabase/client';
 
 const EVENTS_KEY = '@abrakadabra_events';
 
@@ -25,6 +18,43 @@ const handleStorageError = (error: any, operation: string): void => {
   }
   
   throw new Error(`Storage ${operation} failed: ${error.message || 'Unknown error'}`);
+};
+
+// Convert Event to Supabase format
+const eventToSupabaseFormat = (event: Event) => {
+  return {
+    id: event.id,
+    date: event.date,
+    time: event.time,
+    customer_name: event.customerName,
+    customer_phone: event.customerPhone,
+    child_name: event.childName,
+    package_type: event.packageType,
+    total_amount: event.totalAmount,
+    deposit: event.deposit,
+    remaining_amount: event.remainingAmount,
+    is_paid: event.isPaid,
+    notes: event.notes || null,
+  };
+};
+
+// Convert Supabase format to Event
+const supabaseToEventFormat = (row: any): Event => {
+  return {
+    id: row.id,
+    date: row.date,
+    time: row.time,
+    customerName: row.customer_name,
+    customerPhone: row.customer_phone,
+    childName: row.child_name,
+    packageType: row.package_type,
+    totalAmount: row.total_amount,
+    deposit: row.deposit,
+    remainingAmount: row.remaining_amount,
+    isPaid: row.is_paid,
+    notes: row.notes || '',
+    createdAt: row.created_at,
+  };
 };
 
 // Load events from local storage with enhanced error handling
@@ -105,33 +135,155 @@ const saveEventsToLocalStorage = async (events: Event[]): Promise<void> => {
   }
 };
 
-// Merge events from different sources, prioritizing Google Sheets
-const mergeEvents = (localEvents: Event[], googleEvents: Event[]): Event[] => {
+// Load events from Supabase
+const loadEventsFromSupabase = async (): Promise<Event[]> => {
+  try {
+    console.log('🗄️ Loading events from Supabase...');
+    
+    const { data, error } = await supabase
+      .from('events')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('❌ Supabase error loading events:', error);
+      throw new Error(`Supabase error: ${error.message}`);
+    }
+    
+    if (!data) {
+      console.log('📱 No events found in Supabase');
+      return [];
+    }
+    
+    const events = data.map(supabaseToEventFormat);
+    console.log('✅ Loaded events from Supabase:', events.length);
+    return events;
+  } catch (error: any) {
+    console.error('❌ Error loading events from Supabase:', error);
+    throw error;
+  }
+};
+
+// Save event to Supabase
+const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('🗄️ Saving event to Supabase:', event.id);
+    
+    const supabaseEvent = eventToSupabaseFormat(event);
+    
+    const { error } = await supabase
+      .from('events')
+      .insert([supabaseEvent]);
+    
+    if (error) {
+      console.error('❌ Supabase error saving event:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ Event saved to Supabase');
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Error saving event to Supabase:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Update event in Supabase
+const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('🗄️ Updating event in Supabase:', event.id);
+    
+    const supabaseEvent = eventToSupabaseFormat(event);
+    
+    const { error } = await supabase
+      .from('events')
+      .update(supabaseEvent)
+      .eq('id', event.id);
+    
+    if (error) {
+      console.error('❌ Supabase error updating event:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ Event updated in Supabase');
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Error updating event in Supabase:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Delete event from Supabase
+const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
+  try {
+    console.log('🗄️ Deleting event from Supabase:', event.id);
+    
+    const { error } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', event.id);
+    
+    if (error) {
+      console.error('❌ Supabase error deleting event:', error);
+      return { success: false, error: error.message };
+    }
+    
+    console.log('✅ Event deleted from Supabase');
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Error deleting event from Supabase:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Test Supabase connection
+const testSupabaseConnection = async (): Promise<boolean> => {
+  try {
+    console.log('🧪 Testing Supabase connection...');
+    
+    const { data, error } = await supabase
+      .from('events')
+      .select('count(*)')
+      .limit(1);
+    
+    if (error) {
+      console.error('❌ Supabase connection test failed:', error);
+      return false;
+    }
+    
+    console.log('✅ Supabase connection test successful');
+    return true;
+  } catch (error: any) {
+    console.error('❌ Supabase connection test error:', error);
+    return false;
+  }
+};
+
+// Merge events from different sources, prioritizing Supabase
+const mergeEvents = (localEvents: Event[], supabaseEvents: Event[]): Event[] => {
   try {
     console.log('🔄 Merging events from different sources...');
     console.log('📱 Local events:', localEvents.length);
-    console.log('📊 Google Sheets events:', googleEvents.length);
+    console.log('🗄️ Supabase events:', supabaseEvents.length);
     
     // Validate input arrays
     const validLocalEvents = Array.isArray(localEvents) ? localEvents : [];
-    const validGoogleEvents = Array.isArray(googleEvents) ? googleEvents : [];
+    const validSupabaseEvents = Array.isArray(supabaseEvents) ? supabaseEvents : [];
     
-    // Create a map to track events by unique identifier
+    // Create a map to track events by ID
     const eventMap = new Map<string, Event>();
     
     // Add local events first
     validLocalEvents.forEach(event => {
-      if (event && event.date && event.customerName && event.customerPhone) {
-        const key = `${event.date}_${event.customerName}_${event.customerPhone}`;
-        eventMap.set(key, event);
+      if (event && event.id) {
+        eventMap.set(event.id, event);
       }
     });
     
-    // Add Google Sheets events, overriding local ones if they exist
-    validGoogleEvents.forEach(event => {
-      if (event && event.date && event.customerName && event.customerPhone) {
-        const key = `${event.date}_${event.customerName}_${event.customerPhone}`;
-        eventMap.set(key, event);
+    // Add Supabase events, overriding local ones if they exist
+    validSupabaseEvents.forEach(event => {
+      if (event && event.id) {
+        eventMap.set(event.id, event);
       }
     });
     
@@ -150,7 +302,7 @@ export const generateEventId = (): string => {
   return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-// Load events from both sources with Google Sheets priority
+// Load events from both sources with Supabase priority
 export const loadEvents = async (): Promise<Event[]> => {
   try {
     console.log('📥 Loading events from all sources...');
@@ -159,15 +311,15 @@ export const loadEvents = async (): Promise<Event[]> => {
     const localEvents = await loadEventsFromLocalStorage();
     console.log('📱 Local storage events:', localEvents.length);
     
-    // Try to load from Google Sheets
+    // Try to load from Supabase
     try {
-      console.log('📊 Attempting to load from Google Sheets...');
-      const googleEvents = await loadEventsFromGoogleSheets();
-      console.log('📊 Google Sheets events:', googleEvents.length);
+      console.log('🗄️ Attempting to load from Supabase...');
+      const supabaseEvents = await loadEventsFromSupabase();
+      console.log('🗄️ Supabase events:', supabaseEvents.length);
       
-      if (googleEvents.length > 0) {
-        // Merge events with Google Sheets taking priority
-        const mergedEvents = mergeEvents(localEvents, googleEvents);
+      if (supabaseEvents.length >= 0) {
+        // Merge events with Supabase taking priority
+        const mergedEvents = mergeEvents(localEvents, supabaseEvents);
         
         // Update local storage with merged data
         await saveEventsToLocalStorage(mergedEvents);
@@ -175,11 +327,11 @@ export const loadEvents = async (): Promise<Event[]> => {
         console.log('✅ Events loaded and synchronized');
         return mergedEvents;
       } else {
-        console.log('📊 No events in Google Sheets, using local storage');
+        console.log('🗄️ No events in Supabase, using local storage');
         return localEvents;
       }
-    } catch (googleError: any) {
-      console.warn('⚠️ Google Sheets unavailable, using local storage:', googleError.message);
+    } catch (supabaseError: any) {
+      console.warn('⚠️ Supabase unavailable, using local storage:', supabaseError.message);
       return localEvents;
     }
   } catch (error: any) {
@@ -194,7 +346,7 @@ export const loadEvents = async (): Promise<Event[]> => {
   }
 };
 
-// Save event to both local storage and Google Sheets
+// Save event to both local storage and Supabase
 export const saveEvent = async (event: Event): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('💾 Saving event to all storage systems:', event.id);
@@ -205,7 +357,7 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
     }
     
     let localSuccess = false;
-    let googleSuccess = false;
+    let supabaseSuccess = false;
     let messages: string[] = [];
     
     // Save to local storage first (always reliable)
@@ -221,22 +373,22 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
       messages.push(`❌ Error en almacenamiento local: ${localError.message}`);
     }
     
-    // Try to save to Google Sheets
+    // Try to save to Supabase
     try {
-      console.log('📊 Attempting to save to Google Sheets...');
-      const googleResult = await saveEventToGoogleSheets(event);
+      console.log('🗄️ Attempting to save to Supabase...');
+      const supabaseResult = await saveEventToSupabase(event);
       
-      if (googleResult.success) {
-        googleSuccess = true;
-        messages.push('✅ Guardado en Google Sheets');
-        console.log('✅ Event saved to Google Sheets');
+      if (supabaseResult.success) {
+        supabaseSuccess = true;
+        messages.push('✅ Guardado en Supabase');
+        console.log('✅ Event saved to Supabase');
       } else {
-        console.warn('⚠️ Google Sheets save failed:', googleResult.error);
-        messages.push(`⚠️ Google Sheets: ${googleResult.error || 'No disponible'}`);
+        console.warn('⚠️ Supabase save failed:', supabaseResult.error);
+        messages.push(`⚠️ Supabase: ${supabaseResult.error || 'No disponible'}`);
       }
-    } catch (googleError: any) {
-      console.warn('⚠️ Google Sheets error:', googleError);
-      messages.push(`⚠️ Google Sheets: ${googleError.message || 'No disponible'}`);
+    } catch (supabaseError: any) {
+      console.warn('⚠️ Supabase error:', supabaseError);
+      messages.push(`⚠️ Supabase: ${supabaseError.message || 'No disponible'}`);
     }
     
     // Determine overall success
@@ -265,7 +417,7 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
   }
 };
 
-// Update event in both local storage and Google Sheets
+// Update event in both local storage and Supabase
 export const updateEvent = async (updatedEvent: Event): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('🔄 Updating event in all storage systems:', updatedEvent.id);
@@ -276,7 +428,7 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
     }
     
     let localSuccess = false;
-    let googleSuccess = false;
+    let supabaseSuccess = false;
     let messages: string[] = [];
     
     // Update in local storage first
@@ -302,22 +454,22 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
       messages.push(`❌ Error en almacenamiento local: ${localError.message}`);
     }
     
-    // Try to update in Google Sheets
+    // Try to update in Supabase
     try {
-      console.log('📊 Attempting to update in Google Sheets...');
-      const googleResult = await updateEventInGoogleSheets(updatedEvent);
+      console.log('🗄️ Attempting to update in Supabase...');
+      const supabaseResult = await updateEventInSupabase(updatedEvent);
       
-      if (googleResult.success) {
-        googleSuccess = true;
-        messages.push('✅ Actualizado en Google Sheets');
-        console.log('✅ Event updated in Google Sheets');
+      if (supabaseResult.success) {
+        supabaseSuccess = true;
+        messages.push('✅ Actualizado en Supabase');
+        console.log('✅ Event updated in Supabase');
       } else {
-        console.warn('⚠️ Google Sheets update failed:', googleResult.error);
-        messages.push(`⚠️ Google Sheets: ${googleResult.error || 'No disponible'}`);
+        console.warn('⚠️ Supabase update failed:', supabaseResult.error);
+        messages.push(`⚠️ Supabase: ${supabaseResult.error || 'No disponible'}`);
       }
-    } catch (googleError: any) {
-      console.warn('⚠️ Google Sheets error:', googleError);
-      messages.push(`⚠️ Google Sheets: ${googleError.message || 'No disponible'}`);
+    } catch (supabaseError: any) {
+      console.warn('⚠️ Supabase error:', supabaseError);
+      messages.push(`⚠️ Supabase: ${supabaseError.message || 'No disponible'}`);
     }
     
     // Determine overall success
@@ -346,7 +498,7 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
   }
 };
 
-// Delete event from both local storage and Google Sheets
+// Delete event from both local storage and Supabase
 export const deleteEvent = async (eventToDelete: Event): Promise<{ success: boolean; message: string }> => {
   try {
     console.log('🗑️ Deleting event from all storage systems:', eventToDelete.id);
@@ -357,7 +509,7 @@ export const deleteEvent = async (eventToDelete: Event): Promise<{ success: bool
     }
     
     let localSuccess = false;
-    let googleSuccess = false;
+    let supabaseSuccess = false;
     let messages: string[] = [];
     
     // Delete from local storage first
@@ -373,22 +525,22 @@ export const deleteEvent = async (eventToDelete: Event): Promise<{ success: bool
       messages.push(`❌ Error en almacenamiento local: ${localError.message}`);
     }
     
-    // Try to delete from Google Sheets
+    // Try to delete from Supabase
     try {
-      console.log('📊 Attempting to delete from Google Sheets...');
-      const googleResult = await deleteEventFromGoogleSheets(eventToDelete);
+      console.log('🗄️ Attempting to delete from Supabase...');
+      const supabaseResult = await deleteEventFromSupabase(eventToDelete);
       
-      if (googleResult.success) {
-        googleSuccess = true;
-        messages.push('✅ Eliminado de Google Sheets');
-        console.log('✅ Event deleted from Google Sheets');
+      if (supabaseResult.success) {
+        supabaseSuccess = true;
+        messages.push('✅ Eliminado de Supabase');
+        console.log('✅ Event deleted from Supabase');
       } else {
-        console.warn('⚠️ Google Sheets delete failed:', googleResult.error);
-        messages.push(`⚠️ Google Sheets: ${googleResult.error || 'No disponible'}`);
+        console.warn('⚠️ Supabase delete failed:', supabaseResult.error);
+        messages.push(`⚠️ Supabase: ${supabaseResult.error || 'No disponible'}`);
       }
-    } catch (googleError: any) {
-      console.warn('⚠️ Google Sheets error:', googleError);
-      messages.push(`⚠️ Google Sheets: ${googleError.message || 'No disponible'}`);
+    } catch (supabaseError: any) {
+      console.warn('⚠️ Supabase error:', supabaseError);
+      messages.push(`⚠️ Supabase: ${supabaseError.message || 'No disponible'}`);
     }
     
     // Determine overall success
@@ -480,23 +632,23 @@ export const testDatabaseConnections = async (): Promise<string> => {
       report += `   - Error cargando eventos locales: ${error.message}\n`;
     }
     
-    // Test Google Sheets connection
-    report += '\n2. Google Sheets: ';
+    // Test Supabase connection
+    report += '\n2. Supabase: ';
     try {
-      console.log('📊 Testing Google Sheets connection...');
-      const googleConnection = await testGoogleSheetsConnection();
+      console.log('🗄️ Testing Supabase connection...');
+      const supabaseConnection = await testSupabaseConnection();
       
-      if (googleConnection) {
+      if (supabaseConnection) {
         report += '✅ FUNCIONANDO\n';
         
-        // Try to load events from Google Sheets
+        // Try to load events from Supabase
         try {
-          const googleEvents = await loadEventsFromGoogleSheets();
-          report += `   - Eventos en Google Sheets: ${googleEvents.length}\n`;
+          const supabaseEvents = await loadEventsFromSupabase();
+          report += `   - Eventos en Supabase: ${supabaseEvents.length}\n`;
           report += '   - Lectura: OK\n';
           
-          if (googleEvents.length > 0) {
-            const latestEvent = googleEvents[googleEvents.length - 1];
+          if (supabaseEvents.length > 0) {
+            const latestEvent = supabaseEvents[0]; // Already ordered by created_at desc
             report += `   - Último evento: ${latestEvent.customerName} - ${latestEvent.date}\n`;
           }
         } catch (loadError: any) {
@@ -504,28 +656,29 @@ export const testDatabaseConnections = async (): Promise<string> => {
         }
       } else {
         report += '❌ ERROR\n';
-        report += '   - No se pudo conectar a Google Sheets\n';
+        report += '   - No se pudo conectar a Supabase\n';
         report += '   - Verificar credenciales y permisos\n';
         report += '   - Verificar conexión a internet\n';
       }
-    } catch (googleError: any) {
+    } catch (supabaseError: any) {
       report += '❌ ERROR\n';
-      report += `   - Error: ${googleError.message}\n`;
+      report += `   - Error: ${supabaseError.message}\n`;
     }
     
     report += '\n\n📊 RESUMEN:';
     report += '\n✅ Almacenamiento Local: Sistema principal confiable';
-    report += '\n📊 Google Sheets: Sistema de sincronización';
-    report += '\n🔄 Flujo: Local + Google Sheets con respaldo local';
+    report += '\n🗄️ Supabase: Base de datos en la nube';
+    report += '\n🔄 Flujo: Local + Supabase con respaldo local';
     
     report += '\n\n🎯 CARACTERÍSTICAS ACTUALES:';
     report += '\n✅ Almacenamiento local confiable';
-    report += '\n✅ Sincronización con Google Sheets';
+    report += '\n✅ Sincronización con Supabase';
     report += '\n✅ Funcionamiento offline completo';
     report += '\n✅ Datos persistentes en múltiples ubicaciones';
     report += '\n✅ Respaldo automático';
     report += '\n✅ Validación de datos mejorada';
     report += '\n✅ Manejo de errores robusto';
+    report += '\n✅ Base de datos PostgreSQL escalable';
     
     return report;
   } catch (error: any) {
@@ -533,52 +686,113 @@ export const testDatabaseConnections = async (): Promise<string> => {
   }
 };
 
-// Run Google Sheets diagnostics
-export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
+// Run Supabase diagnostics
+export const runSupabaseDiagnostics = async (): Promise<string> => {
   try {
-    console.log('📊 Running Google Sheets diagnostics...');
-    return await runGoogleSheetsRNDiagnostics();
+    console.log('🗄️ Running Supabase diagnostics...');
+    
+    let report = '🔍 DIAGNÓSTICOS DE SUPABASE\n\n';
+    
+    // Test connection
+    const connectionTest = await testSupabaseConnection();
+    report += `Conexión: ${connectionTest ? '✅ OK' : '❌ ERROR'}\n`;
+    
+    if (connectionTest) {
+      // Test table access
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('count(*)')
+          .limit(1);
+        
+        if (error) {
+          report += `Acceso a tabla: ❌ ERROR - ${error.message}\n`;
+        } else {
+          report += 'Acceso a tabla: ✅ OK\n';
+        }
+      } catch (error: any) {
+        report += `Acceso a tabla: ❌ ERROR - ${error.message}\n`;
+      }
+      
+      // Test insert capability
+      try {
+        const testEvent = {
+          id: `test_${Date.now()}`,
+          date: '2024-12-31',
+          time: '15:00',
+          customer_name: 'Test Cliente',
+          customer_phone: '+52 55 1234 5678',
+          child_name: 'Test Niño',
+          package_type: 'Abra',
+          total_amount: 1000,
+          deposit: 500,
+          remaining_amount: 500,
+          is_paid: false,
+          notes: 'Test event',
+        };
+        
+        const { error: insertError } = await supabase
+          .from('events')
+          .insert([testEvent]);
+        
+        if (insertError) {
+          report += `Inserción: ❌ ERROR - ${insertError.message}\n`;
+        } else {
+          report += 'Inserción: ✅ OK\n';
+          
+          // Clean up test event
+          await supabase
+            .from('events')
+            .delete()
+            .eq('id', testEvent.id);
+        }
+      } catch (error: any) {
+        report += `Inserción: ❌ ERROR - ${error.message}\n`;
+      }
+    }
+    
+    return report;
   } catch (error: any) {
-    console.error('❌ Error running Google Sheets diagnostics:', error);
-    return `❌ Error en diagnósticos de Google Sheets: ${error.message || 'Unknown error'}`;
+    console.error('❌ Error running Supabase diagnostics:', error);
+    return `❌ Error en diagnósticos de Supabase: ${error.message || 'Unknown error'}`;
   }
 };
 
-// Sync Google Sheets data to local storage
-export const syncGoogleSheetsToLocal = async (): Promise<{ success: boolean; synced: number; message: string }> => {
+// Sync Supabase data to local storage
+export const syncSupabaseToLocal = async (): Promise<{ success: boolean; synced: number; message: string }> => {
   try {
-    console.log('🔄 Syncing Google Sheets data to local storage...');
+    console.log('🔄 Syncing Supabase data to local storage...');
     
-    // Load events from Google Sheets
-    const googleEvents = await loadEventsFromGoogleSheets();
+    // Load events from Supabase
+    const supabaseEvents = await loadEventsFromSupabase();
     
-    if (googleEvents.length === 0) {
+    if (supabaseEvents.length === 0) {
       return {
         success: true,
         synced: 0,
-        message: 'No hay eventos en Google Sheets para sincronizar'
+        message: 'No hay eventos en Supabase para sincronizar'
       };
     }
     
     // Load current local events
     const localEvents = await loadEventsFromLocalStorage();
     
-    // Merge events with Google Sheets taking priority
-    const mergedEvents = mergeEvents(localEvents, googleEvents);
+    // Merge events with Supabase taking priority
+    const mergedEvents = mergeEvents(localEvents, supabaseEvents);
     
     // Save merged events to local storage
     await saveEventsToLocalStorage(mergedEvents);
     
-    const syncedCount = googleEvents.length;
-    console.log(`✅ Synced ${syncedCount} events from Google Sheets`);
+    const syncedCount = supabaseEvents.length;
+    console.log(`✅ Synced ${syncedCount} events from Supabase`);
     
     return {
       success: true,
       synced: syncedCount,
-      message: `✅ Sincronizados ${syncedCount} eventos desde Google Sheets`
+      message: `✅ Sincronizados ${syncedCount} eventos desde Supabase`
     };
   } catch (error: any) {
-    console.error('❌ Error syncing Google Sheets to local:', error);
+    console.error('❌ Error syncing Supabase to local:', error);
     return {
       success: false,
       synced: 0,
@@ -587,8 +801,14 @@ export const syncGoogleSheetsToLocal = async (): Promise<{ success: boolean; syn
   }
 };
 
-// Legacy function for compatibility (now redirects to Google Sheets sync)
-export const syncGoogleSheetsToSupabase = async (): Promise<{ success: boolean; synced: number; message: string }> => {
-  console.log('🔄 Redirecting to Google Sheets sync...');
-  return await syncGoogleSheetsToLocal();
+// Legacy function for compatibility (now redirects to Supabase sync)
+export const runGoogleSheetsDiagnostics = async (): Promise<string> => {
+  console.log('🔄 Redirecting to Supabase diagnostics...');
+  return await runSupabaseDiagnostics();
+};
+
+// Legacy function for compatibility (now redirects to Supabase sync)
+export const syncGoogleSheetsToLocal = async (): Promise<{ success: boolean; synced: number; message: string }> => {
+  console.log('🔄 Redirecting to Supabase sync...');
+  return await syncSupabaseToLocal();
 };

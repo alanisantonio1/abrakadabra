@@ -1,39 +1,51 @@
 
-import { Event } from '../types';
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
+import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
+import { loadEvents, updateEvent } from '../utils/storage';
+import { Event } from '../types';
 import EventCard from '../components/EventCard';
 import Button from '../components/Button';
-import { loadEvents, updateEvent } from '../utils/storage';
-import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
 
-export default function EventsScreen() {
+const EventsScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'upcoming' | 'paid' | 'pending'>('all');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterType, setFilterType] = useState<'all' | 'pending' | 'paid'>('all');
 
   useEffect(() => {
+    console.log('📋 EventsScreen mounted, loading events...');
     loadEventsData();
   }, []);
 
   useEffect(() => {
+    console.log('🔍 Filtering events...');
     filterEvents();
   }, [events, searchQuery, filterType]);
 
   const loadEventsData = async () => {
     try {
-      setLoading(true);
-      console.log('🔄 Loading events...');
+      setIsLoading(true);
+      console.log('📥 Loading events data...');
       const loadedEvents = await loadEvents();
-      setEvents(loadedEvents);
-      console.log('✅ Events loaded:', loadedEvents.length);
-    } catch (error) {
+      
+      // Sort events by date (newest first)
+      const sortedEvents = loadedEvents.sort((a, b) => {
+        const dateComparison = b.date.localeCompare(a.date);
+        if (dateComparison === 0) {
+          return b.time.localeCompare(a.time);
+        }
+        return dateComparison;
+      });
+      
+      setEvents(sortedEvents);
+      console.log('✅ Events loaded successfully:', sortedEvents.length);
+    } catch (error: any) {
       console.error('❌ Error loading events:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -42,107 +54,103 @@ export default function EventsScreen() {
 
     // Apply search filter
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(event =>
         event.customerName.toLowerCase().includes(query) ||
         event.childName.toLowerCase().includes(query) ||
         event.customerPhone.includes(query) ||
-        event.packageType.toLowerCase().includes(query)
+        event.packageType.toLowerCase().includes(query) ||
+        event.date.includes(query)
       );
     }
 
-    // Apply type filter
-    const today = new Date().toISOString().split('T')[0];
-    
-    switch (filterType) {
-      case 'upcoming':
-        filtered = filtered.filter(event => event.date >= today);
-        break;
-      case 'paid':
-        filtered = filtered.filter(event => event.isPaid);
-        break;
-      case 'pending':
-        filtered = filtered.filter(event => !event.isPaid);
-        break;
-      default:
-        // 'all' - no additional filtering
-        break;
+    // Apply status filter
+    if (filterType === 'pending') {
+      filtered = filtered.filter(event => !event.isPaid);
+    } else if (filterType === 'paid') {
+      filtered = filtered.filter(event => event.isPaid);
     }
 
-    // Sort by date (newest first)
-    filtered.sort((a, b) => b.date.localeCompare(a.date));
-
     setFilteredEvents(filtered);
+    console.log(`🔍 Filtered events: ${filtered.length} of ${events.length}`);
   };
 
   const handleMarkAsPaid = async (eventId: string) => {
     try {
       console.log('💰 Marking event as paid:', eventId);
+      const eventToUpdate = events.find(e => e.id === eventId);
       
-      const event = events.find(e => e.id === eventId);
-      if (!event) return;
+      if (!eventToUpdate) {
+        console.error('❌ Event not found:', eventId);
+        return;
+      }
 
       const updatedEvent: Event = {
-        ...event,
+        ...eventToUpdate,
         isPaid: true,
-        remainingAmount: 0,
-        deposit: event.totalAmount
+        remainingAmount: 0
       };
 
       const result = await updateEvent(updatedEvent);
       
       if (result.success) {
-        // Update local state
-        setEvents(prevEvents =>
-          prevEvents.map(e => e.id === eventId ? updatedEvent : e)
-        );
         console.log('✅ Event marked as paid successfully');
+        // Reload events to reflect changes
+        await loadEventsData();
+      } else {
+        console.error('❌ Failed to mark event as paid:', result.message);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error marking event as paid:', error);
     }
   };
 
   const renderFilterButtons = () => (
-    <View style={{ 
-      flexDirection: 'row', 
-      flexWrap: 'wrap', 
-      justifyContent: 'space-around',
-      marginBottom: 20,
-      paddingHorizontal: 10
-    }}>
-      {[
-        { key: 'all', label: 'Todos' },
-        { key: 'upcoming', label: 'Próximos' },
-        { key: 'paid', label: 'Pagados' },
-        { key: 'pending', label: 'Pendientes' }
-      ].map(filter => (
-        <TouchableOpacity
-          key={filter.key}
-          style={[
-            {
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 20,
-              marginHorizontal: 4,
-              marginVertical: 4,
-              borderWidth: 1,
-              borderColor: colors.primary
-            },
-            filterType === filter.key && {
-              backgroundColor: colors.primary
-            }
-          ]}
-          onPress={() => setFilterType(filter.key as any)}
-        >
-          <Text style={[
-            { fontSize: 14, textAlign: 'center' },
-            filterType === filter.key ? { color: 'white' } : { color: colors.primary }
-          ]}>
-            {filter.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+    <View style={commonStyles.filterContainer}>
+      <TouchableOpacity
+        style={[
+          commonStyles.filterButton,
+          filterType === 'all' && commonStyles.filterButtonActive
+        ]}
+        onPress={() => setFilterType('all')}
+      >
+        <Text style={[
+          commonStyles.filterButtonText,
+          filterType === 'all' && commonStyles.filterButtonTextActive
+        ]}>
+          Todos ({events.length})
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={[
+          commonStyles.filterButton,
+          filterType === 'pending' && commonStyles.filterButtonActive
+        ]}
+        onPress={() => setFilterType('pending')}
+      >
+        <Text style={[
+          commonStyles.filterButtonText,
+          filterType === 'pending' && commonStyles.filterButtonTextActive
+        ]}>
+          Pendientes ({events.filter(e => !e.isPaid).length})
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
+        style={[
+          commonStyles.filterButton,
+          filterType === 'paid' && commonStyles.filterButtonActive
+        ]}
+        onPress={() => setFilterType('paid')}
+      >
+        <Text style={[
+          commonStyles.filterButtonText,
+          filterType === 'paid' && commonStyles.filterButtonTextActive
+        ]}>
+          Pagados ({events.filter(e => e.isPaid).length})
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -150,83 +158,72 @@ export default function EventsScreen() {
     <View style={commonStyles.container}>
       <View style={commonStyles.header}>
         <TouchableOpacity
-          style={[commonStyles.backButton, { backgroundColor: colors.secondary }]}
+          style={commonStyles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={[commonStyles.backButtonText, { color: 'white' }]}>← Volver</Text>
+          <Text style={commonStyles.backButtonText}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>Eventos Agendados</Text>
-        <Text style={commonStyles.subtitle}>
-          {loading ? 'Cargando...' : `${filteredEvents.length} de ${events.length} eventos`}
-        </Text>
+        <Text style={commonStyles.title}>📋 Eventos</Text>
       </View>
 
-      <View style={[commonStyles.section, { paddingTop: 0 }]}>
-        {/* Search Bar */}
+      {/* Search Bar */}
+      <View style={commonStyles.section}>
         <TextInput
-          style={[
-            commonStyles.input,
-            { 
-              marginBottom: 20,
-              backgroundColor: '#f8f9fa',
-              borderColor: '#e9ecef'
-            }
-          ]}
+          style={commonStyles.searchInput}
+          placeholder="Buscar por nombre, teléfono, paquete o fecha..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Buscar por nombre, teléfono o paquete..."
-          placeholderTextColor="#6c757d"
+          placeholderTextColor={colors.gray}
         />
+      </View>
 
-        {/* Filter Buttons */}
+      {/* Filter Buttons */}
+      <View style={commonStyles.section}>
         {renderFilterButtons()}
+      </View>
 
-        {/* Refresh Button */}
+      {/* Add New Event Button */}
+      <View style={commonStyles.section}>
         <Button
-          text="🔄 Actualizar Eventos"
-          onPress={loadEventsData}
-          style={[
-            buttonStyles.secondary,
-            { 
-              backgroundColor: colors.accent,
-              marginBottom: 20
-            }
-          ]}
-          textStyle={{ color: 'white' }}
+          title="➕ Agregar Nuevo Evento"
+          onPress={() => router.push('/schedule')}
+          style={buttonStyles.primary}
         />
       </View>
 
       {/* Events List */}
-      <ScrollView style={{ flex: 1 }}>
-        {loading ? (
-          <View style={[commonStyles.section, { alignItems: 'center' }]}>
-            <Text style={commonStyles.text}>Cargando eventos...</Text>
-          </View>
+      <ScrollView style={commonStyles.section}>
+        {isLoading ? (
+          <Text style={commonStyles.loadingText}>Cargando eventos...</Text>
         ) : filteredEvents.length > 0 ? (
-          <View style={commonStyles.section}>
-            {filteredEvents.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onPress={() => router.push(`/event/${event.id}`)}
-                onMarkAsPaid={() => handleMarkAsPaid(event.id)}
-              />
-            ))}
-          </View>
+          filteredEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => router.push(`/event/${event.id}`)}
+              onMarkAsPaid={() => handleMarkAsPaid(event.id)}
+            />
+          ))
         ) : (
-          <View style={[commonStyles.section, { alignItems: 'center' }]}>
-            <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: 10 }]}>
+          <View style={commonStyles.emptyContainer}>
+            <Text style={commonStyles.emptyText}>
               {searchQuery || filterType !== 'all' 
                 ? 'No se encontraron eventos con los filtros aplicados'
-                : 'No hay eventos agendados'
+                : 'No hay eventos registrados'
               }
             </Text>
-            <Text style={[commonStyles.text, { textAlign: 'center', fontSize: 14, color: '#666' }]}>
-              Los eventos se almacenan localmente en el dispositivo
-            </Text>
+            {!searchQuery && filterType === 'all' && (
+              <Button
+                title="➕ Crear Primer Evento"
+                onPress={() => router.push('/schedule')}
+                style={[buttonStyles.primary, { marginTop: 15 }]}
+              />
+            )}
           </View>
         )}
       </ScrollView>
     </View>
   );
-}
+};
+
+export default EventsScreen;
