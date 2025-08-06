@@ -14,8 +14,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   testDatabaseConnections, 
   runGoogleSheetsDiagnostics,
-  syncGoogleSheetsToSupabase 
+  syncGoogleSheetsToLocal 
 } from '../utils/storage';
+import { runHealthCheck, formatHealthReport } from '../utils/healthCheck';
 
 interface DiagnosticsModalProps {
   visible: boolean;
@@ -77,16 +78,42 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   infoBox: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e8f5e8',
     padding: 15,
     borderRadius: 8,
     marginBottom: 15,
     borderLeftWidth: 4,
-    borderLeftColor: colors.info,
+    borderLeftColor: '#4caf50',
   },
   infoText: {
     fontSize: 14,
-    color: '#1976d2',
+    color: '#2e7d32',
+    lineHeight: 20,
+  },
+  warningBox: {
+    backgroundColor: '#fff3e0',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9800',
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#f57c00',
+    lineHeight: 20,
+  },
+  errorBox: {
+    backgroundColor: '#ffebee',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f44336',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#c62828',
     lineHeight: 20,
   },
 });
@@ -94,60 +121,171 @@ const styles = StyleSheet.create({
 const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose }) => {
   const [diagnosticsResult, setDiagnosticsResult] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [currentTest, setCurrentTest] = useState<string>('general');
+  const [lastError, setLastError] = useState<string | null>(null);
 
   useEffect(() => {
     if (visible) {
-      runDiagnostics();
+      runGeneralDiagnostics();
     }
   }, [visible]);
 
-  const runDiagnostics = async () => {
+  const runGeneralDiagnostics = async () => {
     setIsLoading(true);
+    setCurrentTest('general');
+    setLastError(null);
+    
     try {
-      console.log('🧪 Running local storage diagnostics...');
+      console.log('🧪 Running general diagnostics...');
       const result = await testDatabaseConnections();
       setDiagnosticsResult(result);
-    } catch (error) {
-      console.error('❌ Error running diagnostics:', error);
-      setDiagnosticsResult(`❌ Error ejecutando diagnósticos: ${error}`);
+    } catch (error: any) {
+      console.error('❌ Error running general diagnostics:', error);
+      const errorMessage = `❌ Error ejecutando diagnósticos: ${error.message || 'Unknown error'}`;
+      setDiagnosticsResult(errorMessage);
+      setLastError(error.message || 'Unknown error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const showRemovalInfo = () => {
+  const runGoogleSheetsDiagnosticsTest = async () => {
+    setIsLoading(true);
+    setCurrentTest('google');
+    setLastError(null);
+    
+    try {
+      console.log('📊 Running Google Sheets diagnostics...');
+      const result = await runGoogleSheetsDiagnostics();
+      setDiagnosticsResult(result);
+    } catch (error: any) {
+      console.error('❌ Error running Google Sheets diagnostics:', error);
+      const errorMessage = `❌ Error en diagnósticos de Google Sheets: ${error.message || 'Unknown error'}`;
+      setDiagnosticsResult(errorMessage);
+      setLastError(error.message || 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runSystemHealthCheck = async () => {
+    setIsLoading(true);
+    setCurrentTest('health');
+    setLastError(null);
+    
+    try {
+      console.log('🏥 Running system health check...');
+      const health = await runHealthCheck();
+      const report = formatHealthReport(health);
+      setDiagnosticsResult(report);
+      
+      if (health.overall.status === 'error') {
+        setLastError('System has critical issues');
+      }
+    } catch (error: any) {
+      console.error('❌ Error running health check:', error);
+      const errorMessage = `❌ Error en chequeo de salud del sistema: ${error.message || 'Unknown error'}`;
+      setDiagnosticsResult(errorMessage);
+      setLastError(error.message || 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const syncFromGoogleSheets = async () => {
+    setIsLoading(true);
+    setLastError(null);
+    
+    try {
+      console.log('🔄 Syncing from Google Sheets...');
+      const result = await syncGoogleSheetsToLocal();
+      
+      Alert.alert(
+        'Sincronización Completada',
+        result.message,
+        [{ text: 'OK' }]
+      );
+      
+      // Refresh diagnostics after sync
+      await runGeneralDiagnostics();
+    } catch (error: any) {
+      console.error('❌ Error syncing from Google Sheets:', error);
+      setLastError(error.message || 'Unknown error');
+      
+      Alert.alert(
+        'Error de Sincronización',
+        `Error sincronizando desde Google Sheets: ${error.message || 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const showGoogleSheetsInfo = () => {
     Alert.alert(
-      'Información del Sistema',
-      `La aplicación ha sido simplificada y ahora funciona únicamente con almacenamiento local.
+      'Google Sheets Integration',
+      `🔄 SISTEMA HÍBRIDO ACTIVO
 
-✅ VENTAJAS:
-• Sin dependencias externas
-• Funcionamiento offline completo
-• Datos seguros en el dispositivo
-• Sin problemas de conectividad
-• Mayor velocidad de respuesta
+✅ FUNCIONAMIENTO:
+• Almacenamiento local como base
+• Google Sheets como sincronización
+• Respaldo automático en ambos sistemas
+• Funcionamiento offline garantizado
 
-⚠️ CAMBIOS:
-• Supabase removido
-• Google Sheets removido
-• Edge Functions removidas
-• Solo almacenamiento local`,
+📊 GOOGLE SHEETS:
+• ID: 13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s
+• Email: abrakadabra@abrakadabra-422005.iam.gserviceaccount.com
+
+🔧 CONFIGURACIÓN:
+1. Compartir sheet con el email del service account
+2. Dar permisos de "Editor"
+3. Verificar conexión en diagnósticos
+
+⚠️ IMPORTANTE:
+Si Google Sheets no está disponible, la app funciona completamente con almacenamiento local.`,
       [{ text: 'Entendido' }]
     );
   };
 
-  const runLegacyGoogleSheetsDiagnostics = async () => {
-    setIsLoading(true);
-    try {
-      console.log('📊 Running legacy Google Sheets diagnostics...');
-      const result = await runGoogleSheetsDiagnostics();
-      setDiagnosticsResult(result);
-    } catch (error) {
-      console.error('❌ Error running legacy diagnostics:', error);
-      setDiagnosticsResult(`❌ Error en diagnósticos: ${error}`);
-    } finally {
-      setIsLoading(false);
+  const getInfoBoxContent = () => {
+    if (lastError) {
+      return (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            ❌ Error detectado: {lastError}
+          </Text>
+        </View>
+      );
     }
+    
+    if (currentTest === 'google') {
+      return (
+        <View style={styles.warningBox}>
+          <Text style={styles.warningText}>
+            📊 Diagnósticos específicos de Google Sheets
+          </Text>
+        </View>
+      );
+    }
+    
+    if (currentTest === 'health') {
+      return (
+        <View style={styles.infoBox}>
+          <Text style={styles.infoText}>
+            🏥 Chequeo completo de salud del sistema
+          </Text>
+        </View>
+      );
+    }
+    
+    return (
+      <View style={styles.infoBox}>
+        <Text style={styles.infoText}>
+          🔄 Sistema híbrido: Local + Google Sheets
+        </Text>
+      </View>
+    );
   };
 
   return (
@@ -161,11 +299,7 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
         <View style={styles.modalContent}>
           <Text style={styles.title}>🔍 Diagnósticos del Sistema</Text>
           
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              ℹ️ Sistema simplificado: Solo almacenamiento local
-            </Text>
-          </View>
+          {getInfoBoxContent()}
           
           <ScrollView style={{ maxHeight: 400 }}>
             <Text style={styles.diagnosticsText}>
@@ -175,26 +309,44 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
 
           <View style={styles.buttonContainer}>
             <Button
-              title="🔄 Actualizar"
-              onPress={runDiagnostics}
+              title="🔄 General"
+              onPress={runGeneralDiagnostics}
               style={styles.actionButton}
               disabled={isLoading}
             />
             
             <Button
-              title="📊 Info Cambios"
-              onPress={runLegacyGoogleSheetsDiagnostics}
+              title="📊 Google Sheets"
+              onPress={runGoogleSheetsDiagnosticsTest}
               style={styles.actionButton}
               disabled={isLoading}
             />
           </View>
 
-          <Button
-            title="ℹ️ Información del Sistema"
-            onPress={showRemovalInfo}
-            style={{ marginTop: 10 }}
-            disabled={isLoading}
-          />
+          <View style={styles.buttonContainer}>
+            <Button
+              title="🏥 Salud Sistema"
+              onPress={runSystemHealthCheck}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
+            
+            <Button
+              title="🔄 Sincronizar"
+              onPress={syncFromGoogleSheets}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
+          </View>
+
+          <View style={styles.buttonContainer}>
+            <Button
+              title="ℹ️ Info Google Sheets"
+              onPress={showGoogleSheetsInfo}
+              style={styles.actionButton}
+              disabled={isLoading}
+            />
+          </View>
 
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Cerrar</Text>

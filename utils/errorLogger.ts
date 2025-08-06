@@ -1,3 +1,4 @@
+
 // Global error logging for runtime errors
 
 import { Platform } from "react-native";
@@ -5,13 +6,13 @@ import { Platform } from "react-native";
 // Simple debouncing to prevent duplicate errors
 const recentErrors: { [key: string]: boolean } = {};
 const clearErrorAfterDelay = (errorKey: string) => {
-  setTimeout(() => delete recentErrors[errorKey], 100);
+  setTimeout(() => delete recentErrors[errorKey], 5000); // Increased delay
 };
 
 // Function to send errors to parent window (React frontend)
 const sendErrorToParent = (level: string, message: string, data: any) => {
   // Create a simple key to identify duplicate errors
-  const errorKey = `${level}:${message}:${JSON.stringify(data)}`;
+  const errorKey = `${level}:${message.substring(0, 100)}`;
 
   // Skip if we've seen this exact error recently
   if (recentErrors[errorKey]) {
@@ -31,7 +32,7 @@ const sendErrorToParent = (level: string, message: string, data: any) => {
         data: data,
         timestamp: new Date().toISOString(),
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
-        source: 'expo-template'
+        source: 'abrakadabra-events-app'
       }, '*');
     } else {
       // Fallback to console if no parent window
@@ -52,6 +53,8 @@ const extractSourceLocation = (stack: string): string => {
     /at .+\/(app\/[^:)]+):(\d+):(\d+)/,
     // Pattern for components: components/filename.tsx:line:column
     /at .+\/(components\/[^:)]+):(\d+):(\d+)/,
+    // Pattern for utils: utils/filename.tsx:line:column
+    /at .+\/(utils\/[^:)]+):(\d+):(\d+)/,
     // Pattern for any .tsx/.ts files
     /at .+\/([^/]+\.tsx?):(\d+):(\d+)/,
     // Pattern for bundle files with source maps
@@ -78,53 +81,84 @@ const extractSourceLocation = (stack: string): string => {
 
 // Function to get caller information from stack trace
 const getCallerInfo = (): string => {
-  const stack = new Error().stack || '';
-  const lines = stack.split('\n');
+  try {
+    const stack = new Error().stack || '';
+    const lines = stack.split('\n');
 
-  // Skip the first few lines (Error, getCallerInfo, console override)
-  for (let i = 3; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.indexOf('app/') !== -1 || line.indexOf('components/') !== -1 || line.indexOf('.tsx') !== -1 || line.indexOf('.ts') !== -1) {
-      const match = line.match(/at .+\/([^/\s:)]+\.[jt]sx?):(\d+):(\d+)/);
-      if (match) {
-        return ` | Called from: ${match[1]}:${match[2]}:${match[3]}`;
+    // Skip the first few lines (Error, getCallerInfo, console override)
+    for (let i = 3; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.indexOf('app/') !== -1 || line.indexOf('components/') !== -1 || 
+          line.indexOf('utils/') !== -1 || line.indexOf('.tsx') !== -1 || line.indexOf('.ts') !== -1) {
+        const match = line.match(/at .+\/([^/\s:)]+\.[jt]sx?):(\d+):(\d+)/);
+        if (match) {
+          return ` | Called from: ${match[1]}:${match[2]}:${match[3]}`;
+        }
       }
     }
+  } catch (error) {
+    // Silently fail if stack trace parsing fails
   }
 
   return '';
 };
 
 export const setupErrorLogging = () => {
+  // Only setup error logging in development or web environment
+  if (typeof window === 'undefined' && !__DEV__) {
+    return;
+  }
+
   // Capture unhandled errors in web environment
   if (typeof window !== 'undefined') {
     // Override window.onerror to catch JavaScript errors
+    const originalOnError = window.onerror;
     window.onerror = (message, source, lineno, colno, error) => {
-      const sourceFile = source ? source.split('/').pop() : 'unknown';
-      const errorData = {
-        message: message,
-        source: `${sourceFile}:${lineno}:${colno}`,
-        line: lineno,
-        column: colno,
-        error: error?.stack || error,
-        timestamp: new Date().toISOString()
-      };
-
-      console.error('🚨 RUNTIME ERROR:', errorData);
-      sendErrorToParent('error', 'JavaScript Runtime Error', errorData);
-      return false; // Don't prevent default error handling
-    };
-    // check if platform is web
-    if (Platform.OS === 'web') {
-      // Capture unhandled promise rejections
-      window.addEventListener('unhandledrejection', (event) => {
-          const errorData = {
-          reason: event.reason,
+      try {
+        const sourceFile = source ? source.split('/').pop() : 'unknown';
+        const errorData = {
+          message: String(message),
+          source: `${sourceFile}:${lineno}:${colno}`,
+          line: lineno,
+          column: colno,
+          error: error?.stack || String(error),
           timestamp: new Date().toISOString()
         };
 
-        console.error('🚨 UNHANDLED PROMISE REJECTION:', errorData);
-        sendErrorToParent('error', 'Unhandled Promise Rejection', errorData);
+        console.error('🚨 RUNTIME ERROR:', errorData);
+        sendErrorToParent('error', 'JavaScript Runtime Error', errorData);
+      } catch (loggingError) {
+        console.error('❌ Error in error logging:', loggingError);
+      }
+
+      // Call original handler if it exists
+      if (originalOnError) {
+        return originalOnError(message, source, lineno, colno, error);
+      }
+      
+      return false; // Don't prevent default error handling
+    };
+
+    // Capture unhandled promise rejections (web only)
+    if (Platform.OS === 'web') {
+      const originalUnhandledRejection = window.onunhandledrejection;
+      window.addEventListener('unhandledrejection', (event) => {
+        try {
+          const errorData = {
+            reason: String(event.reason),
+            timestamp: new Date().toISOString()
+          };
+
+          console.error('🚨 UNHANDLED PROMISE REJECTION:', errorData);
+          sendErrorToParent('error', 'Unhandled Promise Rejection', errorData);
+        } catch (loggingError) {
+          console.error('❌ Error in promise rejection logging:', loggingError);
+        }
+
+        // Call original handler if it exists
+        if (originalUnhandledRejection) {
+          originalUnhandledRejection.call(window, event);
+        }
       });
     }
   }
@@ -132,76 +166,74 @@ export const setupErrorLogging = () => {
   // Store original console methods
   const originalConsoleError = console.error;
   const originalConsoleWarn = console.warn;
-  const originalConsoleLog = console.log;
 
-  // UNCOMMENT BELOW CODE TO GET MORE SENSITIVE ERROR LOGGING (usually many errors triggered per 1 uncaught runtime error)
+  // Enhanced console.error override for critical errors
+  console.error = (...args: any[]) => {
+    try {
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
 
-  // Override console.error to capture more detailed information
-  // console.error = (...args: any[]) => {
-  //   const stack = new Error().stack || '';
-  //   const sourceInfo = extractSourceLocation(stack);
-  //   const callerInfo = getCallerInfo();
+      // Check if this is a critical error that should be reported
+      const isCritical = message.toLowerCase().includes('error') || 
+                        message.includes('❌') || 
+                        message.includes('🚨') ||
+                        message.includes('failed') ||
+                        message.includes('exception');
 
-  //   // Create enhanced message with source information
-  //   const enhancedMessage = args.join(' ') + sourceInfo + callerInfo;
+      if (isCritical) {
+        const stack = new Error().stack || '';
+        const sourceInfo = extractSourceLocation(stack);
+        const callerInfo = getCallerInfo();
 
-  //   // Add timestamp and make it stand out in Metro logs
-  //   originalConsoleError('🔥🔥🔥 ERROR:', new Date().toISOString(), enhancedMessage);
+        // Create enhanced message with source information
+        const enhancedMessage = message + sourceInfo + callerInfo;
 
-  //   // Also send to parent
-  //   sendErrorToParent('error', 'Console Error', enhancedMessage);
-  // };
-
-  // Override console.warn to capture warnings with source location
-  // console.warn = (...args: any[]) => {
-  //   const stack = new Error().stack || '';
-  //   const sourceInfo = extractSourceLocation(stack);
-  //   const callerInfo = getCallerInfo();
-
-  //   // Create enhanced message with source information
-  //   const enhancedMessage = args.join(' ') + sourceInfo + callerInfo;
-
-  //   originalConsoleWarn('⚠️ WARNING:', new Date().toISOString(), enhancedMessage);
-
-  //   // Also send to parent
-  //   sendErrorToParent('warn', 'Console Warning', enhancedMessage);
-  // };
-
-  // // Also override console.log to catch any logs that might contain error information
-  // console.log = (...args: any[]) => {
-  //   const message = args.join(' ');
-
-  //   // Check if this log message contains warning/error keywords
-  //   if (message.indexOf('deprecated') !== -1 || message.indexOf('warning') !== -1 || message.indexOf('error') !== -1) {
-  //     const stack = new Error().stack || '';
-  //     const sourceInfo = extractSourceLocation(stack);
-  //     const callerInfo = getCallerInfo();
-
-  //     const enhancedMessage = message + sourceInfo + callerInfo;
-
-  //     originalConsoleLog('📝 LOG (potential issue):', new Date().toISOString(), enhancedMessage);
-  //     sendErrorToParent('info', 'Console Log (potential issue)', enhancedMessage);
-  //   } else {
-  //     // Normal log, just pass through
-  //     originalConsoleLog(...args);
-  //   }
-  // };
-
-  // Try to intercept React Native warnings at a lower level
-  if (typeof window !== 'undefined' && (window as any).__DEV__) {
-    // Override React's warning system if available
-    const originalWarn = (window as any).console?.warn || console.warn;
-
-    // Monkey patch any React warning functions
-    if ((window as any).React && (window as any).React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED) {
-      const internals = (window as any).React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-      if (internals.ReactDebugCurrentFrame) {
-        const originalGetStackAddendum = internals.ReactDebugCurrentFrame.getStackAddendum;
-        internals.ReactDebugCurrentFrame.getStackAddendum = function() {
-          const stack = originalGetStackAddendum ? originalGetStackAddendum.call(this) : '';
-          return stack + ' | Enhanced by error logger';
-        };
+        // Send to parent for critical errors
+        sendErrorToParent('error', 'Console Error', enhancedMessage);
       }
+
+      // Always call original console.error
+      originalConsoleError('🔥 ERROR:', new Date().toISOString(), ...args);
+    } catch (loggingError) {
+      // Fallback to original console.error if logging fails
+      originalConsoleError('❌ Error logging failed:', loggingError);
+      originalConsoleError(...args);
     }
-  }
+  };
+
+  // Enhanced console.warn override for warnings
+  console.warn = (...args: any[]) => {
+    try {
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+
+      // Check if this is an important warning
+      const isImportant = message.toLowerCase().includes('deprecated') || 
+                         message.includes('⚠️') ||
+                         message.includes('warning') ||
+                         message.includes('failed');
+
+      if (isImportant) {
+        const stack = new Error().stack || '';
+        const sourceInfo = extractSourceLocation(stack);
+
+        // Create enhanced message with source information
+        const enhancedMessage = message + sourceInfo;
+
+        // Send to parent for important warnings
+        sendErrorToParent('warn', 'Console Warning', enhancedMessage);
+      }
+
+      // Always call original console.warn
+      originalConsoleWarn('⚠️ WARNING:', new Date().toISOString(), ...args);
+    } catch (loggingError) {
+      // Fallback to original console.warn if logging fails
+      originalConsoleWarn('❌ Warning logging failed:', loggingError);
+      originalConsoleWarn(...args);
+    }
+  };
+
+  console.log('✅ Enhanced error logging setup completed');
 };

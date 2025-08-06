@@ -10,37 +10,22 @@ config.cacheStores = [
   new FileStore({ root: path.join(__dirname, 'node_modules', '.cache', 'metro') }),
 ];
 
-// Add resolver configuration for React Native compatibility
+// Simplified resolver configuration for better compatibility
 config.resolver = {
   ...config.resolver,
-  alias: {
-    // Polyfill Node.js modules for React Native
-    'crypto': 'react-native-crypto',
-    'stream': 'stream-browserify',
-    'buffer': '@craftzdog/react-native-buffer',
-  },
-  fallback: {
-    // Provide fallbacks for Node.js modules
-    'fs': false,
-    'path': false,
-    'os': false,
-    'crypto': false,
-    'stream': false,
-    'buffer': false,
-    'util': false,
-    'assert': false,
-    'url': false,
-    'querystring': false,
-  },
+  // Remove problematic aliases that might cause issues
+  alias: {},
+  // Simplified fallback configuration
+  fallback: {},
 };
 
-// Configure transformer to handle polyfills
+// Configure transformer for better compatibility
 config.transformer = {
   ...config.transformer,
   getTransformOptions: async () => ({
     transform: {
       experimentalImportSupport: false,
-      inlineRequires: true,
+      inlineRequires: false, // Changed to false for better compatibility
     },
   }),
 };

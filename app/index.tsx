@@ -16,6 +16,7 @@ const MainScreen: React.FC = () => {
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [showTools, setShowTools] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -30,16 +31,28 @@ const MainScreen: React.FC = () => {
   const loadEventsData = async () => {
     try {
       setIsLoading(true);
+      setError(null);
       console.log('📥 Loading events data...');
+      
       const loadedEvents = await loadEvents();
       setEvents(loadedEvents);
       console.log('✅ Events loaded:', loadedEvents.length);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error loading events:', error);
+      setError(error.message || 'Error cargando eventos');
+      
+      // Try to show a user-friendly error message
+      const errorMessage = error.message?.includes('Network') 
+        ? 'Error de conexión. Verificando almacenamiento local...'
+        : 'Error cargando eventos del almacenamiento local.';
+      
       Alert.alert(
         'Error',
-        'Error cargando eventos del almacenamiento local.',
-        [{ text: 'OK' }]
+        errorMessage,
+        [
+          { text: 'Reintentar', onPress: loadEventsData },
+          { text: 'OK' }
+        ]
       );
     } finally {
       setIsLoading(false);
@@ -47,19 +60,33 @@ const MainScreen: React.FC = () => {
   };
 
   const handleDateSelect = (date: string) => {
-    console.log('📅 Date selected:', date);
-    setSelectedDate(date);
-    router.push(`/schedule?date=${date}`);
+    try {
+      console.log('📅 Date selected:', date);
+      setSelectedDate(date);
+      router.push(`/schedule?date=${date}`);
+    } catch (error: any) {
+      console.error('❌ Error navigating to schedule:', error);
+      Alert.alert(
+        'Error',
+        'Error navegando a la pantalla de agendado.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const getUpcomingEvents = (): Event[] => {
-    const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
-    
-    return events
-      .filter(event => event.date >= todayString)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 5);
+    try {
+      const today = new Date();
+      const todayString = today.toISOString().split('T')[0];
+      
+      return events
+        .filter(event => event && event.date && event.date >= todayString)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .slice(0, 5);
+    } catch (error: any) {
+      console.error('❌ Error getting upcoming events:', error);
+      return [];
+    }
   };
 
   const testDatabaseConnection = async () => {
@@ -72,11 +99,24 @@ const MainScreen: React.FC = () => {
         result,
         [{ text: 'OK' }]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error testing storage:', error);
       Alert.alert(
         'Error',
-        `Error probando almacenamiento: ${error}`,
+        `Error probando almacenamiento: ${error.message || 'Unknown error'}`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleNavigation = (path: string) => {
+    try {
+      router.push(path as any);
+    } catch (error: any) {
+      console.error('❌ Navigation error:', error);
+      Alert.alert(
+        'Error',
+        'Error navegando a la pantalla solicitada.',
         [{ text: 'OK' }]
       );
     }
@@ -87,9 +127,28 @@ const MainScreen: React.FC = () => {
       <View style={commonStyles.header}>
         <Text style={commonStyles.title}>🎪 Abrakadabra Events</Text>
         <Text style={commonStyles.subtitle}>
-          {isLoading ? 'Cargando eventos...' : `${events.length} eventos registrados`}
+          {isLoading ? 'Cargando eventos...' : 
+           error ? `Error: ${error}` :
+           `${events.length} eventos registrados`}
         </Text>
       </View>
+
+      {/* Error Display */}
+      {error && (
+        <View style={[commonStyles.section, { backgroundColor: '#ffebee', padding: 15, borderRadius: 8 }]}>
+          <Text style={{ color: '#c62828', fontSize: 14, textAlign: 'center' }}>
+            ⚠️ {error}
+          </Text>
+          <TouchableOpacity
+            style={[commonStyles.secondaryButton, { backgroundColor: '#c62828', marginTop: 10 }]}
+            onPress={loadEventsData}
+          >
+            <Text style={[commonStyles.buttonText, { color: 'white' }]}>
+              🔄 Reintentar
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Main Action Buttons */}
       <View style={commonStyles.buttonContainer}>
@@ -102,7 +161,7 @@ const MainScreen: React.FC = () => {
 
         <TouchableOpacity
           style={[commonStyles.primaryButton, { backgroundColor: colors.accent }]}
-          onPress={() => router.push('/events')}
+          onPress={() => handleNavigation('/events')}
         >
           <Text style={commonStyles.buttonText}>📋 Ver Eventos</Text>
         </TouchableOpacity>
@@ -113,12 +172,16 @@ const MainScreen: React.FC = () => {
         <Text style={commonStyles.sectionTitle}>📅 Próximos Eventos</Text>
         {isLoading ? (
           <Text style={commonStyles.emptyText}>Cargando eventos...</Text>
+        ) : error ? (
+          <Text style={[commonStyles.emptyText, { color: '#c62828' }]}>
+            Error cargando eventos. Toca "Reintentar" arriba.
+          </Text>
         ) : getUpcomingEvents().length > 0 ? (
           getUpcomingEvents().map((event) => (
             <EventCard
               key={event.id}
               event={event}
-              onPress={() => router.push(`/event/${event.id}`)}
+              onPress={() => handleNavigation(`/event/${event.id}`)}
             />
           ))
         ) : (
@@ -150,7 +213,7 @@ const MainScreen: React.FC = () => {
 
             <TouchableOpacity
               style={[commonStyles.secondaryButton, { backgroundColor: colors.success }]}
-              onPress={() => router.push('/packages')}
+              onPress={() => handleNavigation('/packages')}
             >
               <Text style={[commonStyles.buttonText, { color: 'white' }]}>
                 📦 Ver Paquetes
@@ -163,10 +226,12 @@ const MainScreen: React.FC = () => {
       {/* Status Indicator */}
       <View style={commonStyles.statusContainer}>
         <Text style={commonStyles.statusText}>
-          {isLoading ? '⏳ Cargando...' : '✅ Sistema funcionando correctamente'}
+          {isLoading ? '⏳ Cargando...' : 
+           error ? '❌ Error en el sistema' :
+           '✅ Sistema funcionando correctamente'}
         </Text>
         <Text style={commonStyles.statusSubtext}>
-          Almacenamiento: Local | Estado: Offline Ready
+          Almacenamiento: Local | Estado: {error ? 'Error' : 'Offline Ready'}
         </Text>
       </View>
 
