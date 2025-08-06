@@ -1,7 +1,8 @@
 
+// This file is deprecated - use googleSheetsRN.ts instead for React Native compatibility
+// Keeping for reference only
+
 import { Event } from '../types';
-import { SERVICE_ACCOUNT_CREDENTIALS, isServiceAccountConfigured, getConfigurationStatus } from './serviceAccountConfig';
-import { getAuthHeaders, validateServiceAccount, canUseServiceAccount, testAuthentication } from './jwtAuth';
 
 // Google Sheets configuration
 const SPREADSHEET_ID = '13nNp7c8gSn0L3lCWHbJmHcCUZt9iUY7XUxP7SJLCh6s';

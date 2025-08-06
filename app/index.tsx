@@ -9,6 +9,7 @@ import EventCard from '../components/EventCard';
 import DiagnosticsModal from '../components/DiagnosticsModal';
 import { loadEvents } from '../utils/storage';
 import { testDatabaseConnections } from '../utils/storage';
+import { runAllCompatibilityTests } from '../utils/testRNCompatibility';
 
 const MainScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);

@@ -1,6 +1,9 @@
 
-import { GoogleAuth } from 'google-auth-library';
-import { SERVICE_ACCOUNT_CREDENTIALS } from './serviceAccountConfig';
+// This file is deprecated - Google Auth Library is not compatible with React Native
+// Use googleSheetsRN.ts instead for React Native compatibility
+
+// import { GoogleAuth } from 'google-auth-library';
+// import { SERVICE_ACCOUNT_CREDENTIALS } from './serviceAccountConfig';
 
 // Initialize Google Auth with service account credentials
 let googleAuth: GoogleAuth | null = null;
