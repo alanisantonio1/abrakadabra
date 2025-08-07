@@ -13,85 +13,122 @@ interface CalendarViewProps {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    backgroundColor: colors.white,
+    padding: 16,
+    borderRadius: 16,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    elevation: 2,
   },
   monthTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: colors.primary,
   },
   navButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minWidth: 44,
+    alignItems: 'center',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    elevation: 2,
   },
   navButtonText: {
     color: colors.white,
     fontWeight: 'bold',
+    fontSize: 18,
   },
   weekHeader: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: 12,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 8,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    elevation: 1,
   },
   weekDay: {
     flex: 1,
     textAlign: 'center',
     fontWeight: 'bold',
-    color: colors.gray,
+    color: colors.text,
     paddingVertical: 8,
+    fontSize: 14,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 8,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    elevation: 3,
   },
   dayContainer: {
     width: '14.28%', // 7 days per week
     aspectRatio: 1,
-    padding: 2,
+    padding: 3,
   },
   dayButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.lightGray,
+    position: 'relative',
   },
   dayText: {
     fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
   },
   // Day states
   currentMonthDay: {
     backgroundColor: colors.white,
+    borderColor: colors.lightGray,
   },
   otherMonthDay: {
     backgroundColor: colors.lightGray,
+    borderColor: colors.gray,
   },
   todayDay: {
     backgroundColor: colors.info,
     borderColor: colors.primary,
     borderWidth: 2,
+    boxShadow: '0 2px 8px rgba(69, 183, 209, 0.3)',
+    elevation: 2,
   },
   selectedDay: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    boxShadow: '0 4px 12px rgba(255, 107, 107, 0.4)',
+    elevation: 3,
   },
   pastDay: {
     backgroundColor: colors.lightGray,
+    borderColor: colors.gray,
   },
   hasEventDay: {
     backgroundColor: colors.success,
+    borderColor: colors.success,
+    boxShadow: '0 2px 8px rgba(46, 204, 113, 0.3)',
+    elevation: 2,
   },
   hasMultipleEventsDay: {
     backgroundColor: colors.warning,
+    borderColor: colors.warning,
+    boxShadow: '0 2px 8px rgba(243, 156, 18, 0.3)',
+    elevation: 2,
   },
   // Text states
   todayText: {
@@ -117,11 +154,13 @@ const styles = StyleSheet.create({
     top: 2,
     right: 2,
     backgroundColor: colors.danger,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
+    elevation: 2,
   },
   eventCountText: {
     color: colors.white,
@@ -129,31 +168,55 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   legend: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: colors.lightGray,
-    borderRadius: 10,
+    marginTop: 24,
+    padding: 20,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    elevation: 3,
   },
   legendTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 10,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  legendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    flex: 1,
+    minWidth: '45%',
+    marginBottom: 8,
   },
   legendColor: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    marginRight: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.lightGray,
   },
   legendText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  instructionText: {
+    fontSize: 16,
+    color: colors.textLight,
+    textAlign: 'center',
+    marginBottom: 16,
+    fontStyle: 'italic',
+    backgroundColor: colors.lightGray,
+    padding: 12,
+    borderRadius: 12,
   },
 });
 
@@ -248,22 +311,6 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     setCurrentMonth(newMonth);
   };
 
-  const isCurrentMonth = (date: string): boolean => {
-    const calendarDay = calendarDays.find(day => day.date === date);
-    return calendarDay?.isCurrentMonth || false;
-  };
-
-  const isToday = (date: string): boolean => {
-    const today = new Date().toISOString().split('T')[0];
-    return date === today;
-  };
-
-  const isPastDate = (date: string): boolean => {
-    const today = new Date();
-    const dateObj = new Date(date);
-    return dateObj < today;
-  };
-
   const getDateStyle = (day: CalendarDay) => {
     const styles_array = [styles.dayButton];
     
@@ -313,6 +360,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
 
   return (
     <ScrollView style={styles.container}>
+      <Text style={styles.instructionText}>
+        📅 Selecciona una fecha para agendar un nuevo evento
+      </Text>
+
       {/* Month Navigation */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -370,31 +421,38 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
 
       {/* Legend */}
       <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Leyenda</Text>
+        <Text style={styles.legendTitle}>🎨 Leyenda del Calendario</Text>
         
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.info }]} />
-          <Text style={styles.legendText}>Hoy</Text>
-        </View>
-        
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
-          <Text style={styles.legendText}>Disponible con eventos</Text>
-        </View>
-        
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.warning }]} />
-          <Text style={styles.legendText}>Múltiples eventos</Text>
-        </View>
-        
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.lightGray }]} />
-          <Text style={styles.legendText}>Fecha pasada</Text>
-        </View>
-        
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: colors.primary }]} />
-          <Text style={styles.legendText}>Fecha seleccionada</Text>
+        <View style={styles.legendGrid}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.info }]} />
+            <Text style={styles.legendText}>Hoy</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
+            <Text style={styles.legendText}>Con eventos</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.warning }]} />
+            <Text style={styles.legendText}>Múltiples eventos</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.lightGray }]} />
+            <Text style={styles.legendText}>Fecha pasada</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.primary }]} />
+            <Text style={styles.legendText}>Seleccionada</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: colors.white, borderColor: colors.lightGray }]} />
+            <Text style={styles.legendText}>Disponible</Text>
+          </View>
         </View>
       </View>
     </ScrollView>

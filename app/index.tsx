@@ -104,32 +104,25 @@ const MainScreen: React.FC = () => {
     <ScrollView style={commonStyles.container}>
       <View style={commonStyles.header}>
         <Text style={commonStyles.title}>🎪 Abrakadabra</Text>
-        <Text style={commonStyles.subtitle}>Gestión de Eventos</Text>
+        <Text style={commonStyles.subtitle}>Gestión de Eventos Infantiles</Text>
       </View>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Removed AGENDAR button */}
       <View style={commonStyles.section}>
         <Text style={commonStyles.sectionTitle}>Acciones Rápidas</Text>
         <View style={commonStyles.buttonGrid}>
           <TouchableOpacity
-            style={[commonStyles.gridButton, { backgroundColor: colors.primary }]}
-            onPress={() => handleNavigation('/schedule')}
+            style={[commonStyles.gridButton, { backgroundColor: colors.accent }]}
+            onPress={() => setCurrentView('calendar')}
           >
-            <Text style={commonStyles.gridButtonText}>📅 Agendar</Text>
+            <Text style={commonStyles.gridButtonText}>🗓️ Seleccionar Fecha</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={[commonStyles.gridButton, { backgroundColor: colors.secondary }]}
             onPress={() => handleNavigation('/events')}
           >
-            <Text style={commonStyles.gridButtonText}>📋 Eventos</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.gridButton, { backgroundColor: colors.accent }]}
-            onPress={() => setCurrentView('calendar')}
-          >
-            <Text style={commonStyles.gridButtonText}>🗓️ Calendario</Text>
+            <Text style={commonStyles.gridButtonText}>📋 Ver Eventos</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -138,14 +131,32 @@ const MainScreen: React.FC = () => {
           >
             <Text style={commonStyles.gridButtonText}>📦 Paquetes</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[commonStyles.gridButton, { backgroundColor: colors.info }]}
+            onPress={() => setShowDiagnostics(true)}
+          >
+            <Text style={commonStyles.gridButtonText}>🔍 Diagnósticos</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Upcoming Events */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Próximos Eventos</Text>
+        <View style={commonStyles.sectionHeader}>
+          <Text style={commonStyles.sectionTitle}>Próximos Eventos</Text>
+          <TouchableOpacity
+            style={commonStyles.seeAllButton}
+            onPress={() => handleNavigation('/events')}
+          >
+            <Text style={commonStyles.seeAllText}>Ver todos →</Text>
+          </TouchableOpacity>
+        </View>
+        
         {isLoading ? (
-          <Text style={commonStyles.loadingText}>Cargando eventos...</Text>
+          <View style={commonStyles.loadingContainer}>
+            <Text style={commonStyles.loadingText}>🔄 Cargando eventos...</Text>
+          </View>
         ) : getUpcomingEvents().length > 0 ? (
           getUpcomingEvents().map((event) => (
             <EventCard
@@ -156,50 +167,49 @@ const MainScreen: React.FC = () => {
             />
           ))
         ) : (
-          <Text style={commonStyles.emptyText}>No hay eventos próximos</Text>
+          <View style={commonStyles.emptyContainer}>
+            <Text style={commonStyles.emptyText}>📅 No hay eventos próximos</Text>
+            <Text style={commonStyles.emptySubtext}>
+              Selecciona una fecha para agendar tu primer evento
+            </Text>
+          </View>
         )}
-      </View>
-
-      {/* Tools Section */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Herramientas</Text>
-        <View style={commonStyles.buttonGrid}>
-          <TouchableOpacity
-            style={[commonStyles.gridButton, { backgroundColor: colors.info }]}
-            onPress={() => setShowDiagnostics(true)}
-          >
-            <Text style={commonStyles.gridButtonText}>🔍 Diagnósticos</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[commonStyles.gridButton, { backgroundColor: colors.success }]}
-            onPress={testDatabaseConnection}
-          >
-            <Text style={commonStyles.gridButtonText}>🧪 Probar BD</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Statistics */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Estadísticas</Text>
+        <Text style={commonStyles.sectionTitle}>Resumen</Text>
         <View style={commonStyles.statsContainer}>
-          <View style={commonStyles.statItem}>
+          <View style={[commonStyles.statItem, { backgroundColor: colors.primary }]}>
             <Text style={commonStyles.statNumber}>{events.length}</Text>
             <Text style={commonStyles.statLabel}>Total Eventos</Text>
           </View>
-          <View style={commonStyles.statItem}>
+          <View style={[commonStyles.statItem, { backgroundColor: colors.warning }]}>
             <Text style={commonStyles.statNumber}>
               {events.filter(e => !e.isPaid).length}
             </Text>
             <Text style={commonStyles.statLabel}>Pendientes</Text>
           </View>
-          <View style={commonStyles.statItem}>
+          <View style={[commonStyles.statItem, { backgroundColor: colors.success }]}>
             <Text style={commonStyles.statNumber}>
               {events.filter(e => e.isPaid).length}
             </Text>
             <Text style={commonStyles.statLabel}>Pagados</Text>
           </View>
+        </View>
+      </View>
+
+      {/* Quick Tools */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Herramientas</Text>
+        <View style={commonStyles.toolsGrid}>
+          <TouchableOpacity
+            style={[commonStyles.toolButton, { backgroundColor: colors.success }]}
+            onPress={testDatabaseConnection}
+          >
+            <Text style={commonStyles.toolIcon}>🧪</Text>
+            <Text style={commonStyles.toolText}>Probar Conexión</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -219,7 +229,8 @@ const MainScreen: React.FC = () => {
         >
           <Text style={commonStyles.backButtonText}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>🗓️ Calendario</Text>
+        <Text style={commonStyles.title}>🗓️ Seleccionar Fecha</Text>
+        <Text style={commonStyles.subtitle}>Toca una fecha para agendar un evento</Text>
       </View>
       
       <CalendarView

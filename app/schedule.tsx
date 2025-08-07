@@ -224,6 +224,17 @@ const ScheduleScreen: React.FC = () => {
     }
   };
 
+  const formatSelectedDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   return (
     <ScrollView style={commonStyles.container}>
       <View style={commonStyles.header}>
@@ -233,22 +244,33 @@ const ScheduleScreen: React.FC = () => {
         >
           <Text style={commonStyles.backButtonText}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>📅 Agendar Evento</Text>
+        <Text style={commonStyles.title}>🎪 Agendar Evento</Text>
+        {formData.date && (
+          <Text style={commonStyles.subtitle}>
+            📅 {formatSelectedDate(formData.date)}
+          </Text>
+        )}
       </View>
 
       {/* Date and Time */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Fecha y Hora</Text>
+        <Text style={commonStyles.sectionTitle}>📅 Fecha y Hora</Text>
         
         <View style={commonStyles.inputGroup}>
           <Text style={commonStyles.label}>Fecha *</Text>
           <TextInput
-            style={commonStyles.input}
+            style={[commonStyles.input, { backgroundColor: colors.lightGray }]}
             value={formData.date}
             onChangeText={(value) => handleInputChange('date', value)}
             placeholder="YYYY-MM-DD"
             placeholderTextColor={colors.gray}
+            editable={!date} // Make read-only if date was pre-selected
           />
+          {date && (
+            <Text style={commonStyles.infoText}>
+              ✅ Fecha seleccionada desde el calendario
+            </Text>
+          )}
         </View>
 
         <View style={commonStyles.inputGroup}>
@@ -265,7 +287,7 @@ const ScheduleScreen: React.FC = () => {
 
       {/* Customer Information */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Información del Cliente</Text>
+        <Text style={commonStyles.sectionTitle}>👥 Información del Cliente</Text>
         
         <View style={commonStyles.inputGroup}>
           <Text style={commonStyles.label}>Nombre del Cliente *</Text>
@@ -304,7 +326,7 @@ const ScheduleScreen: React.FC = () => {
 
       {/* Package Selection */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Seleccionar Paquete *</Text>
+        <Text style={commonStyles.sectionTitle}>📦 Seleccionar Paquete *</Text>
         {packages.map((pkg) => (
           <PackageCard
             key={pkg.id}
@@ -319,7 +341,7 @@ const ScheduleScreen: React.FC = () => {
       {/* Payment Information */}
       {formData.packageType && (
         <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Información de Pago</Text>
+          <Text style={commonStyles.sectionTitle}>💰 Información de Pago</Text>
           
           <View style={commonStyles.inputGroup}>
             <Text style={commonStyles.label}>Monto Total</Text>
@@ -347,18 +369,20 @@ const ScheduleScreen: React.FC = () => {
 
           <View style={commonStyles.inputGroup}>
             <Text style={commonStyles.label}>Saldo Restante</Text>
-            <Text style={[commonStyles.input, { backgroundColor: colors.lightGray }]}>
-              ${(formData.totalAmount - formData.deposit).toLocaleString()}
-            </Text>
+            <View style={[commonStyles.input, { backgroundColor: colors.lightGray, justifyContent: 'center' }]}>
+              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '600' }}>
+                ${(formData.totalAmount - formData.deposit).toLocaleString()}
+              </Text>
+            </View>
           </View>
         </View>
       )}
 
       {/* Notes */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Notas Adicionales</Text>
+        <Text style={commonStyles.sectionTitle}>📝 Notas Adicionales</Text>
         <TextInput
-          style={[commonStyles.input, { height: 80, textAlignVertical: 'top' }]}
+          style={[commonStyles.input, { height: 100, textAlignVertical: 'top' }]}
           value={formData.notes}
           onChangeText={(value) => handleInputChange('notes', value)}
           placeholder="Notas especiales, alergias, solicitudes..."
@@ -370,7 +394,7 @@ const ScheduleScreen: React.FC = () => {
       {/* Submit Button */}
       <View style={commonStyles.section}>
         <Button
-          title="💾 Guardar Evento"
+          title="🎉 Agendar Evento"
           onPress={() => handleSubmit()}
           style={buttonStyles.primary}
         />
