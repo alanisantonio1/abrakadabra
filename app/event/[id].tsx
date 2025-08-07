@@ -189,7 +189,7 @@ const EventDetailScreen: React.FC = () => {
           style={commonStyles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={commonStyles.backButtonText}>← Volver</Text>
+          <Text style={commonStyles.buttonText}>← Volver</Text>
         </TouchableOpacity>
         <Text style={commonStyles.title}>📋 Detalles del Evento</Text>
       </View>
@@ -198,9 +198,14 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.section}>
         <View style={[
           commonStyles.statusBadge,
-          { backgroundColor: event.isPaid ? colors.success : colors.warning }
+          { 
+            backgroundColor: event.isPaid ? colors.success : colors.warning,
+            padding: 12,
+            borderRadius: 8,
+            alignItems: 'center'
+          }
         ]}>
-          <Text style={commonStyles.statusText}>
+          <Text style={[commonStyles.statusText, { color: colors.white, fontSize: 16 }]}>
             {event.isPaid ? '✅ PAGADO' : '⏳ PENDIENTE'}
           </Text>
         </View>
@@ -210,24 +215,24 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.section}>
         <Text style={commonStyles.sectionTitle}>Información Básica</Text>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Fecha:</Text>
-          <Text style={commonStyles.detailValue}>{event.date}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Fecha:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>{event.date}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Hora:</Text>
-          <Text style={commonStyles.detailValue}>{event.time}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Hora:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>{event.time}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Niño/a:</Text>
-          <Text style={commonStyles.detailValue}>{event.childName}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Niño/a:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>{event.childName}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Paquete:</Text>
-          <Text style={commonStyles.detailValue}>{event.packageType}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Paquete:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>{event.packageType}</Text>
         </View>
       </View>
 
@@ -235,14 +240,14 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.section}>
         <Text style={commonStyles.sectionTitle}>Información del Cliente</Text>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Nombre:</Text>
-          <Text style={commonStyles.detailValue}>{event.customerName}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Nombre:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>{event.customerName}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Teléfono:</Text>
-          <Text style={commonStyles.detailValue}>{event.customerPhone}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Teléfono:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>{event.customerPhone}</Text>
         </View>
       </View>
 
@@ -250,21 +255,21 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.section}>
         <Text style={commonStyles.sectionTitle}>Información de Pago</Text>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Total:</Text>
-          <Text style={commonStyles.detailValue}>${event.totalAmount.toLocaleString()}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Total:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>${event.totalAmount.toLocaleString()}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Anticipo:</Text>
-          <Text style={commonStyles.detailValue}>${event.deposit.toLocaleString()}</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Anticipo:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>${event.deposit.toLocaleString()}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Saldo:</Text>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Saldo:</Text>
           <Text style={[
             commonStyles.detailValue,
-            { color: event.remainingAmount > 0 ? colors.warning : colors.success }
+            { color: event.remainingAmount > 0 ? colors.warning : colors.success, fontWeight: 'bold' }
           ]}>
             ${event.remainingAmount.toLocaleString()}
           </Text>
@@ -275,7 +280,7 @@ const EventDetailScreen: React.FC = () => {
       {event.notes && (
         <View style={commonStyles.section}>
           <Text style={commonStyles.sectionTitle}>Notas</Text>
-          <Text style={commonStyles.notesText}>{event.notes}</Text>
+          <Text style={[commonStyles.notesText, { color: colors.text, fontSize: 14, lineHeight: 20 }]}>{event.notes}</Text>
         </View>
       )}
 
@@ -285,22 +290,22 @@ const EventDetailScreen: React.FC = () => {
         
         {!event.isPaid && (
           <Button
-            title="💰 Marcar como Pagado"
+            text="💰 Marcar como Pagado"
             onPress={handleMarkAsPaid}
             style={[buttonStyles.success, { marginBottom: 10 }]}
           />
         )}
         
         <Button
-          title="📱 Enviar Recordatorio WhatsApp"
+          text="📱 Enviar Recordatorio WhatsApp"
           onPress={handleWhatsAppReminder}
           style={[buttonStyles.info, { marginBottom: 10 }]}
         />
         
         <Button
-          title="🗑️ Eliminar Evento"
+          text="🗑️ Eliminar Evento"
           onPress={handleDeleteEvent}
-          style={buttonStyles.danger}
+          style={buttonStyles.error}
         />
       </View>
 
@@ -308,16 +313,16 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.section}>
         <Text style={commonStyles.sectionTitle}>Información del Sistema</Text>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>ID:</Text>
-          <Text style={[commonStyles.detailValue, { fontSize: 12, fontFamily: 'monospace' }]}>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>ID:</Text>
+          <Text style={[commonStyles.detailValue, { fontSize: 12, fontFamily: 'monospace', color: colors.textLight }]}>
             {event.id}
           </Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>Creado:</Text>
-          <Text style={commonStyles.detailValue}>
+        <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Creado:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>
             {new Date(event.createdAt).toLocaleString()}
           </Text>
         </View>
