@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
@@ -15,14 +15,7 @@ const EventDetailScreen: React.FC = () => {
   const [anticipo2Amount, setAnticipo2Amount] = useState<string>('');
   const [anticipo3Amount, setAnticipo3Amount] = useState<string>('');
 
-  useEffect(() => {
-    if (id) {
-      console.log('📋 Loading event details for ID:', id);
-      loadEventData();
-    }
-  }, [id]);
-
-  const loadEventData = async () => {
+  const loadEventData = useCallback(async () => {
     try {
       setIsLoading(true);
       console.log('📥 Loading event data...');
@@ -50,7 +43,14 @@ const EventDetailScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      console.log('📋 Loading event details for ID:', id);
+      loadEventData();
+    }
+  }, [id, loadEventData]);
 
   const handleMarkAsPaid = async () => {
     if (!event) return;

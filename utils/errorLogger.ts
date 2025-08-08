@@ -52,7 +52,7 @@ const extractSourceLocation = (stack: string): string => {
     const lines = stack.split('\n');
     for (const line of lines) {
       if (line.includes('.tsx') || line.includes('.ts') || line.includes('.js')) {
-        const match = line.match(/([^\/\\]+\.(tsx?|jsx?)):\d+:\d+/);
+        const match = line.match(/([^/\\]+\.(tsx?|jsx?)):\d+:\d+/);
         if (match) {
           return match[1];
         }

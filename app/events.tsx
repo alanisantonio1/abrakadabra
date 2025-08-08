@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
@@ -20,36 +20,7 @@ const EventsScreen: React.FC = () => {
     loadEventsData();
   }, []);
 
-  useEffect(() => {
-    console.log('🔍 Filtering events...');
-    filterEvents();
-  }, [events, searchQuery, filterType]);
-
-  const loadEventsData = async () => {
-    try {
-      setIsLoading(true);
-      console.log('📥 Loading events data...');
-      const loadedEvents = await loadEvents();
-      
-      // Sort events by date (newest first)
-      const sortedEvents = loadedEvents.sort((a, b) => {
-        const dateComparison = b.date.localeCompare(a.date);
-        if (dateComparison === 0) {
-          return b.time.localeCompare(a.time);
-        }
-        return dateComparison;
-      });
-      
-      setEvents(sortedEvents);
-      console.log('✅ Events loaded successfully:', sortedEvents.length);
-    } catch (error: any) {
-      console.error('❌ Error loading events:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filterEvents = () => {
+  const filterEvents = useCallback(() => {
     let filtered = [...events];
 
     // Apply search filter
@@ -73,6 +44,35 @@ const EventsScreen: React.FC = () => {
 
     setFilteredEvents(filtered);
     console.log(`🔍 Filtered events: ${filtered.length} of ${events.length}`);
+  }, [events, searchQuery, filterType]);
+
+  useEffect(() => {
+    console.log('🔍 Filtering events...');
+    filterEvents();
+  }, [events, searchQuery, filterType, filterEvents]);
+
+  const loadEventsData = async () => {
+    try {
+      setIsLoading(true);
+      console.log('📥 Loading events data...');
+      const loadedEvents = await loadEvents();
+      
+      // Sort events by date (newest first)
+      const sortedEvents = loadedEvents.sort((a, b) => {
+        const dateComparison = b.date.localeCompare(a.date);
+        if (dateComparison === 0) {
+          return b.time.localeCompare(a.time);
+        }
+        return dateComparison;
+      });
+      
+      setEvents(sortedEvents);
+      console.log('✅ Events loaded successfully:', sortedEvents.length);
+    } catch (error: any) {
+      console.error('❌ Error loading events:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleMarkAsPaid = async (eventId: string) => {

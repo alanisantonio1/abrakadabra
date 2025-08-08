@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { colors, commonStyles } from '../styles/commonStyles';
 import { Event, CalendarDay } from '../types';
@@ -224,11 +224,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
 
-  useEffect(() => {
-    generateCalendarDays();
-  }, [currentMonth, events]);
-
-  const generateCalendarDays = () => {
+  const generateCalendarDays = useCallback(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
@@ -299,7 +295,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     }
     
     setCalendarDays(days);
-  };
+  }, [currentMonth, events]);
+
+  useEffect(() => {
+    generateCalendarDays();
+  }, [currentMonth, events, generateCalendarDays]);
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newMonth = new Date(currentMonth);
