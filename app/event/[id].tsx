@@ -1,17 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 import { loadEvents, updateEvent, deleteEvent } from '../../utils/storage';
 import { Event } from '../../types';
-import { sendWhatsAppReminder, sendWhatsAppCancellation } from '../../utils/whatsapp';
+import { sendWhatsAppReminder, sendWhatsAppCancellation, sendWhatsAppAnticipoConfirmation } from '../../utils/whatsapp';
 import Button from '../../components/Button';
 
 const EventDetailScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [anticipo2Amount, setAnticipo2Amount] = useState<string>('');
+  const [anticipo3Amount, setAnticipo3Amount] = useState<string>('');
 
   useEffect(() => {
     if (id) {
@@ -101,6 +103,110 @@ const EventDetailScreen: React.FC = () => {
     );
   };
 
+  const handleAnticipo = async (anticipoNumber: 2 | 3) => {
+    if (!event) return;
+
+    const amountStr = anticipoNumber === 2 ? anticipo2Amount : anticipo3Amount;
+    const amount = parseFloat(amountStr);
+
+    if (!amountStr || isNaN(amount) || amount <= 0) {
+      Alert.alert(
+        '❌ Error',
+        'Por favor ingresa un monto válido para el anticipo.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    const currentTotal = (event.anticipo1Amount || 0) + (event.anticipo2Amount || 0) + (event.anticipo3Amount || 0);
+    const newTotal = currentTotal + amount;
+
+    if (newTotal > event.totalAmount) {
+      Alert.alert(
+        '❌ Error',
+        `El monto total de anticipos ($${newTotal}) no puede exceder el total del evento ($${event.totalAmount}).`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      `💰 Registrar Anticipo ${anticipoNumber}`,
+      `¿Confirmas el registro del Anticipo ${anticipoNumber} por $${amount} para el evento de ${event.childName}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            try {
+              console.log(`💰 Registering anticipo ${anticipoNumber}:`, amount);
+              
+              const updatedEvent: Event = {
+                ...event,
+                ...(anticipoNumber === 2 && {
+                  anticipo2Amount: amount,
+                  anticipo2Date: new Date().toISOString()
+                }),
+                ...(anticipoNumber === 3 && {
+                  anticipo3Amount: amount,
+                  anticipo3Date: new Date().toISOString()
+                })
+              };
+
+              // Update remaining amount and deposit
+              const totalAnticipos = (updatedEvent.anticipo1Amount || 0) + 
+                                   (updatedEvent.anticipo2Amount || 0) + 
+                                   (updatedEvent.anticipo3Amount || 0);
+              
+              updatedEvent.deposit = totalAnticipos;
+              updatedEvent.remainingAmount = updatedEvent.totalAmount - totalAnticipos;
+              updatedEvent.isPaid = updatedEvent.remainingAmount <= 0;
+
+              const result = await updateEvent(updatedEvent);
+              
+              if (result.success) {
+                setEvent(updatedEvent);
+                
+                // Clear the input field
+                if (anticipoNumber === 2) {
+                  setAnticipo2Amount('');
+                } else {
+                  setAnticipo3Amount('');
+                }
+
+                // Send WhatsApp confirmation
+                try {
+                  sendWhatsAppAnticipoConfirmation(updatedEvent, anticipoNumber, amount);
+                } catch (whatsappError) {
+                  console.warn('⚠️ WhatsApp confirmation failed:', whatsappError);
+                }
+
+                Alert.alert(
+                  '✅ Anticipo Registrado',
+                  `El Anticipo ${anticipoNumber} por $${amount} ha sido registrado exitosamente.\n\nSe ha enviado una confirmación por WhatsApp.`,
+                  [{ text: 'OK' }]
+                );
+              } else {
+                Alert.alert(
+                  '❌ Error',
+                  `No se pudo registrar el anticipo: ${result.message}`,
+                  [{ text: 'OK' }]
+                );
+              }
+            } catch (error: any) {
+              console.error('❌ Error registering anticipo:', error);
+              Alert.alert(
+                '❌ Error',
+                `Error registrando el anticipo: ${error.message}`,
+                [{ text: 'OK' }]
+              );
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleDeleteEvent = async () => {
     if (!event) return;
 
@@ -150,7 +256,7 @@ const EventDetailScreen: React.FC = () => {
 
     try {
       console.log('📱 Sending WhatsApp reminder for event:', event.id);
-      await sendWhatsAppReminder(event);
+      sendWhatsAppReminder(event);
       Alert.alert(
         '✅ Recordatorio Enviado',
         'El recordatorio de WhatsApp ha sido enviado exitosamente.',
@@ -164,6 +270,17 @@ const EventDetailScreen: React.FC = () => {
         [{ text: 'OK' }]
       );
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'No registrada';
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (isLoading) {
@@ -181,6 +298,8 @@ const EventDetailScreen: React.FC = () => {
       </View>
     );
   }
+
+  const totalAnticipos = (event.anticipo1Amount || 0) + (event.anticipo2Amount || 0) + (event.anticipo3Amount || 0);
 
   return (
     <ScrollView style={commonStyles.container}>
@@ -261,8 +380,8 @@ const EventDetailScreen: React.FC = () => {
         </View>
         
         <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
-          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Anticipo:</Text>
-          <Text style={[commonStyles.detailValue, { color: colors.text }]}>${event.deposit.toLocaleString()}</Text>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.text }]}>Total Anticipos:</Text>
+          <Text style={[commonStyles.detailValue, { color: colors.text }]}>${totalAnticipos.toLocaleString()}</Text>
         </View>
         
         <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
@@ -273,6 +392,126 @@ const EventDetailScreen: React.FC = () => {
           ]}>
             ${event.remainingAmount.toLocaleString()}
           </Text>
+        </View>
+      </View>
+
+      {/* Anticipo Details */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Detalles de Anticipos</Text>
+        
+        {/* Anticipo 1 */}
+        <View style={{ backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, marginBottom: 10 }}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.primary, marginBottom: 4 }]}>
+            Anticipo 1 (Requerido)
+          </Text>
+          <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }]}>
+            <Text style={[commonStyles.detailLabel, { color: colors.text }]}>Monto:</Text>
+            <Text style={[commonStyles.detailValue, { color: colors.text }]}>
+              ${(event.anticipo1Amount || 0).toLocaleString()}
+            </Text>
+          </View>
+          <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between' }]}>
+            <Text style={[commonStyles.detailLabel, { color: colors.text }]}>Fecha:</Text>
+            <Text style={[commonStyles.detailValue, { color: colors.text }]}>
+              {formatDate(event.anticipo1Date || '')}
+            </Text>
+          </View>
+        </View>
+
+        {/* Anticipo 2 */}
+        <View style={{ backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, marginBottom: 10 }}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.secondary, marginBottom: 4 }]}>
+            Anticipo 2 (Opcional)
+          </Text>
+          <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }]}>
+            <Text style={[commonStyles.detailLabel, { color: colors.text }]}>Monto:</Text>
+            <Text style={[commonStyles.detailValue, { color: colors.text }]}>
+              ${(event.anticipo2Amount || 0).toLocaleString()}
+            </Text>
+          </View>
+          <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+            <Text style={[commonStyles.detailLabel, { color: colors.text }]}>Fecha:</Text>
+            <Text style={[commonStyles.detailValue, { color: colors.text }]}>
+              {formatDate(event.anticipo2Date || '')}
+            </Text>
+          </View>
+          
+          {!event.anticipo2Amount && (
+            <View>
+              <TextInput
+                style={[
+                  commonStyles.input,
+                  { 
+                    backgroundColor: colors.white,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 10,
+                    marginBottom: 8,
+                    color: colors.text
+                  }
+                ]}
+                placeholder="Monto del Anticipo 2"
+                placeholderTextColor={colors.textLight}
+                value={anticipo2Amount}
+                onChangeText={setAnticipo2Amount}
+                keyboardType="numeric"
+              />
+              <Button
+                text="💰 Registrar Anticipo 2"
+                onPress={() => handleAnticipo(2)}
+                style={[buttonStyles.secondary, { marginBottom: 0 }]}
+              />
+            </View>
+          )}
+        </View>
+
+        {/* Anticipo 3 */}
+        <View style={{ backgroundColor: colors.cardBackground, padding: 12, borderRadius: 8, marginBottom: 10 }}>
+          <Text style={[commonStyles.detailLabel, { fontWeight: 'bold', color: colors.accent, marginBottom: 4 }]}>
+            Anticipo 3 (Opcional)
+          </Text>
+          <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }]}>
+            <Text style={[commonStyles.detailLabel, { color: colors.text }]}>Monto:</Text>
+            <Text style={[commonStyles.detailValue, { color: colors.text }]}>
+              ${(event.anticipo3Amount || 0).toLocaleString()}
+            </Text>
+          </View>
+          <View style={[commonStyles.detailRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+            <Text style={[commonStyles.detailLabel, { color: colors.text }]}>Fecha:</Text>
+            <Text style={[commonStyles.detailValue, { color: colors.text }]}>
+              {formatDate(event.anticipo3Date || '')}
+            </Text>
+          </View>
+          
+          {!event.anticipo3Amount && (
+            <View>
+              <TextInput
+                style={[
+                  commonStyles.input,
+                  { 
+                    backgroundColor: colors.white,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    padding: 10,
+                    marginBottom: 8,
+                    color: colors.text
+                  }
+                ]}
+                placeholder="Monto del Anticipo 3"
+                placeholderTextColor={colors.textLight}
+                value={anticipo3Amount}
+                onChangeText={setAnticipo3Amount}
+                keyboardType="numeric"
+              />
+              <Button
+                text="💰 Registrar Anticipo 3"
+                onPress={() => handleAnticipo(3)}
+                style={[buttonStyles.accent, { marginBottom: 0 }]}
+              />
+            </View>
+          )}
         </View>
       </View>
 

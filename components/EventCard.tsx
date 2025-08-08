@@ -1,8 +1,8 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, commonStyles } from '../styles/commonStyles';
 import { Event } from '../types';
+import { colors, commonStyles } from '../styles/commonStyles';
 import { sendWhatsAppReminder } from '../utils/whatsapp';
 
 interface EventCardProps {
@@ -15,111 +15,105 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 15,
-    marginBottom: 10,
-    shadowColor: colors.black,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
     borderLeftWidth: 4,
   },
-  paidCard: {
+  cardPaid: {
     borderLeftColor: colors.success,
   },
-  pendingCard: {
+  cardPending: {
     borderLeftColor: colors.warning,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
+    alignItems: 'center',
+    marginBottom: 8,
   },
   childName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.primary,
+    color: colors.text,
     flex: 1,
   },
-  statusBadge: {
+  status: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginLeft: 10,
-  },
-  paidBadge: {
-    backgroundColor: colors.success,
-  },
-  pendingBadge: {
-    backgroundColor: colors.warning,
-  },
-  statusText: {
-    color: colors.white,
     fontSize: 12,
     fontWeight: 'bold',
+    color: colors.white,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
+  statusPaid: {
+    backgroundColor: colors.success,
   },
-  infoLabel: {
-    fontSize: 14,
-    color: colors.gray,
-    width: 80,
+  statusPending: {
+    backgroundColor: colors.warning,
   },
-  infoValue: {
-    fontSize: 14,
-    color: colors.text,
-    flex: 1,
-    fontWeight: '500',
+  details: {
+    marginBottom: 12,
   },
-  packageType: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  paymentInfo: {
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: colors.lightGray,
-    borderRadius: 8,
-  },
-  paymentRow: {
+  detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 3,
+    marginBottom: 4,
   },
-  paymentLabel: {
-    fontSize: 13,
-    color: colors.gray,
+  detailLabel: {
+    fontSize: 14,
+    color: colors.textLight,
   },
-  paymentValue: {
-    fontSize: 13,
+  detailValue: {
+    fontSize: 14,
     color: colors.text,
     fontWeight: '500',
   },
-  remainingAmount: {
-    color: colors.warning,
+  anticiposSection: {
+    backgroundColor: colors.lightGray,
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  anticiposTitle: {
+    fontSize: 12,
     fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  anticipoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  anticipoLabel: {
+    fontSize: 11,
+    color: colors.textLight,
+  },
+  anticipoValue: {
+    fontSize: 11,
+    color: colors.text,
+    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
-    marginTop: 10,
-    gap: 10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   actionButton: {
-    flex: 1,
-    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginLeft: 8,
   },
   whatsappButton: {
     backgroundColor: colors.success,
   },
-  markPaidButton: {
+  paidButton: {
     backgroundColor: colors.primary,
   },
   actionButtonText: {
@@ -127,19 +121,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  notes: {
-    marginTop: 8,
-    fontSize: 12,
-    color: colors.gray,
-    fontStyle: 'italic',
+  viewButton: {
+    flex: 1,
+    backgroundColor: colors.secondary,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  viewButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 
 const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) => {
-  const handleWhatsAppPress = async () => {
+  const handleWhatsAppPress = () => {
     try {
-      console.log('📱 Sending WhatsApp reminder for event:', event.id);
-      await sendWhatsAppReminder(event);
+      console.log('📱 Sending WhatsApp reminder from EventCard:', event.id);
+      sendWhatsAppReminder(event);
     } catch (error: any) {
       console.error('❌ Error sending WhatsApp reminder:', error);
     }
@@ -150,7 +150,6 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
       const date = new Date(dateString);
       return date.toLocaleDateString('es-ES', {
         weekday: 'short',
-        year: 'numeric',
         month: 'short',
         day: 'numeric'
       });
@@ -160,98 +159,106 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
   };
 
   const formatTime = (timeString: string): string => {
-    try {
-      // Assuming time is in HH:MM format
-      const [hours, minutes] = timeString.split(':');
-      const hour = parseInt(hours);
-      const ampm = hour >= 12 ? 'PM' : 'AM';
-      const displayHour = hour % 12 || 12;
-      return `${displayHour}:${minutes} ${ampm}`;
-    } catch (error) {
-      return timeString;
-    }
+    return timeString;
   };
 
+  const totalAnticipos = (event.anticipo1Amount || 0) + (event.anticipo2Amount || 0) + (event.anticipo3Amount || 0);
+  const anticiposCount = [
+    event.anticipo1Amount || 0,
+    event.anticipo2Amount || 0,
+    event.anticipo3Amount || 0
+  ].filter(amount => amount > 0).length;
+
   return (
-    <TouchableOpacity
-      style={[
-        styles.card,
-        event.isPaid ? styles.paidCard : styles.pendingCard
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <View style={[
+      styles.card,
+      event.isPaid ? styles.cardPaid : styles.cardPending
+    ]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.childName}>{event.childName}</Text>
-        <View style={[
-          styles.statusBadge,
-          event.isPaid ? styles.paidBadge : styles.pendingBadge
+        <Text style={[
+          styles.status,
+          event.isPaid ? styles.statusPaid : styles.statusPending
         ]}>
-          <Text style={styles.statusText}>
-            {event.isPaid ? 'PAGADO' : 'PENDIENTE'}
-          </Text>
-        </View>
+          {event.isPaid ? '✅ PAGADO' : '⏳ PENDIENTE'}
+        </Text>
       </View>
 
-      {/* Event Information */}
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Fecha:</Text>
-        <Text style={styles.infoValue}>{formatDate(event.date)}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Hora:</Text>
-        <Text style={styles.infoValue}>{formatTime(event.time)}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Cliente:</Text>
-        <Text style={styles.infoValue}>{event.customerName}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Teléfono:</Text>
-        <Text style={styles.infoValue}>{event.customerPhone}</Text>
-      </View>
-
-      <View style={styles.infoRow}>
-        <Text style={styles.infoLabel}>Paquete:</Text>
-        <Text style={[styles.infoValue, styles.packageType]}>{event.packageType}</Text>
-      </View>
-
-      {/* Payment Information */}
-      <View style={styles.paymentInfo}>
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Total:</Text>
-          <Text style={styles.paymentValue}>${event.totalAmount.toLocaleString()}</Text>
+      {/* Details */}
+      <View style={styles.details}>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Cliente:</Text>
+          <Text style={styles.detailValue}>{event.customerName}</Text>
         </View>
         
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Anticipo:</Text>
-          <Text style={styles.paymentValue}>${event.deposit.toLocaleString()}</Text>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Fecha:</Text>
+          <Text style={styles.detailValue}>{formatDate(event.date)}</Text>
         </View>
         
-        <View style={styles.paymentRow}>
-          <Text style={styles.paymentLabel}>Saldo:</Text>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Hora:</Text>
+          <Text style={styles.detailValue}>{formatTime(event.time)}</Text>
+        </View>
+        
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Paquete:</Text>
+          <Text style={styles.detailValue}>{event.packageType}</Text>
+        </View>
+        
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Total:</Text>
+          <Text style={styles.detailValue}>${event.totalAmount.toLocaleString()}</Text>
+        </View>
+        
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Saldo:</Text>
           <Text style={[
-            styles.paymentValue,
-            event.remainingAmount > 0 && styles.remainingAmount
+            styles.detailValue,
+            { color: event.remainingAmount > 0 ? colors.warning : colors.success }
           ]}>
             ${event.remainingAmount.toLocaleString()}
           </Text>
         </View>
       </View>
 
-      {/* Notes */}
-      {event.notes && (
-        <Text style={styles.notes} numberOfLines={2}>
-          {event.notes}
-        </Text>
+      {/* Anticipos Section */}
+      {anticiposCount > 0 && (
+        <View style={styles.anticiposSection}>
+          <Text style={styles.anticiposTitle}>
+            Anticipos ({anticiposCount}/3) - Total: ${totalAnticipos.toLocaleString()}
+          </Text>
+          
+          {(event.anticipo1Amount || 0) > 0 && (
+            <View style={styles.anticipoRow}>
+              <Text style={styles.anticipoLabel}>Anticipo 1:</Text>
+              <Text style={styles.anticipoValue}>${(event.anticipo1Amount || 0).toLocaleString()}</Text>
+            </View>
+          )}
+          
+          {(event.anticipo2Amount || 0) > 0 && (
+            <View style={styles.anticipoRow}>
+              <Text style={styles.anticipoLabel}>Anticipo 2:</Text>
+              <Text style={styles.anticipoValue}>${(event.anticipo2Amount || 0).toLocaleString()}</Text>
+            </View>
+          )}
+          
+          {(event.anticipo3Amount || 0) > 0 && (
+            <View style={styles.anticipoRow}>
+              <Text style={styles.anticipoLabel}>Anticipo 3:</Text>
+              <Text style={styles.anticipoValue}>${(event.anticipo3Amount || 0).toLocaleString()}</Text>
+            </View>
+          )}
+        </View>
       )}
 
-      {/* Action Buttons */}
+      {/* Actions */}
       <View style={styles.actions}>
+        <TouchableOpacity style={styles.viewButton} onPress={onPress}>
+          <Text style={styles.viewButtonText}>Ver Detalles</Text>
+        </TouchableOpacity>
+        
         <TouchableOpacity
           style={[styles.actionButton, styles.whatsappButton]}
           onPress={handleWhatsAppPress}
@@ -261,14 +268,14 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
         
         {!event.isPaid && onMarkAsPaid && (
           <TouchableOpacity
-            style={[styles.actionButton, styles.markPaidButton]}
+            style={[styles.actionButton, styles.paidButton]}
             onPress={onMarkAsPaid}
           >
-            <Text style={styles.actionButtonText}>💰 Marcar Pagado</Text>
+            <Text style={styles.actionButtonText}>💰 Pagado</Text>
           </TouchableOpacity>
         )}
       </View>
-    </TouchableOpacity>
+    </View>
   );
 };
 

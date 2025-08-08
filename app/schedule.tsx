@@ -4,134 +4,123 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'reac
 import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
 import { saveEvent, generateEventId, loadEvents } from '../utils/storage';
-import { Event } from '../types';
 import { packages } from '../data/packages';
 import PackageCard from '../components/PackageCard';
 import Button from '../components/Button';
+import { Event } from '../types';
 
 const ScheduleScreen: React.FC = () => {
-  const { date } = useLocalSearchParams<{ date?: string }>();
-  const [existingEvents, setExistingEvents] = useState<Event[]>([]);
+  const { date } = useLocalSearchParams<{ date: string }>();
   const [formData, setFormData] = useState({
-    date: date || '',
-    time: '',
     customerName: '',
     customerPhone: '',
     childName: '',
-    packageType: '' as 'Abra' | 'Kadabra' | 'Abrakadabra' | '',
+    packageType: 'Abra' as 'Abra' | 'Kadabra' | 'Abrakadabra',
+    time: '',
     totalAmount: 0,
     deposit: 0,
-    notes: ''
+    notes: '',
+    date: date || ''
   });
-
-  useEffect(() => {
-    if (date) {
-      console.log('📅 Pre-selected date:', date);
-      setFormData(prev => ({ ...prev, date }));
-    }
-  }, [date]);
-
-  useEffect(() => {
-    console.log('📋 ScheduleScreen mounted, loading existing events...');
-    loadExistingEvents();
-  }, []);
+  const [existingEvents, setExistingEvents] = useState<Event[]>([]);
 
   useEffect(() => {
     if (formData.packageType && formData.date) {
       const selectedPackage = packages.find(p => p.name === formData.packageType);
       if (selectedPackage) {
-        const selectedDate = new Date(formData.date);
-        const isWeekend = selectedDate.getDay() === 0 || selectedDate.getDay() === 6;
+        const eventDate = new Date(formData.date);
+        const isWeekend = eventDate.getDay() === 0 || eventDate.getDay() === 6;
         const price = isWeekend ? selectedPackage.weekendPrice : selectedPackage.weekdayPrice;
-        
-        setFormData(prev => ({
-          ...prev,
-          totalAmount: price,
-          deposit: Math.round(price * 0.5) // Default 50% deposit
-        }));
+        setFormData(prev => ({ ...prev, totalAmount: price }));
       }
     }
   }, [formData.packageType, formData.date]);
 
+  useEffect(() => {
+    loadExistingEvents();
+  }, []);
+
+  useEffect(() => {
+    if (date) {
+      setFormData(prev => ({ ...prev, date }));
+    }
+  }, [date]);
+
   const loadExistingEvents = async () => {
     try {
-      console.log('📥 Loading existing events...');
+      console.log('📥 Loading existing events for validation...');
       const events = await loadEvents();
       setExistingEvents(events);
-      console.log('✅ Existing events loaded:', events.length);
+      console.log('✅ Loaded existing events:', events.length);
     } catch (error: any) {
       console.error('❌ Error loading existing events:', error);
     }
   };
 
   const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Auto-calculate remaining amount when deposit changes
-    if (field === 'deposit') {
-      const depositAmount = typeof value === 'number' ? value : parseFloat(value.toString()) || 0;
-      setFormData(prev => ({
-        ...prev,
-        deposit: depositAmount,
-        remainingAmount: prev.totalAmount - depositAmount
-      }));
-    }
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const validateForm = (): string | null => {
-    if (!formData.date) return 'Selecciona una fecha';
-    if (!formData.time) return 'Selecciona una hora';
-    if (!formData.customerName.trim()) return 'Ingresa el nombre del cliente';
-    if (!formData.customerPhone.trim()) return 'Ingresa el teléfono del cliente';
-    if (!formData.childName.trim()) return 'Ingresa el nombre del niño/a';
-    if (!formData.packageType) return 'Selecciona un paquete';
-    if (formData.totalAmount <= 0) return 'El monto total debe ser mayor a 0';
-    if (formData.deposit < 0) return 'El anticipo no puede ser negativo';
-    if (formData.deposit > formData.totalAmount) return 'El anticipo no puede ser mayor al total';
-
-    // Check for time conflicts
-    const selectedDateTime = `${formData.date} ${formData.time}`;
-    const conflictingEvent = existingEvents.find(event => 
-      event.date === formData.date && event.time === formData.time
-    );
-
-    if (conflictingEvent) {
-      return `Ya existe un evento programado para ${formData.date} a las ${formData.time}`;
+  const validateForm = (): boolean => {
+    console.log('🔍 Validating form data...');
+    
+    if (!formData.customerName.trim()) {
+      Alert.alert('Error', 'Por favor ingresa el nombre del cliente');
+      return false;
+    }
+    
+    if (!formData.customerPhone.trim()) {
+      Alert.alert('Error', 'Por favor ingresa el teléfono del cliente');
+      return false;
+    }
+    
+    if (!formData.childName.trim()) {
+      Alert.alert('Error', 'Por favor ingresa el nombre del niño/a');
+      return false;
+    }
+    
+    if (!formData.time.trim()) {
+      Alert.alert('Error', 'Por favor ingresa la hora del evento');
+      return false;
+    }
+    
+    if (!formData.date) {
+      Alert.alert('Error', 'Por favor selecciona una fecha');
+      return false;
+    }
+    
+    if (formData.totalAmount <= 0) {
+      Alert.alert('Error', 'El monto total debe ser mayor a 0');
+      return false;
+    }
+    
+    if (formData.deposit < 0) {
+      Alert.alert('Error', 'El anticipo no puede ser negativo');
+      return false;
+    }
+    
+    if (formData.deposit > formData.totalAmount) {
+      Alert.alert('Error', 'El anticipo no puede ser mayor al monto total');
+      return false;
     }
 
-    return null;
+    return true;
   };
 
   const continueValidation = (): boolean => {
-    // Additional validations that can be bypassed
-    const warnings: string[] = [];
-
-    // Check if it's a past date
-    const selectedDate = new Date(formData.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Check for time conflicts
+    const conflictingEvents = existingEvents.filter(event => 
+      event.date === formData.date && event.time === formData.time
+    );
     
-    if (selectedDate < today) {
-      warnings.push('La fecha seleccionada es en el pasado');
-    }
-
-    // Check if deposit is very low
-    const depositPercentage = (formData.deposit / formData.totalAmount) * 100;
-    if (depositPercentage < 20) {
-      warnings.push('El anticipo es menor al 20% del total');
-    }
-
-    if (warnings.length > 0) {
+    if (conflictingEvents.length > 0) {
+      const conflictEvent = conflictingEvents[0];
       Alert.alert(
-        '⚠️ Advertencias',
-        warnings.join('\n\n') + '\n\n¿Deseas continuar de todas formas?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Continuar', onPress: () => handleSubmit(true) }
-        ]
+        'Conflicto de Horario',
+        `Ya existe un evento programado para ${formData.date} a las ${formData.time}:\n\n` +
+        `Cliente: ${conflictEvent.customerName}\n` +
+        `Niño/a: ${conflictEvent.childName}\n\n` +
+        `Por favor selecciona otro horario.`
       );
       return false;
     }
@@ -142,21 +131,17 @@ const ScheduleScreen: React.FC = () => {
   const handleSubmit = async (skipValidation: boolean = false) => {
     try {
       console.log('📝 Submitting event form...');
-
-      // Basic validation
-      const validationError = validateForm();
-      if (validationError) {
-        Alert.alert('Error de Validación', validationError);
-        return;
+      
+      if (!skipValidation) {
+        if (!validateForm()) return;
+        if (!continueValidation()) return;
       }
 
-      // Additional validation (can be skipped)
-      if (!skipValidation && !continueValidation()) {
-        return;
-      }
+      const eventId = generateEventId();
+      console.log('🆔 Generated event ID:', eventId);
 
       const newEvent: Event = {
-        id: generateEventId(),
+        id: eventId,
         date: formData.date,
         time: formData.time,
         customerName: formData.customerName.trim(),
@@ -168,16 +153,24 @@ const ScheduleScreen: React.FC = () => {
         remainingAmount: formData.totalAmount - formData.deposit,
         isPaid: formData.deposit >= formData.totalAmount,
         notes: formData.notes.trim(),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        // Initialize anticipo fields
+        anticipo1Amount: formData.deposit,
+        anticipo1Date: formData.deposit > 0 ? new Date().toISOString() : '',
+        anticipo2Amount: 0,
+        anticipo2Date: '',
+        anticipo3Amount: 0,
+        anticipo3Date: ''
       };
 
       console.log('💾 Saving new event:', newEvent);
       const result = await saveEvent(newEvent);
 
       if (result.success) {
+        console.log('✅ Event saved successfully');
         Alert.alert(
-          '✅ Evento Guardado',
-          `El evento para ${formData.childName} ha sido guardado exitosamente.\n\n${result.message}`,
+          '✅ Evento Creado',
+          `El evento para ${newEvent.childName} ha sido creado exitosamente.\n\n${result.message}`,
           [
             {
               text: 'Ver Evento',
@@ -186,53 +179,65 @@ const ScheduleScreen: React.FC = () => {
             {
               text: 'Crear Otro',
               onPress: () => {
-                // Reset form but keep date
+                // Reset form
                 setFormData({
-                  date: formData.date,
-                  time: '',
                   customerName: '',
                   customerPhone: '',
                   childName: '',
-                  packageType: '',
+                  packageType: 'Abra',
+                  time: '',
                   totalAmount: 0,
                   deposit: 0,
-                  notes: ''
+                  notes: '',
+                  date: date || ''
                 });
                 loadExistingEvents(); // Refresh existing events
               }
             },
             {
-              text: 'Ir a Inicio',
+              text: 'Ir al Inicio',
               onPress: () => router.replace('/')
             }
           ]
         );
       } else {
+        console.error('❌ Failed to save event:', result.message);
         Alert.alert(
           '❌ Error',
-          `No se pudo guardar el evento:\n\n${result.message}`,
-          [{ text: 'OK' }]
+          `No se pudo crear el evento:\n\n${result.message}`,
+          [
+            { text: 'Reintentar', onPress: () => handleSubmit(true) },
+            { text: 'Cancelar', style: 'cancel' }
+          ]
         );
       }
     } catch (error: any) {
       console.error('❌ Error submitting form:', error);
       Alert.alert(
-        '❌ Error Inesperado',
-        `Ocurrió un error al guardar el evento: ${error.message}`,
-        [{ text: 'OK' }]
+        '❌ Error',
+        `Error creando el evento: ${error.message || 'Unknown error'}`,
+        [
+          { text: 'Reintentar', onPress: () => handleSubmit(true) },
+          { text: 'Cancelar', style: 'cancel' }
+        ]
       );
     }
   };
 
-  const formatSelectedDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const formatSelectedDate = (dateString: string): string => {
+    if (!dateString) return 'No seleccionada';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return dateString;
+    }
   };
 
   return (
@@ -242,161 +247,180 @@ const ScheduleScreen: React.FC = () => {
           style={commonStyles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={commonStyles.backButtonText}>← Volver</Text>
+          <Text style={commonStyles.buttonText}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>🎪 Agendar Evento</Text>
-        {formData.date && (
-          <Text style={commonStyles.subtitle}>
-            📅 {formatSelectedDate(formData.date)}
+        <Text style={commonStyles.title}>📅 Agendar Evento</Text>
+      </View>
+
+      {/* Selected Date Display */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Fecha Seleccionada</Text>
+        <View style={[
+          commonStyles.selectedDateContainer,
+          {
+            backgroundColor: colors.primary,
+            padding: 15,
+            borderRadius: 10,
+            alignItems: 'center'
+          }
+        ]}>
+          <Text style={[
+            commonStyles.selectedDateText,
+            {
+              color: colors.white,
+              fontSize: 18,
+              fontWeight: 'bold',
+              textAlign: 'center'
+            }
+          ]}>
+            {formatSelectedDate(formData.date)}
           </Text>
-        )}
-      </View>
-
-      {/* Date and Time */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>📅 Fecha y Hora</Text>
-        
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Fecha *</Text>
-          <TextInput
-            style={[commonStyles.input, { backgroundColor: colors.lightGray }]}
-            value={formData.date}
-            onChangeText={(value) => handleInputChange('date', value)}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.gray}
-            editable={!date} // Make read-only if date was pre-selected
-          />
-          {date && (
-            <Text style={commonStyles.infoText}>
-              ✅ Fecha seleccionada desde el calendario
-            </Text>
-          )}
-        </View>
-
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Hora *</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={formData.time}
-            onChangeText={(value) => handleInputChange('time', value)}
-            placeholder="HH:MM (ej: 15:00)"
-            placeholderTextColor={colors.gray}
-          />
-        </View>
-      </View>
-
-      {/* Customer Information */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>👥 Información del Cliente</Text>
-        
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Nombre del Cliente *</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={formData.customerName}
-            onChangeText={(value) => handleInputChange('customerName', value)}
-            placeholder="Nombre completo"
-            placeholderTextColor={colors.gray}
-          />
-        </View>
-
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Teléfono *</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={formData.customerPhone}
-            onChangeText={(value) => handleInputChange('customerPhone', value)}
-            placeholder="+52 55 1234 5678"
-            keyboardType="phone-pad"
-            placeholderTextColor={colors.gray}
-          />
-        </View>
-
-        <View style={commonStyles.inputGroup}>
-          <Text style={commonStyles.label}>Nombre del Niño/a *</Text>
-          <TextInput
-            style={commonStyles.input}
-            value={formData.childName}
-            onChangeText={(value) => handleInputChange('childName', value)}
-            placeholder="Nombre del festejado"
-            placeholderTextColor={colors.gray}
-          />
         </View>
       </View>
 
       {/* Package Selection */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>📦 Seleccionar Paquete *</Text>
-        {packages.map((pkg) => (
-          <PackageCard
-            key={pkg.id}
-            package={pkg}
-            isSelected={formData.packageType === pkg.name}
-            onSelect={() => handleInputChange('packageType', pkg.name)}
-            selectedDate={formData.date}
-          />
-        ))}
+        <Text style={commonStyles.sectionTitle}>Seleccionar Paquete</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {packages.map((pkg) => (
+            <TouchableOpacity
+              key={pkg.id}
+              onPress={() => handleInputChange('packageType', pkg.name as any)}
+              style={{ marginRight: 15 }}
+            >
+              <PackageCard
+                package={pkg}
+                isSelected={formData.packageType === pkg.name}
+                selectedDate={formData.date}
+              />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
-      {/* Payment Information */}
-      {formData.packageType && (
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>💰 Información de Pago</Text>
-          
-          <View style={commonStyles.inputGroup}>
-            <Text style={commonStyles.label}>Monto Total</Text>
-            <TextInput
-              style={commonStyles.input}
-              value={formData.totalAmount.toString()}
-              onChangeText={(value) => handleInputChange('totalAmount', parseFloat(value) || 0)}
-              placeholder="0"
-              keyboardType="numeric"
-              placeholderTextColor={colors.gray}
-            />
-          </View>
-
-          <View style={commonStyles.inputGroup}>
-            <Text style={commonStyles.label}>Anticipo</Text>
-            <TextInput
-              style={commonStyles.input}
-              value={formData.deposit.toString()}
-              onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
-              placeholder="0"
-              keyboardType="numeric"
-              placeholderTextColor={colors.gray}
-            />
-          </View>
-
-          <View style={commonStyles.inputGroup}>
-            <Text style={commonStyles.label}>Saldo Restante</Text>
-            <View style={[commonStyles.input, { backgroundColor: colors.lightGray, justifyContent: 'center' }]}>
-              <Text style={{ fontSize: 16, color: colors.text, fontWeight: '600' }}>
-                ${(formData.totalAmount - formData.deposit).toLocaleString()}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Notes */}
+      {/* Event Details Form */}
       <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>📝 Notas Adicionales</Text>
+        <Text style={commonStyles.sectionTitle}>Detalles del Evento</Text>
+        
+        <Text style={commonStyles.inputLabel}>Nombre del Cliente *</Text>
         <TextInput
-          style={[commonStyles.input, { height: 100, textAlignVertical: 'top' }]}
+          style={commonStyles.input}
+          placeholder="Nombre completo del cliente"
+          placeholderTextColor={colors.textLight}
+          value={formData.customerName}
+          onChangeText={(value) => handleInputChange('customerName', value)}
+        />
+
+        <Text style={commonStyles.inputLabel}>Teléfono del Cliente *</Text>
+        <TextInput
+          style={commonStyles.input}
+          placeholder="+52 55 1234 5678"
+          placeholderTextColor={colors.textLight}
+          value={formData.customerPhone}
+          onChangeText={(value) => handleInputChange('customerPhone', value)}
+          keyboardType="phone-pad"
+        />
+
+        <Text style={commonStyles.inputLabel}>Nombre del Niño/a *</Text>
+        <TextInput
+          style={commonStyles.input}
+          placeholder="Nombre del festejado/a"
+          placeholderTextColor={colors.textLight}
+          value={formData.childName}
+          onChangeText={(value) => handleInputChange('childName', value)}
+        />
+
+        <Text style={commonStyles.inputLabel}>Hora del Evento *</Text>
+        <TextInput
+          style={commonStyles.input}
+          placeholder="15:00"
+          placeholderTextColor={colors.textLight}
+          value={formData.time}
+          onChangeText={(value) => handleInputChange('time', value)}
+        />
+
+        <Text style={commonStyles.inputLabel}>Monto Total</Text>
+        <TextInput
+          style={[commonStyles.input, { backgroundColor: colors.lightGray }]}
+          value={`$${formData.totalAmount.toLocaleString()}`}
+          editable={false}
+        />
+
+        <Text style={commonStyles.inputLabel}>Anticipo (Anticipo 1)</Text>
+        <TextInput
+          style={commonStyles.input}
+          placeholder="0"
+          placeholderTextColor={colors.textLight}
+          value={formData.deposit.toString()}
+          onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
+          keyboardType="numeric"
+        />
+
+        <Text style={commonStyles.inputLabel}>Notas (Opcional)</Text>
+        <TextInput
+          style={[commonStyles.input, { height: 80, textAlignVertical: 'top' }]}
+          placeholder="Notas adicionales sobre el evento..."
+          placeholderTextColor={colors.textLight}
           value={formData.notes}
           onChangeText={(value) => handleInputChange('notes', value)}
-          placeholder="Notas especiales, alergias, solicitudes..."
           multiline
-          placeholderTextColor={colors.gray}
+          numberOfLines={3}
         />
+      </View>
+
+      {/* Summary */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>Resumen</Text>
+        <View style={[
+          commonStyles.summaryContainer,
+          {
+            backgroundColor: colors.cardBackground,
+            padding: 15,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: colors.border
+          }
+        ]}>
+          <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+            <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Total:</Text>
+            <Text style={[commonStyles.summaryValue, { color: colors.text, fontWeight: 'bold' }]}>
+              ${formData.totalAmount.toLocaleString()}
+            </Text>
+          </View>
+          <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+            <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Anticipo 1:</Text>
+            <Text style={[commonStyles.summaryValue, { color: colors.primary, fontWeight: 'bold' }]}>
+              ${formData.deposit.toLocaleString()}
+            </Text>
+          </View>
+          <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between' }]}>
+            <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Saldo:</Text>
+            <Text style={[
+              commonStyles.summaryValue,
+              { 
+                color: (formData.totalAmount - formData.deposit) > 0 ? colors.warning : colors.success,
+                fontWeight: 'bold'
+              }
+            ]}>
+              ${(formData.totalAmount - formData.deposit).toLocaleString()}
+            </Text>
+          </View>
+        </View>
       </View>
 
       {/* Submit Button */}
       <View style={commonStyles.section}>
         <Button
-          title="🎉 Agendar Evento"
+          text="📅 Crear Evento"
           onPress={() => handleSubmit()}
-          style={buttonStyles.primary}
+          style={[
+            buttonStyles.primary,
+            {
+              backgroundColor: colors.primary,
+              paddingVertical: 15,
+              borderRadius: 10
+            }
+          ]}
         />
       </View>
     </ScrollView>

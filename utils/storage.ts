@@ -35,6 +35,12 @@ const eventToSupabaseFormat = (event: Event) => {
     remaining_amount: event.remainingAmount,
     is_paid: event.isPaid,
     notes: event.notes || null,
+    anticipo_1_amount: event.anticipo1Amount || 0,
+    anticipo_1_date: event.anticipo1Date || null,
+    anticipo_2_amount: event.anticipo2Amount || 0,
+    anticipo_2_date: event.anticipo2Date || null,
+    anticipo_3_amount: event.anticipo3Amount || 0,
+    anticipo_3_date: event.anticipo3Date || null,
   };
 };
 
@@ -54,6 +60,12 @@ const supabaseToEventFormat = (row: any): Event => {
     isPaid: row.is_paid,
     notes: row.notes || '',
     createdAt: row.created_at,
+    anticipo1Amount: row.anticipo_1_amount || 0,
+    anticipo1Date: row.anticipo_1_date || '',
+    anticipo2Amount: row.anticipo_2_amount || 0,
+    anticipo2Date: row.anticipo_2_date || '',
+    anticipo3Amount: row.anticipo_3_amount || 0,
+    anticipo3Date: row.anticipo_3_date || '',
   };
 };
 
@@ -679,6 +691,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
     report += '\n✅ Validación de datos mejorada';
     report += '\n✅ Manejo de errores robusto';
     report += '\n✅ Base de datos PostgreSQL escalable';
+    report += '\n✅ Seguimiento de anticipos múltiples';
     
     return report;
   } catch (error: any) {

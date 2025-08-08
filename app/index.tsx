@@ -4,39 +4,37 @@ import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { commonStyles, colors } from '../styles/commonStyles';
 import { loadEvents, testDatabaseConnections } from '../utils/storage';
-import { Event } from '../types';
-import DiagnosticsModal from '../components/DiagnosticsModal';
-import EventCard from '../components/EventCard';
 import CalendarView from '../components/CalendarView';
+import EventCard from '../components/EventCard';
+import DiagnosticsModal from '../components/DiagnosticsModal';
+import { Event } from '../types';
 
 const MainScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
-  const [showTools, setShowTools] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
+  const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+  const [showToolsModal, setShowToolsModal] = useState<boolean>(false);
 
   // Load events when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('📱 MainScreen focused, loading events...');
+      console.log('🔄 MainScreen focused, loading events...');
       loadEventsData();
     }, [])
   );
 
   useEffect(() => {
-    console.log('📱 MainScreen mounted');
+    console.log('🚀 MainScreen mounted, loading initial data...');
     loadEventsData();
   }, []);
 
   const loadEventsData = async () => {
     try {
-      setIsLoading(true);
       console.log('📥 Loading events data...');
-      const loadedEvents = await loadEvents();
-      setEvents(loadedEvents);
-      console.log('✅ Events loaded successfully:', loadedEvents.length);
+      const eventsData = await loadEvents();
+      setEvents(eventsData);
+      console.log('✅ Events loaded:', eventsData.length);
     } catch (error: any) {
       console.error('❌ Error loading events:', error);
       Alert.alert(
@@ -44,53 +42,70 @@ const MainScreen: React.FC = () => {
         `No se pudieron cargar los eventos: ${error.message}`,
         [{ text: 'OK' }]
       );
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleDateSelect = (date: string) => {
     console.log('📅 Date selected:', date);
     setSelectedDate(date);
-    setCurrentView('main');
     
-    // Navigate to schedule screen with the selected date
-    router.push({
-      pathname: '/schedule',
-      params: { date }
-    });
+    // Show confirmation alert for saving the date
+    Alert.alert(
+      '📅 Fecha Seleccionada',
+      `Has seleccionado: ${new Date(date).toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })}`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+          onPress: () => {
+            setSelectedDate('');
+            console.log('❌ Date selection cancelled');
+          }
+        },
+        {
+          text: 'Agendar Evento',
+          onPress: () => {
+            console.log('✅ Navigating to schedule with date:', date);
+            router.push(`/schedule?date=${date}`);
+          }
+        }
+      ]
+    );
   };
 
   const getUpcomingEvents = (): Event[] => {
     const today = new Date();
-    const todayString = today.toISOString().split('T')[0];
+    today.setHours(0, 0, 0, 0);
     
     return events
-      .filter(event => event.date >= todayString)
-      .sort((a, b) => {
-        const dateComparison = a.date.localeCompare(b.date);
-        if (dateComparison === 0) {
-          return a.time.localeCompare(b.time);
-        }
-        return dateComparison;
+      .filter(event => {
+        const eventDate = new Date(event.date);
+        eventDate.setHours(0, 0, 0, 0);
+        return eventDate >= today;
       })
-      .slice(0, 5); // Show only next 5 events
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 5);
   };
 
   const testDatabaseConnection = async () => {
     try {
-      console.log('🧪 Testing database connection...');
-      const result = await testDatabaseConnections();
+      console.log('🧪 Testing database connections...');
+      const report = await testDatabaseConnections();
       Alert.alert(
-        'Prueba de Conexión',
-        result,
+        '🔍 Diagnóstico de Conexiones',
+        report,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
-      console.error('❌ Error testing connection:', error);
+      console.error('❌ Error testing connections:', error);
       Alert.alert(
-        'Error de Conexión',
-        `Error probando conexión: ${error.message}`,
+        'Error',
+        `Error en diagnóstico: ${error.message}`,
         [{ text: 'OK' }]
       );
     }
@@ -98,164 +113,251 @@ const MainScreen: React.FC = () => {
 
   const handleNavigation = (path: string) => {
     console.log('🧭 Navigating to:', path);
-    router.push(path as any);
+    router.push(path);
   };
 
-  const renderToolsModal = () => (
-    <View style={[commonStyles.modalOverlay, { display: showTools ? 'flex' : 'none' }]}>
-      <View style={commonStyles.modalContent}>
-        <View style={commonStyles.modalHeader}>
-          <Text style={commonStyles.modalTitle}>🔧 Herramientas</Text>
+  const renderToolsModal = () => {
+    if (!showToolsModal) return null;
+
+    return (
+      <View style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+        zIndex: 1000
+      }}>
+        <View style={{
+          backgroundColor: colors.white,
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          padding: 20,
+          paddingBottom: 40
+        }}>
+          <Text style={[
+            commonStyles.sectionTitle,
+            { textAlign: 'center', marginBottom: 20, color: colors.text }
+          ]}>
+            🛠️ Herramientas
+          </Text>
+          
           <TouchableOpacity
-            style={commonStyles.modalCloseButton}
-            onPress={() => setShowTools(false)}
-          >
-            <Text style={commonStyles.modalCloseText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={commonStyles.toolsGrid}>
-          <TouchableOpacity
-            style={[commonStyles.toolButton, { backgroundColor: colors.info }]}
+            style={[
+              commonStyles.toolButton,
+              {
+                backgroundColor: colors.primary,
+                padding: 15,
+                borderRadius: 10,
+                marginBottom: 10,
+                alignItems: 'center'
+              }
+            ]}
             onPress={() => {
-              setShowTools(false);
+              setShowToolsModal(false);
               setShowDiagnostics(true);
             }}
           >
-            <Text style={commonStyles.toolIcon}>🔍</Text>
-            <Text style={commonStyles.toolText}>Diagnósticos</Text>
+            <Text style={[commonStyles.toolButtonText, { color: colors.white, fontSize: 16 }]}>
+              🔍 Diagnóstico del Sistema
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[commonStyles.toolButton, { backgroundColor: colors.success }]}
+            style={[
+              commonStyles.toolButton,
+              {
+                backgroundColor: colors.secondary,
+                padding: 15,
+                borderRadius: 10,
+                marginBottom: 20,
+                alignItems: 'center'
+              }
+            ]}
             onPress={() => {
-              setShowTools(false);
+              setShowToolsModal(false);
               testDatabaseConnection();
             }}
           >
-            <Text style={commonStyles.toolIcon}>🧪</Text>
-            <Text style={commonStyles.toolText}>Probar Conexión</Text>
+            <Text style={[commonStyles.toolButtonText, { color: colors.white, fontSize: 16 }]}>
+              🧪 Probar Conexiones
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              commonStyles.closeButton,
+              {
+                backgroundColor: colors.lightGray,
+                padding: 15,
+                borderRadius: 10,
+                alignItems: 'center'
+              }
+            ]}
+            onPress={() => setShowToolsModal(false)}
+          >
+            <Text style={[commonStyles.closeButtonText, { color: colors.text, fontSize: 16 }]}>
+              ❌ Cerrar
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderMainScreen = () => (
-    <View style={{ flex: 1 }}>
-      <ScrollView style={commonStyles.container}>
-        <View style={commonStyles.header}>
-          <Text style={commonStyles.title}>🎪 Abrakadabra</Text>
-          <Text style={commonStyles.subtitle}>Gestión de Eventos Infantiles</Text>
-        </View>
+    <ScrollView style={commonStyles.container}>
+      <View style={commonStyles.header}>
+        <Text style={commonStyles.title}>🎪 Abrakadabra Events</Text>
+        <Text style={commonStyles.subtitle}>Gestión de Eventos Infantiles</Text>
+      </View>
 
-        {/* Quick Actions - Only main functions */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Acciones Principales</Text>
-          <View style={commonStyles.buttonGrid}>
-            <TouchableOpacity
-              style={[commonStyles.gridButton, { backgroundColor: colors.accent }]}
-              onPress={() => setCurrentView('calendar')}
-            >
-              <Text style={commonStyles.gridButtonText}>🗓️ Seleccionar Fechas</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[commonStyles.gridButton, { backgroundColor: colors.secondary }]}
-              onPress={() => handleNavigation('/events')}
-            >
-              <Text style={commonStyles.gridButtonText}>📋 Ver Eventos</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[commonStyles.gridButton, { backgroundColor: colors.warning }]}
-              onPress={() => handleNavigation('/packages')}
-            >
-              <Text style={commonStyles.gridButtonText}>📦 Paquetes</Text>
-            </TouchableOpacity>
+      {/* Quick Stats */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>📊 Resumen</Text>
+        <View style={[
+          commonStyles.statsContainer,
+          {
+            flexDirection: 'row',
+            justifyContent: 'space-around',
+            backgroundColor: colors.cardBackground,
+            padding: 15,
+            borderRadius: 10,
+            marginBottom: 10
+          }
+        ]}>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[commonStyles.statNumber, { fontSize: 24, fontWeight: 'bold', color: colors.primary }]}>
+              {events.length}
+            </Text>
+            <Text style={[commonStyles.statLabel, { color: colors.text, fontSize: 12 }]}>
+              Total Eventos
+            </Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[commonStyles.statNumber, { fontSize: 24, fontWeight: 'bold', color: colors.success }]}>
+              {events.filter(e => e.isPaid).length}
+            </Text>
+            <Text style={[commonStyles.statLabel, { color: colors.text, fontSize: 12 }]}>
+              Pagados
+            </Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[commonStyles.statNumber, { fontSize: 24, fontWeight: 'bold', color: colors.warning }]}>
+              {events.filter(e => !e.isPaid).length}
+            </Text>
+            <Text style={[commonStyles.statLabel, { color: colors.text, fontSize: 12 }]}>
+              Pendientes
+            </Text>
           </View>
         </View>
+      </View>
 
-        {/* Upcoming Events */}
-        <View style={commonStyles.section}>
-          <View style={commonStyles.sectionHeader}>
-            <Text style={commonStyles.sectionTitle}>Próximos Eventos</Text>
-            <TouchableOpacity
-              style={commonStyles.seeAllButton}
-              onPress={() => handleNavigation('/events')}
-            >
-              <Text style={commonStyles.seeAllText}>Ver todos →</Text>
-            </TouchableOpacity>
-          </View>
+      {/* Quick Actions */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>⚡ Acciones Rápidas</Text>
+        <View style={[
+          commonStyles.quickActions,
+          {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginBottom: 10
+          }
+        ]}>
+          <TouchableOpacity
+            style={[
+              commonStyles.quickActionButton,
+              {
+                flex: 1,
+                backgroundColor: colors.primary,
+                padding: 15,
+                borderRadius: 10,
+                alignItems: 'center',
+                marginRight: 5
+              }
+            ]}
+            onPress={() => setCurrentView('calendar')}
+          >
+            <Text style={[commonStyles.quickActionText, { color: colors.white, fontSize: 14, fontWeight: 'bold' }]}>
+              📅 Seleccionar Fecha
+            </Text>
+          </TouchableOpacity>
           
-          {isLoading ? (
-            <View style={commonStyles.loadingContainer}>
-              <Text style={commonStyles.loadingText}>🔄 Cargando eventos...</Text>
-            </View>
-          ) : getUpcomingEvents().length > 0 ? (
-            getUpcomingEvents().map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onPress={() => router.push(`/event/${event.id}`)}
-                onMarkAsPaid={() => loadEventsData()}
-              />
-            ))
-          ) : (
-            <View style={commonStyles.emptyContainer}>
-              <Text style={commonStyles.emptyText}>📅 No hay eventos próximos</Text>
-              <Text style={commonStyles.emptySubtext}>
-                Selecciona una fecha para agendar tu primer evento
-              </Text>
-            </View>
-          )}
+          <TouchableOpacity
+            style={[
+              commonStyles.quickActionButton,
+              {
+                flex: 1,
+                backgroundColor: colors.secondary,
+                padding: 15,
+                borderRadius: 10,
+                alignItems: 'center',
+                marginLeft: 5
+              }
+            ]}
+            onPress={() => handleNavigation('/events')}
+          >
+            <Text style={[commonStyles.quickActionText, { color: colors.white, fontSize: 14, fontWeight: 'bold' }]}>
+              📋 Ver Eventos
+            </Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Statistics */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Resumen</Text>
-          <View style={commonStyles.statsContainer}>
-            <View style={[commonStyles.statItem, { backgroundColor: colors.primary }]}>
-              <Text style={commonStyles.statNumber}>{events.length}</Text>
-              <Text style={commonStyles.statLabel}>Total Eventos</Text>
-            </View>
-            <View style={[commonStyles.statItem, { backgroundColor: colors.warning }]}>
-              <Text style={commonStyles.statNumber}>
-                {events.filter(e => !e.isPaid).length}
-              </Text>
-              <Text style={commonStyles.statLabel}>Pendientes</Text>
-            </View>
-            <View style={[commonStyles.statItem, { backgroundColor: colors.success }]}>
-              <Text style={commonStyles.statNumber}>
-                {events.filter(e => e.isPaid).length}
-              </Text>
-              <Text style={commonStyles.statLabel}>Pagados</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Add some bottom padding to account for the fixed tools button */}
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Fixed Tools Button at Bottom */}
-      <View style={commonStyles.bottomToolsContainer}>
+        
         <TouchableOpacity
-          style={commonStyles.toolsButton}
-          onPress={() => setShowTools(true)}
+          style={[
+            commonStyles.quickActionButton,
+            {
+              backgroundColor: colors.accent,
+              padding: 15,
+              borderRadius: 10,
+              alignItems: 'center'
+            }
+          ]}
+          onPress={() => handleNavigation('/packages')}
         >
-          <Text style={commonStyles.toolsButtonText}>🔧 Herramientas</Text>
+          <Text style={[commonStyles.quickActionText, { color: colors.white, fontSize: 14, fontWeight: 'bold' }]}>
+            📦 Ver Paquetes
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Tools Modal */}
-      {renderToolsModal()}
-
-      <DiagnosticsModal
-        visible={showDiagnostics}
-        onClose={() => setShowDiagnostics(false)}
-      />
-    </View>
+      {/* Upcoming Events */}
+      <View style={commonStyles.section}>
+        <Text style={commonStyles.sectionTitle}>📅 Próximos Eventos</Text>
+        {getUpcomingEvents().length > 0 ? (
+          getUpcomingEvents().map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => router.push(`/event/${event.id}`)}
+              onMarkAsPaid={async () => {
+                // This will be handled in the EventCard component
+                await loadEventsData();
+              }}
+            />
+          ))
+        ) : (
+          <View style={[
+            commonStyles.emptyState,
+            {
+              backgroundColor: colors.lightGray,
+              padding: 20,
+              borderRadius: 10,
+              alignItems: 'center'
+            }
+          ]}>
+            <Text style={[commonStyles.emptyStateText, { color: colors.textLight, fontSize: 16 }]}>
+              📭 No hay eventos próximos
+            </Text>
+            <Text style={[commonStyles.emptyStateSubtext, { color: colors.textLight, fontSize: 14, marginTop: 5 }]}>
+              Selecciona una fecha para agendar un nuevo evento
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 
   const renderCalendarScreen = () => (
@@ -265,12 +367,11 @@ const MainScreen: React.FC = () => {
           style={commonStyles.backButton}
           onPress={() => setCurrentView('main')}
         >
-          <Text style={commonStyles.backButtonText}>← Volver</Text>
+          <Text style={commonStyles.buttonText}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={commonStyles.title}>🗓️ Seleccionar Fecha</Text>
-        <Text style={commonStyles.subtitle}>Toca una fecha para agendar un evento</Text>
+        <Text style={commonStyles.title}>📅 Seleccionar Fecha</Text>
       </View>
-      
+
       <CalendarView
         events={events}
         onDateSelect={handleDateSelect}
@@ -279,7 +380,44 @@ const MainScreen: React.FC = () => {
     </View>
   );
 
-  return currentView === 'main' ? renderMainScreen() : renderCalendarScreen();
+  return (
+    <View style={{ flex: 1 }}>
+      {currentView === 'main' ? renderMainScreen() : renderCalendarScreen()}
+      
+      {/* Tools Button - Fixed at bottom */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 30,
+          right: 20,
+          backgroundColor: colors.primary,
+          width: 60,
+          height: 60,
+          borderRadius: 30,
+          justifyContent: 'center',
+          alignItems: 'center',
+          shadowColor: colors.shadow,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 4,
+          elevation: 5,
+          zIndex: 999
+        }}
+        onPress={() => setShowToolsModal(true)}
+      >
+        <Text style={{ fontSize: 24 }}>🛠️</Text>
+      </TouchableOpacity>
+
+      {/* Tools Modal */}
+      {renderToolsModal()}
+
+      {/* Diagnostics Modal */}
+      <DiagnosticsModal
+        visible={showDiagnostics}
+        onClose={() => setShowDiagnostics(false)}
+      />
+    </View>
+  );
 };
 
 export default MainScreen;
