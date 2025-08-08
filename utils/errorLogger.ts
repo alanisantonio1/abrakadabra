@@ -220,8 +220,8 @@ export const handleSupabaseError = (error: any, operation: string) => {
   }, 'SupabaseError');
 };
 
-// Initialize error logging
-export const initializeErrorLogging = () => {
+// Initialize error logging - FIXED FUNCTION NAME
+export const setupErrorLogging = () => {
   console.log('🚀 Error logging initialized for Abrakadabra Events App');
   
   // Global error handler for unhandled promise rejections
@@ -240,6 +240,9 @@ export const initializeErrorLogging = () => {
   });
 };
 
+// Also export the alternative name for compatibility
+export const initializeErrorLogging = setupErrorLogging;
+
 // Export default logger
 export default {
   error: logErrorMessage,
@@ -249,5 +252,6 @@ export default {
   getRecent: getRecentErrors,
   clear: clearStoredErrors,
   format: formatErrorsForDisplay,
-  init: initializeErrorLogging
+  init: setupErrorLogging,
+  setup: setupErrorLogging
 };

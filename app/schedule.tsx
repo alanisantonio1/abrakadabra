@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
 import { saveEvent, generateEventId, loadEvents } from '../utils/storage';
@@ -8,6 +8,44 @@ import { packages } from '../data/packages';
 import PackageCard from '../components/PackageCard';
 import Button from '../components/Button';
 import { Event } from '../types';
+
+const scheduleStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContainer: {
+    paddingBottom: 120, // Extra space to prevent button overlap
+  },
+  submitButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.white,
+    padding: 20,
+    paddingBottom: 40, // Extra padding for system buttons
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    boxShadow: '0 -2px 10px rgba(0,0,0,0.1)',
+    elevation: 5,
+  },
+  submitButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 56,
+    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+    elevation: 3,
+  },
+  submitButtonText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
 const ScheduleScreen: React.FC = () => {
   const { date } = useLocalSearchParams<{ date: string }>();
@@ -241,189 +279,189 @@ const ScheduleScreen: React.FC = () => {
   };
 
   return (
-    <ScrollView style={commonStyles.container}>
-      <View style={commonStyles.header}>
-        <TouchableOpacity
-          style={commonStyles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={commonStyles.buttonText}>← Volver</Text>
-        </TouchableOpacity>
-        <Text style={commonStyles.title}>📅 Agendar Evento</Text>
-      </View>
-
-      {/* Selected Date Display */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Fecha Seleccionada</Text>
-        <View style={[
-          commonStyles.selectedDateContainer,
-          {
-            backgroundColor: colors.primary,
-            padding: 15,
-            borderRadius: 10,
-            alignItems: 'center'
-          }
-        ]}>
-          <Text style={[
-            commonStyles.selectedDateText,
-            {
-              color: colors.white,
-              fontSize: 18,
-              fontWeight: 'bold',
-              textAlign: 'center'
-            }
-          ]}>
-            {formatSelectedDate(formData.date)}
-          </Text>
+    <View style={scheduleStyles.container}>
+      <ScrollView 
+        style={commonStyles.container}
+        contentContainerStyle={scheduleStyles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={commonStyles.header}>
+          <TouchableOpacity
+            style={commonStyles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={commonStyles.buttonText}>← Volver</Text>
+          </TouchableOpacity>
+          <Text style={commonStyles.title}>📅 Agendar Evento</Text>
         </View>
-      </View>
 
-      {/* Package Selection */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Seleccionar Paquete</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {packages.map((pkg) => (
-            <TouchableOpacity
-              key={pkg.id}
-              onPress={() => handleInputChange('packageType', pkg.name as any)}
-              style={{ marginRight: 15 }}
-            >
-              <PackageCard
-                package={pkg}
-                isSelected={formData.packageType === pkg.name}
-                selectedDate={formData.date}
-              />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Event Details Form */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Detalles del Evento</Text>
-        
-        <Text style={commonStyles.inputLabel}>Nombre del Cliente *</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="Nombre completo del cliente"
-          placeholderTextColor={colors.textLight}
-          value={formData.customerName}
-          onChangeText={(value) => handleInputChange('customerName', value)}
-        />
-
-        <Text style={commonStyles.inputLabel}>Teléfono del Cliente *</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="+52 55 1234 5678"
-          placeholderTextColor={colors.textLight}
-          value={formData.customerPhone}
-          onChangeText={(value) => handleInputChange('customerPhone', value)}
-          keyboardType="phone-pad"
-        />
-
-        <Text style={commonStyles.inputLabel}>Nombre del Niño/a *</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="Nombre del festejado/a"
-          placeholderTextColor={colors.textLight}
-          value={formData.childName}
-          onChangeText={(value) => handleInputChange('childName', value)}
-        />
-
-        <Text style={commonStyles.inputLabel}>Hora del Evento *</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="15:00"
-          placeholderTextColor={colors.textLight}
-          value={formData.time}
-          onChangeText={(value) => handleInputChange('time', value)}
-        />
-
-        <Text style={commonStyles.inputLabel}>Monto Total</Text>
-        <TextInput
-          style={[commonStyles.input, { backgroundColor: colors.lightGray }]}
-          value={`$${formData.totalAmount.toLocaleString()}`}
-          editable={false}
-        />
-
-        <Text style={commonStyles.inputLabel}>Anticipo (Anticipo 1)</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="0"
-          placeholderTextColor={colors.textLight}
-          value={formData.deposit.toString()}
-          onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
-          keyboardType="numeric"
-        />
-
-        <Text style={commonStyles.inputLabel}>Notas (Opcional)</Text>
-        <TextInput
-          style={[commonStyles.input, { height: 80, textAlignVertical: 'top' }]}
-          placeholder="Notas adicionales sobre el evento..."
-          placeholderTextColor={colors.textLight}
-          value={formData.notes}
-          onChangeText={(value) => handleInputChange('notes', value)}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      {/* Summary */}
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.sectionTitle}>Resumen</Text>
-        <View style={[
-          commonStyles.summaryContainer,
-          {
-            backgroundColor: colors.cardBackground,
-            padding: 15,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: colors.border
-          }
-        ]}>
-          <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
-            <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Total:</Text>
-            <Text style={[commonStyles.summaryValue, { color: colors.text, fontWeight: 'bold' }]}>
-              ${formData.totalAmount.toLocaleString()}
-            </Text>
-          </View>
-          <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
-            <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Anticipo 1:</Text>
-            <Text style={[commonStyles.summaryValue, { color: colors.primary, fontWeight: 'bold' }]}>
-              ${formData.deposit.toLocaleString()}
-            </Text>
-          </View>
-          <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between' }]}>
-            <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Saldo:</Text>
-            <Text style={[
-              commonStyles.summaryValue,
-              { 
-                color: (formData.totalAmount - formData.deposit) > 0 ? colors.warning : colors.success,
-                fontWeight: 'bold'
-              }
-            ]}>
-              ${(formData.totalAmount - formData.deposit).toLocaleString()}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Submit Button */}
-      <View style={commonStyles.section}>
-        <Button
-          text="📅 Crear Evento"
-          onPress={() => handleSubmit()}
-          style={[
-            buttonStyles.primary,
+        {/* Selected Date Display */}
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Fecha Seleccionada</Text>
+          <View style={[
+            commonStyles.selectedDateContainer,
             {
               backgroundColor: colors.primary,
-              paddingVertical: 15,
-              borderRadius: 10
+              padding: 15,
+              borderRadius: 10,
+              alignItems: 'center'
             }
-          ]}
-        />
+          ]}>
+            <Text style={[
+              commonStyles.selectedDateText,
+              {
+                color: colors.white,
+                fontSize: 18,
+                fontWeight: 'bold',
+                textAlign: 'center'
+              }
+            ]}>
+              {formatSelectedDate(formData.date)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Package Selection */}
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Seleccionar Paquete</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {packages.map((pkg) => (
+              <TouchableOpacity
+                key={pkg.id}
+                onPress={() => handleInputChange('packageType', pkg.name as any)}
+                style={{ marginRight: 15 }}
+              >
+                <PackageCard
+                  package={pkg}
+                  isSelected={formData.packageType === pkg.name}
+                  selectedDate={formData.date}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Event Details Form */}
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Detalles del Evento</Text>
+          
+          <Text style={commonStyles.inputLabel}>Nombre del Cliente *</Text>
+          <TextInput
+            style={commonStyles.input}
+            placeholder="Nombre completo del cliente"
+            placeholderTextColor={colors.textLight}
+            value={formData.customerName}
+            onChangeText={(value) => handleInputChange('customerName', value)}
+          />
+
+          <Text style={commonStyles.inputLabel}>Teléfono del Cliente *</Text>
+          <TextInput
+            style={commonStyles.input}
+            placeholder="+52 55 1234 5678"
+            placeholderTextColor={colors.textLight}
+            value={formData.customerPhone}
+            onChangeText={(value) => handleInputChange('customerPhone', value)}
+            keyboardType="phone-pad"
+          />
+
+          <Text style={commonStyles.inputLabel}>Nombre del Niño/a *</Text>
+          <TextInput
+            style={commonStyles.input}
+            placeholder="Nombre del festejado/a"
+            placeholderTextColor={colors.textLight}
+            value={formData.childName}
+            onChangeText={(value) => handleInputChange('childName', value)}
+          />
+
+          <Text style={commonStyles.inputLabel}>Hora del Evento *</Text>
+          <TextInput
+            style={commonStyles.input}
+            placeholder="15:00"
+            placeholderTextColor={colors.textLight}
+            value={formData.time}
+            onChangeText={(value) => handleInputChange('time', value)}
+          />
+
+          <Text style={commonStyles.inputLabel}>Monto Total</Text>
+          <TextInput
+            style={[commonStyles.input, { backgroundColor: colors.lightGray }]}
+            value={`$${formData.totalAmount.toLocaleString()}`}
+            editable={false}
+          />
+
+          <Text style={commonStyles.inputLabel}>Anticipo (Anticipo 1)</Text>
+          <TextInput
+            style={commonStyles.input}
+            placeholder="0"
+            placeholderTextColor={colors.textLight}
+            value={formData.deposit.toString()}
+            onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
+            keyboardType="numeric"
+          />
+
+          <Text style={commonStyles.inputLabel}>Notas (Opcional)</Text>
+          <TextInput
+            style={[commonStyles.input, { height: 80, textAlignVertical: 'top' }]}
+            placeholder="Notas adicionales sobre el evento..."
+            placeholderTextColor={colors.textLight}
+            value={formData.notes}
+            onChangeText={(value) => handleInputChange('notes', value)}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+
+        {/* Summary */}
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Resumen</Text>
+          <View style={[
+            commonStyles.summaryContainer,
+            {
+              backgroundColor: colors.cardBackground,
+              padding: 15,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: colors.border
+            }
+          ]}>
+            <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+              <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Total:</Text>
+              <Text style={[commonStyles.summaryValue, { color: colors.text, fontWeight: 'bold' }]}>
+                ${formData.totalAmount.toLocaleString()}
+              </Text>
+            </View>
+            <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
+              <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Anticipo 1:</Text>
+              <Text style={[commonStyles.summaryValue, { color: colors.primary, fontWeight: 'bold' }]}>
+                ${formData.deposit.toLocaleString()}
+              </Text>
+            </View>
+            <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between' }]}>
+              <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Saldo:</Text>
+              <Text style={[
+                commonStyles.summaryValue,
+                { 
+                  color: (formData.totalAmount - formData.deposit) > 0 ? colors.warning : colors.success,
+                  fontWeight: 'bold'
+                }
+              ]}>
+                ${(formData.totalAmount - formData.deposit).toLocaleString()}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Fixed Submit Button - FIXED OVERLAP ISSUE */}
+      <View style={scheduleStyles.submitButtonContainer}>
+        <TouchableOpacity
+          style={scheduleStyles.submitButton}
+          onPress={() => handleSubmit()}
+        >
+          <Text style={scheduleStyles.submitButtonText}>📅 Crear Evento</Text>
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 };
 

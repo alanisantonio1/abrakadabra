@@ -92,10 +92,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  // Day states
+  // Day states - FIXED AVAILABILITY COLORS
   currentMonthDay: {
-    backgroundColor: colors.white,
-    borderColor: colors.lightGray,
+    backgroundColor: '#4CAF50', // Verde para disponible
+    borderColor: '#4CAF50',
   },
   otherMonthDay: {
     backgroundColor: colors.lightGray,
@@ -119,18 +119,18 @@ const styles = StyleSheet.create({
     borderColor: colors.gray,
   },
   hasEventDay: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-    boxShadow: '0 2px 8px rgba(46, 204, 113, 0.3)',
+    backgroundColor: '#F44336', // Rojo para ocupado
+    borderColor: '#F44336',
+    boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)',
     elevation: 2,
   },
   hasMultipleEventsDay: {
-    backgroundColor: colors.warning,
-    borderColor: colors.warning,
-    boxShadow: '0 2px 8px rgba(243, 156, 18, 0.3)',
+    backgroundColor: '#FF5722', // Rojo más intenso para múltiples eventos
+    borderColor: '#FF5722',
+    boxShadow: '0 2px 8px rgba(255, 87, 34, 0.3)',
     elevation: 2,
   },
-  // Text states
+  // Text states - FIXED TEXT COLORS
   todayText: {
     color: colors.white,
     fontWeight: 'bold',
@@ -149,11 +149,15 @@ const styles = StyleSheet.create({
   otherMonthText: {
     color: colors.gray,
   },
+  availableText: {
+    color: colors.white, // Texto blanco para fechas disponibles (verde)
+    fontWeight: 'bold',
+  },
   eventCount: {
     position: 'absolute',
     top: 2,
     right: 2,
-    backgroundColor: colors.danger,
+    backgroundColor: colors.white,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -163,7 +167,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   eventCountText: {
-    color: colors.white,
+    color: colors.danger,
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -225,6 +229,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
 
   const generateCalendarDays = useCallback(() => {
+    console.log('🗓️ Generating calendar days for availability display...');
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
@@ -294,6 +299,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       });
     }
     
+    console.log('✅ Calendar days generated:', days.length);
     setCalendarDays(days);
   }, [currentMonth, events]);
 
@@ -327,6 +333,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     } else if (day.hasEvent) {
       styles_array.push(styles.hasEventDay);
     } else {
+      // Available dates (no events) - GREEN
       styles_array.push(styles.currentMonthDay);
     }
     
@@ -346,6 +353,9 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       styles_array.push(styles.pastText);
     } else if (day.hasEvent) {
       styles_array.push(styles.hasEventText);
+    } else {
+      // Available dates (no events) - WHITE TEXT
+      styles_array.push(styles.availableText);
     }
     
     return styles_array;
@@ -361,7 +371,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.instructionText}>
-        📅 Selecciona una fecha para agendar un nuevo evento
+        📅 Verde = Disponible | Rojo = Ocupado | Selecciona una fecha disponible
       </Text>
 
       {/* Month Navigation */}
@@ -425,23 +435,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
         
         <View style={styles.legendGrid}>
           <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#4CAF50' }]} />
+            <Text style={styles.legendText}>Disponible</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#F44336' }]} />
+            <Text style={styles.legendText}>Ocupado</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: colors.info }]} />
             <Text style={styles.legendText}>Hoy</Text>
-          </View>
-          
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: colors.success }]} />
-            <Text style={styles.legendText}>Con eventos</Text>
-          </View>
-          
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: colors.warning }]} />
-            <Text style={styles.legendText}>Múltiples eventos</Text>
-          </View>
-          
-          <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: colors.lightGray }]} />
-            <Text style={styles.legendText}>Fecha pasada</Text>
           </View>
           
           <View style={styles.legendItem}>
@@ -450,8 +455,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
           </View>
           
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: colors.white, borderColor: colors.lightGray }]} />
-            <Text style={styles.legendText}>Disponible</Text>
+            <View style={[styles.legendColor, { backgroundColor: colors.lightGray }]} />
+            <Text style={styles.legendText}>Fecha pasada</Text>
+          </View>
+          
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#FF5722' }]} />
+            <Text style={styles.legendText}>Múltiples eventos</Text>
           </View>
         </View>
       </View>
