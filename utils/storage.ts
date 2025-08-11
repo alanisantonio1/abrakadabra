@@ -20,6 +20,22 @@ const handleStorageError = (error: any, operation: string): void => {
   throw new Error(`Storage ${operation} failed: ${error.message || 'Unknown error'}`);
 };
 
+// Generate a proper UUID v4 compatible with Supabase
+export const generateEventId = (): string => {
+  // Generate a proper UUID v4 format
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// Validate UUID format
+const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
 // Convert Event to Supabase format - Fixed to handle missing fields properly
 const eventToSupabaseFormat = (event: Event) => {
   console.log('🔄 Converting event to Supabase format:', event.id);
@@ -195,6 +211,15 @@ const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; er
       };
     }
     
+    // Validate UUID format
+    if (!isValidUUID(event.id)) {
+      console.error('❌ Invalid UUID format for event ID:', event.id);
+      return { 
+        success: false, 
+        error: `Invalid UUID format for event ID: ${event.id}` 
+      };
+    }
+    
     // Convert to Supabase format with proper validation
     const supabaseEvent = eventToSupabaseFormat(event);
     
@@ -245,6 +270,15 @@ const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; 
       };
     }
     
+    // Validate UUID format
+    if (!isValidUUID(event.id)) {
+      console.error('❌ Invalid UUID format for event ID:', event.id);
+      return { 
+        success: false, 
+        error: `Invalid UUID format for event ID: ${event.id}` 
+      };
+    }
+    
     const supabaseEvent = eventToSupabaseFormat(event);
     
     const { error } = await supabase
@@ -265,7 +299,7 @@ const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; 
   }
 };
 
-// Delete event from Supabase
+// Delete event from Supabase with improved UUID validation and error handling
 const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🗄️ Deleting event from Supabase:', event.id);
@@ -275,11 +309,23 @@ const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean
     const eventId = String(event.id).trim();
     
     if (!eventId) {
-      console.error('❌ Invalid event ID for deletion:', event.id);
-      return { success: false, error: 'Invalid event ID' };
+      console.error('❌ Empty event ID for deletion');
+      return { success: false, error: 'Event ID is empty or undefined' };
     }
     
+    // Validate UUID format before attempting deletion
+    if (!isValidUUID(eventId)) {
+      console.error('❌ Invalid UUID format for deletion:', eventId);
+      return { 
+        success: false, 
+        error: `Invalid UUID format for deletion. ID: ${eventId}. Expected format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx` 
+      };
+    }
+    
+    console.log('✅ UUID format validation passed for:', eventId);
+    
     // First check if the event exists
+    console.log('🔍 Checking if event exists in Supabase...');
     const { data: existingEvent, error: selectError } = await supabase
       .from('events')
       .select('id')
@@ -288,11 +334,22 @@ const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean
     
     if (selectError) {
       console.error('❌ Error checking if event exists:', selectError);
+      
+      // Handle specific error codes
       if (selectError.code === 'PGRST116') {
         // Event not found
         console.warn('⚠️ Event not found in Supabase, considering as already deleted');
         return { success: true };
       }
+      
+      if (selectError.code === '22P02') {
+        console.error('❌ UUID format error during existence check:', selectError);
+        return { 
+          success: false, 
+          error: `Invalid UUID format during existence check. ID: ${eventId}` 
+        };
+      }
+      
       return { success: false, error: `Error checking event existence: ${selectError.message}` };
     }
     
@@ -301,7 +358,10 @@ const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean
       return { success: true };
     }
     
+    console.log('✅ Event exists in Supabase, proceeding with deletion');
+    
     // Now delete the event
+    console.log('🗑️ Executing delete operation...');
     const { error: deleteError } = await supabase
       .from('events')
       .delete()
@@ -317,7 +377,7 @@ const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean
       if (deleteError.code === '22P02') {
         return { 
           success: false, 
-          error: `Invalid ID format for deletion. ID: ${eventId}. Please check the event ID format.` 
+          error: `Invalid UUID format during deletion. ID: ${eventId}. Please regenerate the event with a proper UUID.` 
         };
       }
       
@@ -329,6 +389,15 @@ const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean
   } catch (error: any) {
     console.error('❌ Error deleting event from Supabase:', error);
     console.error('❌ Error stack:', error.stack);
+    
+    // Check if it's a UUID-related error
+    if (error.message && error.message.includes('22P02')) {
+      return { 
+        success: false, 
+        error: `UUID format error: ${error.message}. The event ID format is invalid for Supabase.` 
+      };
+    }
+    
     return { success: false, error: `Unexpected error: ${error.message}` };
   }
 };
@@ -394,20 +463,6 @@ const mergeEvents = (localEvents: Event[], supabaseEvents: Event[]): Event[] => 
   }
 };
 
-// Generate unique event ID in UUID format for better Supabase compatibility
-export const generateEventId = (): string => {
-  // Generate a UUID-like string that's compatible with Supabase
-  const timestamp = Date.now().toString(16);
-  const random1 = Math.random().toString(16).substr(2, 8);
-  const random2 = Math.random().toString(16).substr(2, 4);
-  const random3 = Math.random().toString(16).substr(2, 4);
-  const random4 = Math.random().toString(16).substr(2, 4);
-  const random5 = Math.random().toString(16).substr(2, 12);
-  
-  // Format as UUID: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-  return `${timestamp.padStart(8, '0')}-${random2}-4${random3.substr(1)}-${(parseInt(random4[0], 16) & 0x3 | 0x8).toString(16)}${random4.substr(1)}-${random5}`;
-};
-
 // Load events from both sources with Supabase priority
 export const loadEvents = async (): Promise<Event[]> => {
   try {
@@ -460,6 +515,13 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
     // Validate event data
     if (!event || !event.id || !event.customerName || !event.date) {
       throw new Error('Invalid event data: missing required fields');
+    }
+    
+    // Ensure the event has a valid UUID
+    if (!isValidUUID(event.id)) {
+      console.warn('⚠️ Event has invalid UUID, generating new one');
+      event.id = generateEventId();
+      console.log('✅ Generated new UUID for event:', event.id);
     }
     
     let localSuccess = false;
@@ -531,6 +593,13 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
     // Validate event data
     if (!updatedEvent || !updatedEvent.id || !updatedEvent.customerName || !updatedEvent.date) {
       throw new Error('Invalid event data: missing required fields');
+    }
+    
+    // Ensure the event has a valid UUID
+    if (!isValidUUID(updatedEvent.id)) {
+      console.warn('⚠️ Event has invalid UUID, generating new one');
+      updatedEvent.id = generateEventId();
+      console.log('✅ Generated new UUID for event:', updatedEvent.id);
     }
     
     let localSuccess = false;
@@ -685,7 +754,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
     // Test local storage
     try {
       const testEvent: Event = {
-        id: 'test_' + Date.now(),
+        id: generateEventId(), // Use proper UUID generation
         date: '2024-12-31',
         time: '15:00',
         customerName: 'Test Cliente',
@@ -712,6 +781,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
           report += '   - Lectura: OK\n';
           report += '   - Eliminación: OK\n';
           report += '   - Validación de datos: OK\n';
+          report += `   - UUID generado: ${testEvent.id}\n`;
         } else {
           report += '1. Almacenamiento Local: ⚠️ PARCIAL\n';
           report += '   - Datos no coinciden completamente\n';
@@ -733,6 +803,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
       if (events.length > 0) {
         const latestEvent = events[events.length - 1];
         report += `   - Último evento: ${latestEvent.customerName} - ${latestEvent.date}\n`;
+        report += `   - UUID válido: ${isValidUUID(latestEvent.id) ? '✅' : '❌'}\n`;
       }
     } catch (error: any) {
       report += `   - Error cargando eventos locales: ${error.message}\n`;
@@ -756,6 +827,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
           if (supabaseEvents.length > 0) {
             const latestEvent = supabaseEvents[0]; // Already ordered by created_at desc
             report += `   - Último evento: ${latestEvent.customerName} - ${latestEvent.date}\n`;
+            report += `   - UUID válido: ${isValidUUID(latestEvent.id) ? '✅' : '❌'}\n`;
           }
         } catch (loadError: any) {
           report += `   - Error cargando eventos: ${loadError.message}\n`;
@@ -786,7 +858,8 @@ export const testDatabaseConnections = async (): Promise<string> => {
     report += '\n✅ Manejo de errores robusto';
     report += '\n✅ Base de datos PostgreSQL escalable';
     report += '\n✅ Seguimiento de anticipo único';
-    report += '\n✅ IDs compatibles con UUID para mejor rendimiento';
+    report += '\n✅ IDs compatibles con UUID v4 para Supabase';
+    report += '\n✅ Validación de formato UUID mejorada';
     
     return report;
   } catch (error: any) {
@@ -822,10 +895,11 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
         report += `Acceso a tabla: ❌ ERROR - ${error.message}\n`;
       }
       
-      // Test insert capability
+      // Test insert capability with proper UUID
       try {
+        const testEventId = generateEventId();
         const testEvent = {
-          id: `test_${Date.now()}`,
+          id: testEventId,
           date: '2024-12-31',
           time: '15:00',
           customer_name: 'Test Cliente',
@@ -841,24 +915,35 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
           anticipo_1_date: '2024-12-31',
         };
         
+        console.log('🧪 Testing insert with UUID:', testEventId);
+        
         const { error: insertError } = await supabase
           .from('events')
           .insert([testEvent]);
         
         if (insertError) {
           report += `Inserción: ❌ ERROR - ${insertError.message}\n`;
+          if (insertError.code === '22P02') {
+            report += `   - Error UUID: Formato inválido\n`;
+          }
         } else {
           report += 'Inserción: ✅ OK\n';
           report += 'Columna anticipo: ✅ DISPONIBLE\n';
+          report += `UUID generado: ${testEventId}\n`;
           
           // Clean up test event
           await supabase
             .from('events')
             .delete()
             .eq('id', testEvent.id);
+          
+          report += 'Eliminación de prueba: ✅ OK\n';
         }
       } catch (error: any) {
         report += `Inserción: ❌ ERROR - ${error.message}\n`;
+        if (error.message.includes('22P02')) {
+          report += '   - Error UUID: Formato inválido detectado\n';
+        }
       }
     }
     

@@ -11,6 +11,11 @@ import {
   MigrationStatus
 } from '../utils/migrationChecker';
 import { 
+  migrateInvalidUUIDs,
+  checkForInvalidUUIDs,
+  getUUIDMigrationReport
+} from '../utils/uuidMigration';
+import { 
   View, 
   Text, 
   ScrollView, 
@@ -114,6 +119,25 @@ const styles = StyleSheet.create({
     color: '#155724',
     lineHeight: 20,
   },
+  uuidWarning: {
+    backgroundColor: '#f8d7da',
+    borderColor: '#f5c6cb',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+  },
+  uuidTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#721c24',
+    marginBottom: 8,
+  },
+  uuidText: {
+    fontSize: 14,
+    color: '#721c24',
+    lineHeight: 20,
+  },
 });
 
 const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose }) => {
@@ -121,12 +145,15 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
   const [supabaseResult, setSupabaseResult] = useState<string>('');
   const [healthResult, setHealthResult] = useState<string>('');
   const [syncResult, setSyncResult] = useState<string>('');
+  const [uuidResult, setUuidResult] = useState<string>('');
   const [migrationStatus, setMigrationStatus] = useState<MigrationStatus | null>(null);
+  const [uuidMigrationNeeded, setUuidMigrationNeeded] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
       checkMigrationStatus();
+      checkUUIDStatus();
     }
   }, [visible]);
 
@@ -139,6 +166,15 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
       console.error('Error checking migration status:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkUUIDStatus = async () => {
+    try {
+      const check = await checkForInvalidUUIDs();
+      setUuidMigrationNeeded(check.needsMigration);
+    } catch (error) {
+      console.error('Error checking UUID status:', error);
     }
   };
 
@@ -203,6 +239,53 @@ const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose })
     }
   };
 
+  const runUUIDMigration = async () => {
+    try {
+      setIsLoading(true);
+      setUuidResult('🔄 Ejecutando migración de UUIDs...');
+      
+      const result = await migrateInvalidUUIDs();
+      
+      let message = `✅ Migración completada\n`;
+      message += `Eventos migrados: ${result.migrated}\n`;
+      
+      if (result.errors.length > 0) {
+        message += `\n❌ Errores:\n${result.errors.join('\n')}`;
+      }
+      
+      setUuidResult(message);
+      
+      // Refresh UUID status
+      await checkUUIDStatus();
+      
+      Alert.alert(
+        'Migración UUID Completada',
+        `Se migraron ${result.migrated} eventos con UUIDs inválidos.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      setUuidResult(`❌ Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const showUUIDReport = async () => {
+    try {
+      setIsLoading(true);
+      const report = await getUUIDMigrationReport();
+      Alert.alert(
+        'Reporte de UUIDs',
+        report,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', `Error generando reporte: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const testMigration = async () => {
     try {
       setIsLoading(true);
@@ -249,6 +332,7 @@ Esta herramienta ayuda a identificar y resolver problemas:
 ✅ Almacenamiento Local: Verifica AsyncStorage
 🗄️ Supabase: Prueba conexión y esquema de BD
 🔧 Migración: Verifica columnas anticipo
+🆔 UUIDs: Valida formato de identificadores
 🔄 Sincronización: Actualiza datos desde Supabase
 💊 Salud del Sistema: Estado general de la app
 
@@ -256,6 +340,7 @@ Esta herramienta ayuda a identificar y resolver problemas:
 - Diagnóstico general de almacenamiento
 - Pruebas específicas de Supabase
 - Verificación de migración de esquema
+- Migración automática de UUIDs
 - Sincronización de datos
 - Chequeo de salud del sistema
     `;
@@ -279,14 +364,14 @@ Esta herramienta ayuda a identificar y resolver problemas:
           <View style={[styles.buttonRow, { marginTop: 10 }]}>
             <View style={styles.halfButton}>
               <Button
-                title="Ver Instrucciones"
+                text="Ver Instrucciones"
                 onPress={showMigrationInstructions}
                 variant="secondary"
               />
             </View>
             <View style={styles.halfButton}>
               <Button
-                title="Probar Migración"
+                text="Probar Migración"
                 onPress={testMigration}
                 variant="primary"
               />
@@ -308,6 +393,40 @@ Esta herramienta ayuda a identificar y resolver problemas:
     return null;
   };
 
+  const renderUUIDStatus = () => {
+    if (uuidMigrationNeeded) {
+      return (
+        <View style={styles.uuidWarning}>
+          <Text style={styles.uuidTitle}>🆔 UUIDs Inválidos Detectados</Text>
+          <Text style={styles.uuidText}>
+            Se encontraron eventos con IDs en formato inválido para Supabase. 
+            Esto puede causar errores 22P02 al eliminar eventos.
+          </Text>
+          <View style={[styles.buttonRow, { marginTop: 10 }]}>
+            <View style={styles.halfButton}>
+              <Button
+                text="Ver Reporte"
+                onPress={showUUIDReport}
+                variant="secondary"
+                size="small"
+              />
+            </View>
+            <View style={styles.halfButton}>
+              <Button
+                text="Migrar UUIDs"
+                onPress={runUUIDMigration}
+                variant="danger"
+                size="small"
+              />
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
@@ -317,6 +436,9 @@ Esta herramienta ayuda a identificar y resolver problemas:
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Migration Status */}
             {renderMigrationStatus()}
+            
+            {/* UUID Status */}
+            {renderUUIDStatus()}
             
             {/* Info Box */}
             <View style={styles.diagnosticSection}>
@@ -333,18 +455,20 @@ Esta herramienta ayuda a identificar y resolver problemas:
               <View style={styles.buttonRow}>
                 <View style={styles.halfButton}>
                   <Button
-                    title="Diagnóstico General"
+                    text="Diagnóstico General"
                     onPress={runGeneralDiagnostics}
                     variant="primary"
                     disabled={isLoading}
+                    size="small"
                   />
                 </View>
                 <View style={styles.halfButton}>
                   <Button
-                    title="Pruebas Supabase"
+                    text="Pruebas Supabase"
                     onPress={runSupabaseDiagnosticsTest}
                     variant="secondary"
                     disabled={isLoading}
+                    size="small"
                   />
                 </View>
               </View>
@@ -352,27 +476,30 @@ Esta herramienta ayuda a identificar y resolver problemas:
               <View style={styles.buttonRow}>
                 <View style={styles.halfButton}>
                   <Button
-                    title="Salud del Sistema"
+                    text="Salud del Sistema"
                     onPress={runSystemHealthCheck}
                     variant="secondary"
                     disabled={isLoading}
+                    size="small"
                   />
                 </View>
                 <View style={styles.halfButton}>
                   <Button
-                    title="Sincronizar Datos"
+                    text="Sincronizar Datos"
                     onPress={syncFromSupabase}
                     variant="primary"
                     disabled={isLoading}
+                    size="small"
                   />
                 </View>
               </View>
 
               <Button
-                title="ℹ️ Info Supabase"
+                text="ℹ️ Info Supabase"
                 onPress={showSupabaseInfo}
                 variant="secondary"
                 disabled={isLoading}
+                size="small"
               />
             </View>
 
@@ -404,10 +531,17 @@ Esta herramienta ayuda a identificar y resolver problemas:
                 <Text style={styles.diagnosticText}>{syncResult}</Text>
               </View>
             ) : null}
+
+            {uuidResult ? (
+              <View style={styles.diagnosticSection}>
+                <Text style={styles.sectionTitle}>🆔 Migración UUID</Text>
+                <Text style={styles.diagnosticText}>{uuidResult}</Text>
+              </View>
+            ) : null}
           </ScrollView>
 
           <Button
-            title="Cerrar"
+            text="Cerrar"
             onPress={onClose}
             variant="secondary"
             style={{ marginTop: 20 }}

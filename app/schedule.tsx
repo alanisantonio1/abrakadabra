@@ -177,6 +177,12 @@ const ScheduleScreen: React.FC = () => {
 
       const eventId = generateEventId();
       console.log('🆔 Generated event ID:', eventId);
+      console.log('🔍 UUID format check:', {
+        id: eventId,
+        length: eventId.length,
+        hasHyphens: eventId.includes('-'),
+        parts: eventId.split('-').length
+      });
 
       const newEvent: Event = {
         id: eventId,
@@ -192,13 +198,9 @@ const ScheduleScreen: React.FC = () => {
         isPaid: formData.deposit >= formData.totalAmount,
         notes: formData.notes.trim(),
         createdAt: new Date().toISOString(),
-        // Initialize anticipo fields
+        // Initialize anticipo fields - simplified structure
         anticipo1Amount: formData.deposit,
-        anticipo1Date: formData.deposit > 0 ? new Date().toISOString() : '',
-        anticipo2Amount: 0,
-        anticipo2Date: '',
-        anticipo3Amount: 0,
-        anticipo3Date: ''
+        anticipo1Date: formData.deposit > 0 ? new Date().toISOString().split('T')[0] : '',
       };
 
       console.log('💾 Saving new event:', newEvent);
@@ -389,7 +391,7 @@ const ScheduleScreen: React.FC = () => {
             editable={false}
           />
 
-          <Text style={commonStyles.inputLabel}>Anticipo (Anticipo 1)</Text>
+          <Text style={commonStyles.inputLabel}>Anticipo</Text>
           <TextInput
             style={commonStyles.input}
             placeholder="0"
@@ -431,7 +433,7 @@ const ScheduleScreen: React.FC = () => {
               </Text>
             </View>
             <View style={[commonStyles.summaryRow, { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }]}>
-              <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Anticipo 1:</Text>
+              <Text style={[commonStyles.summaryLabel, { color: colors.text }]}>Anticipo:</Text>
               <Text style={[commonStyles.summaryValue, { color: colors.primary, fontWeight: 'bold' }]}>
                 ${formData.deposit.toLocaleString()}
               </Text>
@@ -452,7 +454,7 @@ const ScheduleScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Fixed Submit Button - FIXED OVERLAP ISSUE */}
+      {/* Fixed Submit Button */}
       <View style={scheduleStyles.submitButtonContainer}>
         <TouchableOpacity
           style={scheduleStyles.submitButton}

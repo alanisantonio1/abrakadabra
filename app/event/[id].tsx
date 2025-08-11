@@ -31,13 +31,13 @@ const EventDetailScreen: React.FC = () => {
       } else {
         console.warn('⚠️ Event not found:', id);
         Alert.alert('Error', 'Evento no encontrado', [
-          { text: 'OK', onPress: () => router.back() }
+          { text: 'OK', onPress: () => router.replace('/events') }
         ]);
       }
     } catch (error: any) {
       console.error('❌ Error loading event:', error);
       Alert.alert('Error', `Error al cargar evento: ${error.message}`, [
-        { text: 'OK', onPress: () => router.back() }
+        { text: 'OK', onPress: () => router.replace('/events') }
       ]);
     } finally {
       setLoading(false);
@@ -68,10 +68,14 @@ const EventDetailScreen: React.FC = () => {
                 remainingAmount: 0,
               };
 
-              await updateEvent(updatedEvent);
-              setEvent(updatedEvent);
+              const updateResult = await updateEvent(updatedEvent);
               
-              Alert.alert('✅ Éxito', 'Evento marcado como pagado');
+              if (updateResult.success) {
+                setEvent(updatedEvent);
+                Alert.alert('✅ Éxito', 'Evento marcado como pagado');
+              } else {
+                Alert.alert('Error', `Error al marcar como pagado: ${updateResult.message}`);
+              }
             }
           }
         ]
@@ -87,7 +91,7 @@ const EventDetailScreen: React.FC = () => {
 
     Alert.alert(
       'Confirmar Eliminación',
-      `¿Estás seguro de que quieres eliminar el evento de ${event.childName}?`,
+      `¿Estás seguro de que quieres eliminar el evento de ${event.childName}?\n\nEsta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -96,27 +100,61 @@ const EventDetailScreen: React.FC = () => {
           onPress: async () => {
             try {
               console.log('🗑️ Deleting event:', event.id);
+              console.log('🔍 Event ID format check:', {
+                id: event.id,
+                type: typeof event.id,
+                length: event.id.length,
+                isString: typeof event.id === 'string'
+              });
+              
               const deleteResult = await deleteEvent(event);
               
               if (deleteResult.success) {
                 console.log('✅ Event deleted successfully, navigating to events list');
-                Alert.alert('✅ Éxito', 'Evento eliminado exitosamente', [
-                  { 
-                    text: 'OK', 
-                    onPress: () => {
-                      console.log('📋 Navigating to events list after deletion');
-                      // Use replace instead of push to prevent going back to deleted event
-                      router.replace('/events');
+                
+                // Show success message and navigate
+                Alert.alert(
+                  '✅ Éxito', 
+                  'Evento eliminado exitosamente', 
+                  [
+                    { 
+                      text: 'OK', 
+                      onPress: () => {
+                        console.log('📋 Navigating to events list after deletion');
+                        // Use replace to prevent going back to deleted event
+                        router.replace('/events');
+                      }
                     }
-                  }
-                ]);
+                  ]
+                );
               } else {
                 console.error('❌ Delete failed:', deleteResult.message);
-                Alert.alert('Error', `Error al eliminar evento: ${deleteResult.message}`);
+                
+                // Show detailed error message
+                Alert.alert(
+                  'Error al Eliminar', 
+                  `No se pudo eliminar el evento:\n\n${deleteResult.message}\n\n¿Deseas intentar nuevamente?`,
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { 
+                      text: 'Reintentar', 
+                      onPress: () => handleDeleteEvent() 
+                    }
+                  ]
+                );
               }
             } catch (error: any) {
               console.error('❌ Error deleting event:', error);
-              Alert.alert('Error', `Error al eliminar evento: ${error.message}`);
+              
+              // Show detailed error information
+              Alert.alert(
+                'Error Inesperado', 
+                `Error al eliminar evento:\n\n${error.message}\n\nID del evento: ${event.id}\nTipo: ${typeof event.id}`,
+                [
+                  { text: 'Volver a Eventos', onPress: () => router.replace('/events') },
+                  { text: 'Reintentar', onPress: () => handleDeleteEvent() }
+                ]
+              );
             }
           }
         }
@@ -147,11 +185,15 @@ const EventDetailScreen: React.FC = () => {
         notes: notes.trim(),
       };
 
-      await updateEvent(updatedEvent);
-      setEvent(updatedEvent);
-      setIsEditingNotes(false);
+      const updateResult = await updateEvent(updatedEvent);
       
-      Alert.alert('✅ Éxito', 'Notas guardadas');
+      if (updateResult.success) {
+        setEvent(updatedEvent);
+        setIsEditingNotes(false);
+        Alert.alert('✅ Éxito', 'Notas guardadas');
+      } else {
+        Alert.alert('Error', `Error al guardar notas: ${updateResult.message}`);
+      }
     } catch (error: any) {
       console.error('❌ Error saving notes:', error);
       Alert.alert('Error', `Error al guardar notas: ${error.message}`);
@@ -189,8 +231,8 @@ const EventDetailScreen: React.FC = () => {
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={commonStyles.errorText}>❌ Evento no encontrado</Text>
         <Button
-          text="← Volver"
-          onPress={() => router.back()}
+          text="← Volver a Eventos"
+          onPress={() => router.replace('/events')}
           variant="primary"
           style={{ marginTop: 20 }}
         />
@@ -271,6 +313,13 @@ const EventDetailScreen: React.FC = () => {
         <View style={commonStyles.detailRow}>
           <Text style={commonStyles.detailLabel}>📦 Paquete:</Text>
           <Text style={commonStyles.detailValue}>{event.packageType}</Text>
+        </View>
+        
+        <View style={commonStyles.detailRow}>
+          <Text style={commonStyles.detailLabel}>🆔 ID:</Text>
+          <Text style={[commonStyles.detailValue, { fontSize: 12, fontFamily: 'monospace' }]}>
+            {event.id}
+          </Text>
         </View>
       </View>
 
