@@ -1,0 +1,4 @@
+
+This migration file has been removed as requested by the user.
+The anticipo columns are now handled directly in the main table structure.
+Only anticipo_1_amount and anticipo_1_date are used in the simplified structure.

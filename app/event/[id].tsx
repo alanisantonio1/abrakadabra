@@ -96,16 +96,24 @@ const EventDetailScreen: React.FC = () => {
           onPress: async () => {
             try {
               console.log('🗑️ Deleting event:', event.id);
-              await deleteEvent(event);
-              Alert.alert('✅ Éxito', 'Evento eliminado', [
-                { 
-                  text: 'OK', 
-                  onPress: () => {
-                    console.log('📋 Navigating to events list after deletion');
-                    router.push('/events');
+              const deleteResult = await deleteEvent(event);
+              
+              if (deleteResult.success) {
+                console.log('✅ Event deleted successfully, navigating to events list');
+                Alert.alert('✅ Éxito', 'Evento eliminado exitosamente', [
+                  { 
+                    text: 'OK', 
+                    onPress: () => {
+                      console.log('📋 Navigating to events list after deletion');
+                      // Use replace instead of push to prevent going back to deleted event
+                      router.replace('/events');
+                    }
                   }
-                }
-              ]);
+                ]);
+              } else {
+                console.error('❌ Delete failed:', deleteResult.message);
+                Alert.alert('Error', `Error al eliminar evento: ${deleteResult.message}`);
+              }
             } catch (error: any) {
               console.error('❌ Error deleting event:', error);
               Alert.alert('Error', `Error al eliminar evento: ${error.message}`);

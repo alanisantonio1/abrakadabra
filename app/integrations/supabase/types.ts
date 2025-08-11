@@ -28,10 +28,6 @@ export type Database = {
           updated_at: string
           anticipo_1_amount: number | null
           anticipo_1_date: string | null
-          anticipo_2_amount: number | null
-          anticipo_2_date: string | null
-          anticipo_3_amount: number | null
-          anticipo_3_date: string | null
         }
         Insert: {
           id?: string
@@ -48,10 +44,6 @@ export type Database = {
           notes?: string | null
           anticipo_1_amount?: number | null
           anticipo_1_date?: string | null
-          anticipo_2_amount?: number | null
-          anticipo_2_date?: string | null
-          anticipo_3_amount?: number | null
-          anticipo_3_date?: string | null
         }
         Update: {
           id?: string
@@ -68,10 +60,6 @@ export type Database = {
           notes?: string | null
           anticipo_1_amount?: number | null
           anticipo_1_date?: string | null
-          anticipo_2_amount?: number | null
-          anticipo_2_date?: string | null
-          anticipo_3_amount?: number | null
-          anticipo_3_date?: string | null
         }
         Relationships: []
       }
