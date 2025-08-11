@@ -98,7 +98,13 @@ const EventDetailScreen: React.FC = () => {
               console.log('🗑️ Deleting event:', event.id);
               await deleteEvent(event);
               Alert.alert('✅ Éxito', 'Evento eliminado', [
-                { text: 'OK', onPress: () => router.back() }
+                { 
+                  text: 'OK', 
+                  onPress: () => {
+                    console.log('📋 Navigating to events list after deletion');
+                    router.push('/events');
+                  }
+                }
               ]);
             } catch (error: any) {
               console.error('❌ Error deleting event:', error);
