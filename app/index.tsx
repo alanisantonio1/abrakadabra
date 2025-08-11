@@ -7,6 +7,7 @@ import EventCard from '../components/EventCard';
 import { router, useFocusEffect } from 'expo-router';
 import DiagnosticsModal from '../components/DiagnosticsModal';
 import MigrationAlert from '../components/MigrationAlert';
+import Button from '../components/Button';
 import { Event } from '../types';
 import { commonStyles, colors } from '../styles/commonStyles';
 
@@ -17,6 +18,7 @@ const MainScreen: React.FC = () => {
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
   const [showTools, setShowTools] = useState<boolean>(false);
   const [showMigrationAlert, setShowMigrationAlert] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true);
 
   // Load events when screen comes into focus
   useFocusEffect(
@@ -32,6 +34,7 @@ const MainScreen: React.FC = () => {
   const loadEventsData = useCallback(async () => {
     try {
       console.log('📥 Loading events data...');
+      setLoading(true);
       const loadedEvents = await loadEvents();
       setEvents(loadedEvents);
       console.log('✅ Events loaded:', loadedEvents.length);
@@ -42,6 +45,8 @@ const MainScreen: React.FC = () => {
         `No se pudieron cargar los eventos: ${error.message}`,
         [{ text: 'OK' }]
       );
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -62,6 +67,15 @@ const MainScreen: React.FC = () => {
       .filter(event => event.date >= todayString)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(0, 5);
+  };
+
+  const getEventStats = () => {
+    const totalEvents = events.length;
+    const upcomingEvents = getUpcomingEvents().length;
+    const paidEvents = events.filter(e => e.isPaid).length;
+    const pendingPayments = events.filter(e => !e.isPaid).length;
+    
+    return { totalEvents, upcomingEvents, paidEvents, pendingPayments };
   };
 
   const testDatabaseConnection = async () => {
@@ -90,177 +104,184 @@ const MainScreen: React.FC = () => {
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 1000,
       }}>
         <View style={{
           backgroundColor: colors.white,
-          borderRadius: 20,
-          padding: 20,
-          width: '80%',
-          maxWidth: 300,
+          borderRadius: 24,
+          padding: 24,
+          width: '85%',
+          maxWidth: 320,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          elevation: 12,
         }}>
           <Text style={{
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: 'bold',
             color: colors.primary,
             textAlign: 'center',
-            marginBottom: 20,
+            marginBottom: 24,
           }}>
             🛠️ Herramientas
           </Text>
           
-          <TouchableOpacity
-            style={[commonStyles.button, { marginBottom: 10 }]}
+          <Button
+            text="🔍 Diagnósticos"
             onPress={() => {
               setShowTools(false);
               setShowDiagnostics(true);
             }}
-          >
-            <Text style={commonStyles.buttonText}>🔍 Diagnósticos</Text>
-          </TouchableOpacity>
+            variant="primary"
+            style={{ marginBottom: 12 }}
+          />
           
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.secondary, marginBottom: 10 }]}
+          <Button
+            text="🧪 Probar Conexión"
             onPress={() => {
               setShowTools(false);
               testDatabaseConnection();
             }}
-          >
-            <Text style={commonStyles.buttonText}>🧪 Probar Conexión</Text>
-          </TouchableOpacity>
+            variant="secondary"
+            style={{ marginBottom: 12 }}
+          />
           
-          <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: colors.gray }]}
+          <Button
+            text="Cancelar"
             onPress={() => setShowTools(false)}
-          >
-            <Text style={[commonStyles.buttonText, { color: colors.text }]}>Cancelar</Text>
-          </TouchableOpacity>
+            variant="outline"
+          />
         </View>
       </View>
     );
   };
 
-  const renderMainScreen = () => (
-    <ScrollView style={commonStyles.container}>
-      {/* Migration Alert */}
-      {showMigrationAlert && (
-        <MigrationAlert onDismiss={() => setShowMigrationAlert(false)} />
-      )}
-      
-      <Text style={commonStyles.title}>🎪 Abrakadabra Events</Text>
-      
-      {/* Quick Stats */}
-      <View style={{
-        backgroundColor: colors.white,
-        borderRadius: 15,
-        padding: 20,
-        marginBottom: 20,
-        ...commonStyles.shadow,
-      }}>
-        <Text style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          color: colors.primary,
-          marginBottom: 10,
-        }}>
-          📊 Resumen
-        </Text>
-        <Text style={{ color: colors.text, marginBottom: 5 }}>
-          Total de eventos: {events.length}
-        </Text>
-        <Text style={{ color: colors.text, marginBottom: 5 }}>
-          Próximos eventos: {getUpcomingEvents().length}
-        </Text>
-        <Text style={{ color: colors.text }}>
-          Eventos pagados: {events.filter(e => e.isPaid).length}
-        </Text>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={{
-        backgroundColor: colors.white,
-        borderRadius: 15,
-        padding: 20,
-        marginBottom: 20,
-        ...commonStyles.shadow,
-      }}>
-        <Text style={{
-          fontSize: 18,
-          fontWeight: 'bold',
-          color: colors.primary,
-          marginBottom: 15,
-        }}>
-          🚀 Acciones Rápidas
-        </Text>
+  const renderMainScreen = () => {
+    const stats = getEventStats();
+    
+    return (
+      <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
+        {/* Migration Alert */}
+        {showMigrationAlert && (
+          <MigrationAlert onDismiss={() => setShowMigrationAlert(false)} />
+        )}
         
-        <TouchableOpacity
-          style={[commonStyles.button, { marginBottom: 10 }]}
-          onPress={() => setCurrentView('calendar')}
-        >
-          <Text style={commonStyles.buttonText}>📅 Seleccionar Fechas</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[commonStyles.button, { marginBottom: 10 }]}
-          onPress={() => handleNavigation('/events')}
-        >
-          <Text style={commonStyles.buttonText}>👁️ Ver Eventos</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[commonStyles.button, { marginBottom: 10 }]}
-          onPress={() => handleNavigation('/packages')}
-        >
-          <Text style={commonStyles.buttonText}>📦 Paquetes</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Upcoming Events */}
-      {getUpcomingEvents().length > 0 && (
-        <View style={{
-          backgroundColor: colors.white,
-          borderRadius: 15,
-          padding: 20,
-          marginBottom: 20,
-          ...commonStyles.shadow,
-        }}>
-          <Text style={{
-            fontSize: 18,
-            fontWeight: 'bold',
-            color: colors.primary,
-            marginBottom: 15,
-          }}>
-            📅 Próximos Eventos
+        {/* Header */}
+        <View style={commonStyles.header}>
+          <Text style={commonStyles.title}>🎪 Abrakadabra Events</Text>
+          <Text style={commonStyles.subtitle}>
+            Gestión de eventos y reservaciones
           </Text>
-          
-          {getUpcomingEvents().map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onPress={() => router.push(`/event/${event.id}`)}
-            />
-          ))}
         </View>
-      )}
+        
+        {/* Quick Stats */}
+        <View style={commonStyles.statsContainer}>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={commonStyles.statNumber}>{stats.totalEvents}</Text>
+            <Text style={commonStyles.statLabel}>Total</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[commonStyles.statNumber, { color: colors.info }]}>
+              {stats.upcomingEvents}
+            </Text>
+            <Text style={commonStyles.statLabel}>Próximos</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[commonStyles.statNumber, { color: colors.success }]}>
+              {stats.paidEvents}
+            </Text>
+            <Text style={commonStyles.statLabel}>Pagados</Text>
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[commonStyles.statNumber, { color: colors.warning }]}>
+              {stats.pendingPayments}
+            </Text>
+            <Text style={commonStyles.statLabel}>Pendientes</Text>
+          </View>
+        </View>
 
-      {/* Tools Button */}
-      <TouchableOpacity
-        style={[
-          commonStyles.button,
-          { 
-            backgroundColor: colors.secondary,
-            marginBottom: 30,
-          }
-        ]}
-        onPress={() => setShowTools(true)}
-      >
-        <Text style={commonStyles.buttonText}>🛠️ Herramientas</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
+        {/* Quick Actions */}
+        <View style={commonStyles.card}>
+          <Text style={commonStyles.sectionTitle}>🚀 Acciones Rápidas</Text>
+          
+          <View style={commonStyles.quickActions}>
+            <Button
+              text="📅 Seleccionar Fechas"
+              onPress={() => setCurrentView('calendar')}
+              variant="primary"
+              icon="📅"
+            />
+            
+            <Button
+              text="👁️ Ver Eventos"
+              onPress={() => handleNavigation('/events')}
+              variant="secondary"
+              icon="👁️"
+            />
+            
+            <Button
+              text="📦 Paquetes"
+              onPress={() => handleNavigation('/packages')}
+              variant="accent"
+              icon="📦"
+            />
+          </View>
+        </View>
+
+        {/* Upcoming Events */}
+        {getUpcomingEvents().length > 0 && (
+          <View style={commonStyles.card}>
+            <Text style={commonStyles.sectionTitle}>📅 Próximos Eventos</Text>
+            
+            {getUpcomingEvents().map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                onPress={() => router.push(`/event/${event.id}`)}
+              />
+            ))}
+            
+            {events.length > 5 && (
+              <Button
+                text="Ver todos los eventos"
+                onPress={() => handleNavigation('/events')}
+                variant="outline"
+                size="small"
+              />
+            )}
+          </View>
+        )}
+
+        {/* Empty State */}
+        {events.length === 0 && !loading && (
+          <View style={commonStyles.emptyState}>
+            <Text style={commonStyles.emptyStateText}>
+              🎈 ¡Bienvenido a Abrakadabra!
+            </Text>
+            <Text style={commonStyles.emptyStateSubtext}>
+              No hay eventos registrados. Comienza creando tu primer evento.
+            </Text>
+            <Button
+              text="📅 Crear Primer Evento"
+              onPress={() => setCurrentView('calendar')}
+              variant="primary"
+              style={{ marginTop: 16 }}
+            />
+          </View>
+        )}
+
+        {/* Tools Button */}
+        <Button
+          text="🛠️ Herramientas"
+          onPress={() => setShowTools(true)}
+          variant="secondary"
+          style={{ marginBottom: 30 }}
+        />
+      </ScrollView>
+    );
+  };
 
   const renderCalendarScreen = () => (
     <View style={commonStyles.container}>
@@ -270,14 +291,15 @@ const MainScreen: React.FC = () => {
         alignItems: 'center',
         marginBottom: 20,
       }}>
-        <TouchableOpacity
-          style={[commonStyles.button, { backgroundColor: colors.gray, flex: 0.3 }]}
+        <Button
+          text="← Volver"
           onPress={() => setCurrentView('main')}
-        >
-          <Text style={[commonStyles.buttonText, { color: colors.text }]}>← Volver</Text>
-        </TouchableOpacity>
+          variant="outline"
+          size="small"
+          style={{ flex: 0.3 }}
+        />
         
-        <Text style={[commonStyles.title, { flex: 0.4, textAlign: 'center' }]}>
+        <Text style={[commonStyles.title, { flex: 0.4, textAlign: 'center', fontSize: 20 }]}>
           📅 Calendario
         </Text>
         
@@ -291,6 +313,14 @@ const MainScreen: React.FC = () => {
       />
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={commonStyles.loadingText}>🔄 Cargando eventos...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>

@@ -21,39 +21,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     backgroundColor: colors.white,
-    padding: 16,
-    borderRadius: 16,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    elevation: 2,
+    padding: 20,
+    borderRadius: 20,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+    elevation: 6,
   },
   monthTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     color: colors.primary,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   navButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    minWidth: 44,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    minWidth: 50,
     alignItems: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    elevation: 2,
+    boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+    elevation: 4,
   },
   navButtonText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 20,
+  },
+  instructionBanner: {
+    backgroundColor: colors.info,
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+    alignItems: 'center',
+    boxShadow: '0 4px 12px rgba(116, 185, 255, 0.3)',
+    elevation: 4,
+  },
+  instructionText: {
+    fontSize: 16,
+    color: colors.white,
+    textAlign: 'center',
+    fontWeight: '600',
   },
   weekHeader: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 16,
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 8,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-    elevation: 1,
+    borderRadius: 16,
+    padding: 12,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    elevation: 3,
   },
   weekDay: {
     flex: 1,
@@ -61,110 +79,120 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     paddingVertical: 8,
-    fontSize: 14,
+    fontSize: 15,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 8,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    elevation: 3,
+    borderRadius: 20,
+    padding: 12,
+    boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+    elevation: 8,
   },
   dayContainer: {
     width: '14.28%', // 7 days per week
     aspectRatio: 1,
-    padding: 3,
+    padding: 4,
   },
   dayButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderWidth: 2,
+    borderColor: colors.border,
     position: 'relative',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+    elevation: 2,
   },
   dayText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
   },
-  // Day states - FIXED AVAILABILITY COLORS
-  currentMonthDay: {
-    backgroundColor: '#4CAF50', // Verde para disponible
-    borderColor: '#4CAF50',
+  
+  // FIXED AVAILABILITY COLORS - Green for available, Red for occupied
+  availableDay: {
+    backgroundColor: colors.available, // Green for available dates
+    borderColor: colors.available,
+    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+    elevation: 4,
   },
-  otherMonthDay: {
-    backgroundColor: colors.lightGray,
-    borderColor: colors.gray,
+  occupiedDay: {
+    backgroundColor: colors.occupied, // Red for occupied dates
+    borderColor: colors.occupied,
+    boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
+    elevation: 4,
   },
-  todayDay: {
-    backgroundColor: colors.info,
-    borderColor: colors.primary,
-    borderWidth: 2,
-    boxShadow: '0 2px 8px rgba(69, 183, 209, 0.3)',
-    elevation: 2,
+  multipleEventsDay: {
+    backgroundColor: '#D32F2F', // Darker red for multiple events
+    borderColor: '#D32F2F',
+    boxShadow: '0 4px 12px rgba(211, 47, 47, 0.4)',
+    elevation: 5,
   },
   selectedDay: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
-    boxShadow: '0 4px 12px rgba(255, 107, 107, 0.4)',
-    elevation: 3,
+    borderWidth: 3,
+    boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
+    elevation: 6,
+  },
+  todayDay: {
+    backgroundColor: colors.today,
+    borderColor: colors.today,
+    borderWidth: 3,
+    boxShadow: '0 4px 12px rgba(69, 183, 209, 0.4)',
+    elevation: 5,
   },
   pastDay: {
+    backgroundColor: colors.past,
+    borderColor: colors.past,
+    opacity: 0.6,
+  },
+  otherMonthDay: {
     backgroundColor: colors.lightGray,
-    borderColor: colors.gray,
+    borderColor: colors.lightGray,
+    opacity: 0.4,
   },
-  hasEventDay: {
-    backgroundColor: '#F44336', // Rojo para ocupado
-    borderColor: '#F44336',
-    boxShadow: '0 2px 8px rgba(244, 67, 54, 0.3)',
-    elevation: 2,
+  
+  // FIXED TEXT COLORS
+  availableText: {
+    color: colors.white, // White text on green background
+    fontWeight: 'bold',
   },
-  hasMultipleEventsDay: {
-    backgroundColor: '#FF5722', // Rojo más intenso para múltiples eventos
-    borderColor: '#FF5722',
-    boxShadow: '0 2px 8px rgba(255, 87, 34, 0.3)',
-    elevation: 2,
-  },
-  // Text states - FIXED TEXT COLORS
-  todayText: {
-    color: colors.white,
+  occupiedText: {
+    color: colors.white, // White text on red background
     fontWeight: 'bold',
   },
   selectedText: {
     color: colors.white,
     fontWeight: 'bold',
   },
-  pastText: {
-    color: colors.gray,
-  },
-  hasEventText: {
+  todayText: {
     color: colors.white,
     fontWeight: 'bold',
   },
+  pastText: {
+    color: colors.textMuted,
+  },
   otherMonthText: {
-    color: colors.gray,
+    color: colors.textMuted,
   },
-  availableText: {
-    color: colors.white, // Texto blanco para fechas disponibles (verde)
-    fontWeight: 'bold',
-  },
+  
   eventCount: {
     position: 'absolute',
     top: 2,
     right: 2,
     backgroundColor: colors.white,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-    elevation: 2,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+    elevation: 3,
   },
   eventCountText: {
     color: colors.danger,
@@ -173,54 +201,46 @@ const styles = StyleSheet.create({
   },
   legend: {
     marginTop: 24,
-    padding: 20,
+    padding: 24,
     backgroundColor: colors.white,
-    borderRadius: 16,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    elevation: 3,
+    borderRadius: 20,
+    boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+    elevation: 8,
   },
   legendTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 20,
     textAlign: 'center',
   },
   legendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 16,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     minWidth: '45%',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   legendColor: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 12,
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: colors.lightGray,
+    borderWidth: 2,
+    borderColor: colors.border,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
+    elevation: 2,
   },
   legendText: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text,
-    fontWeight: '500',
+    fontWeight: '600',
     flex: 1,
-  },
-  instructionText: {
-    fontSize: 16,
-    color: colors.textLight,
-    textAlign: 'center',
-    marginBottom: 16,
-    fontStyle: 'italic',
-    backgroundColor: colors.lightGray,
-    padding: 12,
-    borderRadius: 12,
   },
 });
 
@@ -229,7 +249,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
 
   const generateCalendarDays = useCallback(() => {
-    console.log('🗓️ Generating calendar days for availability display...');
+    console.log('🗓️ Generating calendar days with fixed availability colors...');
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
@@ -299,7 +319,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       });
     }
     
-    console.log('✅ Calendar days generated:', days.length);
+    console.log('✅ Calendar days generated with availability colors:', days.length);
     setCalendarDays(days);
   }, [currentMonth, events]);
 
@@ -329,12 +349,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     } else if (day.isPast) {
       styles_array.push(styles.pastDay);
     } else if (day.eventCount > 1) {
-      styles_array.push(styles.hasMultipleEventsDay);
+      styles_array.push(styles.multipleEventsDay);
     } else if (day.hasEvent) {
-      styles_array.push(styles.hasEventDay);
+      // OCCUPIED - RED
+      styles_array.push(styles.occupiedDay);
     } else {
-      // Available dates (no events) - GREEN
-      styles_array.push(styles.currentMonthDay);
+      // AVAILABLE - GREEN
+      styles_array.push(styles.availableDay);
     }
     
     return styles_array;
@@ -352,9 +373,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     } else if (day.isPast) {
       styles_array.push(styles.pastText);
     } else if (day.hasEvent) {
-      styles_array.push(styles.hasEventText);
+      // OCCUPIED - WHITE TEXT
+      styles_array.push(styles.occupiedText);
     } else {
-      // Available dates (no events) - WHITE TEXT
+      // AVAILABLE - WHITE TEXT
       styles_array.push(styles.availableText);
     }
     
@@ -369,10 +391,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.instructionText}>
-        📅 Verde = Disponible | Rojo = Ocupado | Selecciona una fecha disponible
-      </Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Instruction Banner */}
+      <View style={styles.instructionBanner}>
+        <Text style={styles.instructionText}>
+          🎯 Verde = Disponible | Rojo = Ocupado | Selecciona una fecha disponible
+        </Text>
+      </View>
 
       {/* Month Navigation */}
       <View style={styles.header}>
@@ -412,6 +437,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
               style={getDateStyle(day)}
               onPress={() => onDateSelect(day.date)}
               disabled={!day.isCurrentMonth}
+              activeOpacity={0.7}
             >
               <Text style={getTextStyle(day)}>
                 {new Date(day.date).getDate()}
@@ -435,33 +461,33 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
         
         <View style={styles.legendGrid}>
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#4CAF50' }]} />
-            <Text style={styles.legendText}>Disponible</Text>
+            <View style={[styles.legendColor, { backgroundColor: colors.available }]} />
+            <Text style={styles.legendText}>✅ Disponible</Text>
           </View>
           
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#F44336' }]} />
-            <Text style={styles.legendText}>Ocupado</Text>
+            <View style={[styles.legendColor, { backgroundColor: colors.occupied }]} />
+            <Text style={styles.legendText}>❌ Ocupado</Text>
           </View>
           
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: colors.info }]} />
-            <Text style={styles.legendText}>Hoy</Text>
+            <View style={[styles.legendColor, { backgroundColor: colors.today }]} />
+            <Text style={styles.legendText}>📅 Hoy</Text>
           </View>
           
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: colors.primary }]} />
-            <Text style={styles.legendText}>Seleccionada</Text>
+            <Text style={styles.legendText}>🎯 Seleccionada</Text>
           </View>
           
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: colors.lightGray }]} />
-            <Text style={styles.legendText}>Fecha pasada</Text>
+            <View style={[styles.legendColor, { backgroundColor: colors.past }]} />
+            <Text style={styles.legendText}>⏰ Fecha pasada</Text>
           </View>
           
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#FF5722' }]} />
-            <Text style={styles.legendText}>Múltiples eventos</Text>
+            <View style={[styles.legendColor, { backgroundColor: '#D32F2F' }]} />
+            <Text style={styles.legendText}>🔥 Múltiples eventos</Text>
           </View>
         </View>
       </View>

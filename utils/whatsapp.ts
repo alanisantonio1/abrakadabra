@@ -10,14 +10,21 @@ export const generateWhatsAppMessage = (event: Event): string => {
     day: 'numeric'
   });
 
+  const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+
   const message = `🎉 ¡Hola ${event.customerName}!
 
 Te recordamos que tienes reservado el evento de ${event.childName} para el ${eventDate} a las ${event.time}.
 
 📦 Paquete: ${event.packageType}
-💰 Total: $${event.totalAmount}
-💳 Anticipo pagado: $${event.deposit}
-💵 Saldo pendiente: $${event.remainingAmount}
+💰 Total: $${event.totalAmount.toLocaleString()}
+💳 Anticipo pagado: $${anticipoPaid.toLocaleString()}
+💵 Saldo pendiente: $${event.remainingAmount.toLocaleString()}
+
+${event.remainingAmount > 0 ? 
+  '⏰ Recuerda completar el pago antes del evento.' : 
+  '🎉 ¡Tu evento está completamente pagado!'
+}
 
 ¡Nos vemos pronto en Abrakadabra! 🎈✨`;
 
@@ -32,12 +39,14 @@ export const generateCancellationMessage = (event: Event): string => {
     day: 'numeric'
   });
 
+  const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+
   const message = `❌ Hola ${event.customerName},
 
 Lamentamos informarte que hemos tenido que CANCELAR el evento de ${event.childName} programado para el ${eventDate} a las ${event.time}.
 
 📦 Paquete cancelado: ${event.packageType}
-💰 Monto a reembolsar: $${event.deposit}
+💰 Monto a reembolsar: $${anticipoPaid.toLocaleString()}
 
 Nos pondremos en contacto contigo para coordinar el reembolso y reprogramar si es necesario.
 
@@ -55,18 +64,18 @@ export const generateAnticipoConfirmationMessage = (event: Event, amount: number
     day: 'numeric'
   });
 
-  const totalAnticipos = event.anticipo1Amount || 0;
+  const totalAnticipos = event.anticipo1Amount || amount;
   const remainingBalance = event.totalAmount - totalAnticipos;
 
   const message = `✅ ¡Hola ${event.customerName}!
 
-Confirmamos que hemos recibido tu ANTICIPO por $${amount} para el evento de ${event.childName}.
+Confirmamos que hemos recibido tu ANTICIPO por $${amount.toLocaleString()} para el evento de ${event.childName}.
 
 📅 Fecha del evento: ${eventDate} a las ${event.time}
 📦 Paquete: ${event.packageType}
-💰 Total del evento: $${event.totalAmount}
-💳 Anticipo pagado: $${totalAnticipos}
-💵 Saldo pendiente: $${remainingBalance}
+💰 Total del evento: $${event.totalAmount.toLocaleString()}
+💳 Anticipo pagado: $${totalAnticipos.toLocaleString()}
+💵 Saldo pendiente: $${remainingBalance.toLocaleString()}
 
 ${remainingBalance > 0 ? 
   '⏰ Recuerda que puedes completar el pago antes del evento.' : 
@@ -85,11 +94,14 @@ const openWhatsApp = async (phoneNumber: string, message: string): Promise<void>
     // Clean phone number (remove all non-digits)
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     
+    // Add country code if not present (assuming Mexico +52)
+    const formattedPhone = cleanPhone.startsWith('52') ? cleanPhone : `52${cleanPhone}`;
+    
     // Encode the message for URL
     const encodedMessage = encodeURIComponent(message);
     
     // Create WhatsApp URL
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
     
     console.log('🔗 WhatsApp URL:', whatsappUrl);
     
@@ -103,7 +115,7 @@ const openWhatsApp = async (phoneNumber: string, message: string): Promise<void>
       console.warn('⚠️ WhatsApp not available, trying web version');
       
       // Fallback to web version
-      const webUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
+      const webUrl = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`;
       await Linking.openURL(webUrl);
     }
   } catch (error: any) {

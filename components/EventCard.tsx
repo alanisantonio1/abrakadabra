@@ -14,41 +14,42 @@ interface EventCardProps {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderLeftWidth: 4,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+    elevation: 8,
+    borderLeftWidth: 6,
   },
   cardPaid: {
     borderLeftColor: colors.success,
+    backgroundColor: '#F8FFF9', // Very light green tint
   },
   cardPending: {
     borderLeftColor: colors.warning,
+    backgroundColor: '#FFFEF8', // Very light yellow tint
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   childName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.text,
     flex: 1,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
-  status: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.white,
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    elevation: 3,
   },
   statusPaid: {
     backgroundColor: colors.success,
@@ -56,90 +57,131 @@ const styles = StyleSheet.create({
   statusPending: {
     backgroundColor: colors.warning,
   },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.white,
+  },
   details: {
-    marginBottom: 12,
+    marginBottom: 20,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 8,
+    paddingVertical: 4,
   },
   detailLabel: {
     fontSize: 14,
     color: colors.textLight,
+    fontWeight: '500',
   },
   detailValue: {
     fontSize: 14,
     color: colors.text,
-    fontWeight: '500',
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
   },
-  anticiposSection: {
+  amountValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  positiveAmount: {
+    color: colors.success,
+  },
+  negativeAmount: {
+    color: colors.danger,
+  },
+  anticipoSection: {
     backgroundColor: colors.lightGray,
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  anticiposTitle: {
-    fontSize: 12,
+  anticipoTitle: {
+    fontSize: 14,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   anticipoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   anticipoLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textLight,
-  },
-  anticipoValue: {
-    fontSize: 11,
-    color: colors.text,
     fontWeight: '500',
   },
-  actions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  actionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginLeft: 8,
-  },
-  whatsappButton: {
-    backgroundColor: colors.success,
-  },
-  paidButton: {
-    backgroundColor: colors.primary,
-  },
-  actionButtonText: {
-    color: colors.white,
+  anticipoValue: {
     fontSize: 12,
-    fontWeight: 'bold',
+    color: colors.text,
+    fontWeight: '600',
+  },
+  actions: {
+    gap: 12,
+  },
+  primaryAction: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: 8,
   },
   viewButton: {
     flex: 1,
-    backgroundColor: colors.secondary,
-    paddingVertical: 8,
-    borderRadius: 6,
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
+    boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+    elevation: 4,
   },
   viewButtonText: {
     color: colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  whatsappButton: {
+    backgroundColor: colors.success,
+    boxShadow: '0 4px 12px rgba(150, 206, 180, 0.3)',
+    elevation: 4,
+  },
+  paidButton: {
+    backgroundColor: colors.accent,
+    boxShadow: '0 4px 12px rgba(69, 183, 209, 0.3)',
+    elevation: 4,
+  },
+  actionButtonText: {
+    color: colors.white,
     fontSize: 14,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  iconText: {
+    fontSize: 16,
   },
 });
 
 const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) => {
-  const handleWhatsAppPress = () => {
+  const handleWhatsAppPress = async () => {
     try {
       console.log('📱 Sending WhatsApp reminder from EventCard:', event.id);
-      sendWhatsAppReminder(event);
+      await sendWhatsAppReminder(event);
     } catch (error: any) {
       console.error('❌ Error sending WhatsApp reminder:', error);
     }
@@ -162,12 +204,13 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
     return timeString;
   };
 
-  const totalAnticipos = (event.anticipo1Amount || 0) + (event.anticipo2Amount || 0) + (event.anticipo3Amount || 0);
-  const anticiposCount = [
-    event.anticipo1Amount || 0,
-    event.anticipo2Amount || 0,
-    event.anticipo3Amount || 0
-  ].filter(amount => amount > 0).length;
+  const formatCurrency = (amount: number): string => {
+    return `$${amount.toLocaleString()}`;
+  };
+
+  // Calculate anticipo information
+  const anticipoAmount = event.anticipo1Amount || event.deposit || 0;
+  const hasAnticipo = anticipoAmount > 0;
 
   return (
     <View style={[
@@ -176,78 +219,78 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
     ]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.childName}>{event.childName}</Text>
-        <Text style={[
-          styles.status,
+        <Text style={styles.childName}>🎈 {event.childName}</Text>
+        <View style={[
+          styles.statusBadge,
           event.isPaid ? styles.statusPaid : styles.statusPending
         ]}>
-          {event.isPaid ? '✅ PAGADO' : '⏳ PENDIENTE'}
-        </Text>
+          <Text style={styles.statusText}>
+            {event.isPaid ? '✅ PAGADO' : '⏳ PENDIENTE'}
+          </Text>
+        </View>
       </View>
 
       {/* Details */}
       <View style={styles.details}>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Cliente:</Text>
+          <Text style={styles.detailLabel}>👤 Cliente:</Text>
           <Text style={styles.detailValue}>{event.customerName}</Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Fecha:</Text>
+          <Text style={styles.detailLabel}>📅 Fecha:</Text>
           <Text style={styles.detailValue}>{formatDate(event.date)}</Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Hora:</Text>
+          <Text style={styles.detailLabel}>🕐 Hora:</Text>
           <Text style={styles.detailValue}>{formatTime(event.time)}</Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Paquete:</Text>
+          <Text style={styles.detailLabel}>📦 Paquete:</Text>
           <Text style={styles.detailValue}>{event.packageType}</Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Total:</Text>
-          <Text style={styles.detailValue}>${event.totalAmount.toLocaleString()}</Text>
+          <Text style={styles.detailLabel}>💰 Total:</Text>
+          <Text style={[styles.detailValue, styles.amountValue]}>
+            {formatCurrency(event.totalAmount)}
+          </Text>
         </View>
         
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Saldo:</Text>
+          <Text style={styles.detailLabel}>💵 Saldo:</Text>
           <Text style={[
-            styles.detailValue,
-            { color: event.remainingAmount > 0 ? colors.warning : colors.success }
+            styles.detailValue, 
+            styles.amountValue,
+            event.remainingAmount > 0 ? styles.negativeAmount : styles.positiveAmount
           ]}>
-            ${event.remainingAmount.toLocaleString()}
+            {formatCurrency(event.remainingAmount)}
           </Text>
         </View>
       </View>
 
-      {/* Anticipos Section */}
-      {anticiposCount > 0 && (
-        <View style={styles.anticiposSection}>
-          <Text style={styles.anticiposTitle}>
-            Anticipos ({anticiposCount}/3) - Total: ${totalAnticipos.toLocaleString()}
+      {/* Anticipo Section */}
+      {hasAnticipo && (
+        <View style={styles.anticipoSection}>
+          <Text style={styles.anticipoTitle}>
+            💳 Anticipo Registrado
           </Text>
           
-          {(event.anticipo1Amount || 0) > 0 && (
-            <View style={styles.anticipoRow}>
-              <Text style={styles.anticipoLabel}>Anticipo 1:</Text>
-              <Text style={styles.anticipoValue}>${(event.anticipo1Amount || 0).toLocaleString()}</Text>
-            </View>
-          )}
+          <View style={styles.anticipoRow}>
+            <Text style={styles.anticipoLabel}>Monto del anticipo:</Text>
+            <Text style={styles.anticipoValue}>
+              {formatCurrency(anticipoAmount)}
+            </Text>
+          </View>
           
-          {(event.anticipo2Amount || 0) > 0 && (
+          {event.anticipo1Date && (
             <View style={styles.anticipoRow}>
-              <Text style={styles.anticipoLabel}>Anticipo 2:</Text>
-              <Text style={styles.anticipoValue}>${(event.anticipo2Amount || 0).toLocaleString()}</Text>
-            </View>
-          )}
-          
-          {(event.anticipo3Amount || 0) > 0 && (
-            <View style={styles.anticipoRow}>
-              <Text style={styles.anticipoLabel}>Anticipo 3:</Text>
-              <Text style={styles.anticipoValue}>${(event.anticipo3Amount || 0).toLocaleString()}</Text>
+              <Text style={styles.anticipoLabel}>Fecha de pago:</Text>
+              <Text style={styles.anticipoValue}>
+                {formatDate(event.anticipo1Date)}
+              </Text>
             </View>
           )}
         </View>
@@ -255,25 +298,37 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
 
       {/* Actions */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.viewButton} onPress={onPress}>
-          <Text style={styles.viewButtonText}>Ver Detalles</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.actionButton, styles.whatsappButton]}
-          onPress={handleWhatsAppPress}
-        >
-          <Text style={styles.actionButtonText}>📱 WhatsApp</Text>
-        </TouchableOpacity>
-        
-        {!event.isPaid && onMarkAsPaid && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.paidButton]}
-            onPress={onMarkAsPaid}
-          >
-            <Text style={styles.actionButtonText}>💰 Pagado</Text>
+        {/* Primary Action */}
+        <View style={styles.primaryAction}>
+          <TouchableOpacity style={styles.viewButton} onPress={onPress}>
+            <Text style={styles.viewButtonText}>
+              <Text style={styles.iconText}>👁️</Text> Ver Detalles
+            </Text>
           </TouchableOpacity>
-        )}
+        </View>
+        
+        {/* Secondary Actions */}
+        <View style={styles.secondaryActions}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.whatsappButton]}
+            onPress={handleWhatsAppPress}
+          >
+            <Text style={styles.actionButtonText}>
+              <Text style={styles.iconText}>📱</Text>{'\n'}WhatsApp
+            </Text>
+          </TouchableOpacity>
+          
+          {!event.isPaid && onMarkAsPaid && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.paidButton]}
+              onPress={onMarkAsPaid}
+            >
+              <Text style={styles.actionButtonText}>
+                <Text style={styles.iconText}>💰</Text>{'\n'}Marcar Pagado
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );

@@ -13,7 +13,7 @@ export interface Event {
   isPaid: boolean;
   notes: string;
   createdAt: string;
-  // Only keep the first anticipo
+  // Only keep the first anticipo - simplified structure
   anticipo1Amount?: number;
   anticipo1Date?: string;
 }
@@ -37,7 +37,7 @@ export interface CalendarDay {
   eventCount: number;
 }
 
-// Database types for Supabase
+// Database types for Supabase - cleaned up
 export interface Database {
   public: {
     Tables: {
@@ -57,6 +57,7 @@ export interface Database {
           notes: string;
           created_at: string;
           updated_at: string;
+          // Only first anticipo is kept
           anticipo_1_amount?: number;
           anticipo_1_date?: string;
         };
