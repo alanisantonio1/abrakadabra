@@ -37,7 +37,7 @@ export interface CalendarDay {
   eventCount: number;
 }
 
-// Database types for Supabase - cleaned up
+// Database types for Supabase - simplified with only one anticipo
 export interface Database {
   public: {
     Tables: {

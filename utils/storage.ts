@@ -35,7 +35,7 @@ const eventToSupabaseFormat = (event: Event) => {
     remaining_amount: event.remainingAmount,
     is_paid: event.isPaid,
     notes: event.notes || null,
-    anticipo_1_amount: event.anticipo1Amount || 0,
+    anticipo_1_amount: event.anticipo1Amount || event.deposit || 0,
     anticipo_1_date: event.anticipo1Date || null,
   };
 };
@@ -56,7 +56,7 @@ const supabaseToEventFormat = (row: any): Event => {
     isPaid: row.is_paid,
     notes: row.notes || '',
     createdAt: row.created_at,
-    anticipo1Amount: row.anticipo_1_amount || 0,
+    anticipo1Amount: row.anticipo_1_amount || row.deposit || 0,
     anticipo1Date: row.anticipo_1_date || '',
   };
 };
@@ -155,8 +155,8 @@ const loadEventsFromSupabase = async (): Promise<Event[]> => {
       // Check if error is related to missing columns
       if (error.message?.includes('anticipo_1_amount') || 
           error.message?.includes('column') && error.message?.includes('does not exist')) {
-        console.warn('⚠️ Anticipo columns missing in Supabase. Please run the migration.');
-        throw new Error('Database schema outdated. Please run the anticipo columns migration.');
+        console.warn('⚠️ Anticipo column missing in Supabase. Please run the migration.');
+        throw new Error('Database schema outdated. Please run the anticipo column migration.');
       }
       
       throw new Error(`Supabase error: ${error.message}`);
@@ -195,7 +195,7 @@ const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; er
           error.message?.includes('column') && error.message?.includes('does not exist')) {
         return { 
           success: false, 
-          error: 'Database schema outdated. Please run the anticipo columns migration.' 
+          error: 'Database schema outdated. Please run the anticipo column migration.' 
         };
       }
       
@@ -230,7 +230,7 @@ const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; 
           error.message?.includes('column') && error.message?.includes('does not exist')) {
         return { 
           success: false, 
-          error: 'Database schema outdated. Please run the anticipo columns migration.' 
+          error: 'Database schema outdated. Please run the anticipo column migration.' 
         };
       }
       
@@ -249,22 +249,67 @@ const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; 
 const deleteEventFromSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🗄️ Deleting event from Supabase:', event.id);
+    console.log('🔍 Event ID type:', typeof event.id, 'Value:', event.id);
     
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', event.id);
+    // Ensure the ID is a string and properly formatted
+    const eventId = String(event.id).trim();
     
-    if (error) {
-      console.error('❌ Supabase error deleting event:', error);
-      return { success: false, error: error.message };
+    if (!eventId) {
+      console.error('❌ Invalid event ID for deletion:', event.id);
+      return { success: false, error: 'Invalid event ID' };
     }
     
-    console.log('✅ Event deleted from Supabase');
+    // First check if the event exists
+    const { data: existingEvent, error: selectError } = await supabase
+      .from('events')
+      .select('id')
+      .eq('id', eventId)
+      .single();
+    
+    if (selectError) {
+      console.error('❌ Error checking if event exists:', selectError);
+      if (selectError.code === 'PGRST116') {
+        // Event not found
+        console.warn('⚠️ Event not found in Supabase, considering as already deleted');
+        return { success: true };
+      }
+      return { success: false, error: `Error checking event existence: ${selectError.message}` };
+    }
+    
+    if (!existingEvent) {
+      console.warn('⚠️ Event not found in Supabase, considering as already deleted');
+      return { success: true };
+    }
+    
+    // Now delete the event
+    const { error: deleteError } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId);
+    
+    if (deleteError) {
+      console.error('❌ Supabase error deleting event:', deleteError);
+      console.error('❌ Error code:', deleteError.code);
+      console.error('❌ Error details:', deleteError.details);
+      console.error('❌ Error hint:', deleteError.hint);
+      
+      // Check for specific error codes
+      if (deleteError.code === '22P02') {
+        return { 
+          success: false, 
+          error: `Invalid ID format for deletion. ID: ${eventId}. Please check the event ID format.` 
+        };
+      }
+      
+      return { success: false, error: `Delete failed: ${deleteError.message}` };
+    }
+    
+    console.log('✅ Event deleted from Supabase successfully');
     return { success: true };
   } catch (error: any) {
     console.error('❌ Error deleting event from Supabase:', error);
-    return { success: false, error: error.message };
+    console.error('❌ Error stack:', error.stack);
+    return { success: false, error: `Unexpected error: ${error.message}` };
   }
 };
 
@@ -329,9 +374,18 @@ const mergeEvents = (localEvents: Event[], supabaseEvents: Event[]): Event[] => 
   }
 };
 
-// Generate unique event ID
+// Generate unique event ID in UUID format for better Supabase compatibility
 export const generateEventId = (): string => {
-  return `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // Generate a UUID-like string that's compatible with Supabase
+  const timestamp = Date.now().toString(16);
+  const random1 = Math.random().toString(16).substr(2, 8);
+  const random2 = Math.random().toString(16).substr(2, 4);
+  const random3 = Math.random().toString(16).substr(2, 4);
+  const random4 = Math.random().toString(16).substr(2, 4);
+  const random5 = Math.random().toString(16).substr(2, 12);
+  
+  // Format as UUID: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  return `${timestamp.padStart(8, '0')}-${random2}-4${random3.substr(1)}-${(parseInt(random4[0], 16) & 0x3 | 0x8).toString(16)}${random4.substr(1)}-${random5}`;
 };
 
 // Load events from both sources with Supabase priority
@@ -367,7 +421,7 @@ export const loadEvents = async (): Promise<Event[]> => {
       
       // If it's a schema error, show a more helpful message
       if (supabaseError.message?.includes('Database schema outdated')) {
-        console.error('🔧 Database migration needed. Please run the anticipo columns migration.');
+        console.error('🔧 Database migration needed. Please run the anticipo column migration.');
       }
       
       return localEvents;
@@ -426,7 +480,7 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
         
         // If it's a schema error, add migration instruction
         if (supabaseResult.error?.includes('Database schema outdated')) {
-          messages.push('🔧 Ejecute la migración de columnas anticipo');
+          messages.push('🔧 Ejecute la migración de columna anticipo');
         }
       }
     } catch (supabaseError: any) {
@@ -512,7 +566,7 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
         
         // If it's a schema error, add migration instruction
         if (supabaseResult.error?.includes('Database schema outdated')) {
-          messages.push('🔧 Ejecute la migración de columnas anticipo');
+          messages.push('🔧 Ejecute la migración de columna anticipo');
         }
       }
     } catch (supabaseError: any) {
@@ -704,8 +758,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
           
           // Check if it's a schema error
           if (loadError.message?.includes('Database schema outdated')) {
-            report += '   - ⚠️ MIGRACIÓN REQUERIDA: Ejecute la migración de columnas anticipo\n';
-            report += '   - Archivo: supabase/migrations/add_anticipo_columns.sql\n';
+            report += '   - ⚠️ MIGRACIÓN REQUERIDA: Ejecute la migración de columna anticipo\n';
           }
         }
       } else {
@@ -734,11 +787,12 @@ export const testDatabaseConnections = async (): Promise<string> => {
     report += '\n✅ Manejo de errores robusto';
     report += '\n✅ Base de datos PostgreSQL escalable';
     report += '\n✅ Seguimiento de anticipo único';
+    report += '\n✅ IDs compatibles con UUID para mejor rendimiento';
     
     report += '\n\n🔧 MIGRACIÓN REQUERIDA:';
-    report += '\nSi ve errores relacionados con columnas anticipo,';
-    report += '\nejecute el archivo: supabase/migrations/add_anticipo_columns.sql';
-    report += '\nen su proyecto de Supabase para agregar las columnas faltantes.';
+    report += '\nSi ve errores relacionados con columna anticipo,';
+    report += '\nejecute la migración SQL en el dashboard de Supabase';
+    report += '\npara crear la tabla con la estructura correcta.';
     
     return report;
   } catch (error: any) {
@@ -774,7 +828,7 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
         report += `Acceso a tabla: ❌ ERROR - ${error.message}\n`;
       }
       
-      // Test insert capability with anticipo columns
+      // Test insert capability with anticipo column
       try {
         const testEvent = {
           id: `test_${Date.now()}`,
@@ -803,12 +857,12 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
           // Check if error is related to missing columns
           if (insertError.message?.includes('anticipo_1_amount') || 
               insertError.message?.includes('column') && insertError.message?.includes('does not exist')) {
-            report += '⚠️ MIGRACIÓN REQUERIDA: Columnas anticipo faltantes\n';
-            report += 'Ejecute: supabase/migrations/add_anticipo_columns.sql\n';
+            report += '⚠️ MIGRACIÓN REQUERIDA: Columna anticipo faltante\n';
+            report += 'Ejecute la migración SQL en el dashboard de Supabase\n';
           }
         } else {
           report += 'Inserción: ✅ OK\n';
-          report += 'Columnas anticipo: ✅ DISPONIBLES\n';
+          report += 'Columna anticipo: ✅ DISPONIBLE\n';
           
           // Clean up test event
           await supabase
@@ -868,7 +922,7 @@ export const syncSupabaseToLocal = async (): Promise<{ success: boolean; synced:
     
     // Check if it's a schema error
     if (error.message?.includes('Database schema outdated')) {
-      errorMessage += '\n🔧 Ejecute la migración de columnas anticipo';
+      errorMessage += '\n🔧 Ejecute la migración de columna anticipo';
     }
     
     return {

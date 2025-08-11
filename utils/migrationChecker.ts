@@ -15,10 +15,10 @@ export const checkAnticipoMigration = async (): Promise<MigrationStatus> => {
   try {
     console.log('🔍 Checking if anticipo migration is required...');
     
-    // Try to query the events table with anticipo columns
+    // Try to query the events table with only the first anticipo column
     const { data, error } = await supabase
       .from('events')
-      .select('anticipo_1_amount, anticipo_2_amount, anticipo_3_amount')
+      .select('anticipo_1_amount')
       .limit(1);
     
     if (error) {
@@ -28,15 +28,10 @@ export const checkAnticipoMigration = async (): Promise<MigrationStatus> => {
       if (error.message?.includes('anticipo_1_amount') || 
           error.message?.includes('column') && error.message?.includes('does not exist')) {
         
-        const missingColumns = [];
-        if (error.message.includes('anticipo_1_amount')) missingColumns.push('anticipo_1_amount');
-        if (error.message.includes('anticipo_2_amount')) missingColumns.push('anticipo_2_amount');
-        if (error.message.includes('anticipo_3_amount')) missingColumns.push('anticipo_3_amount');
-        
         return {
           isRequired: true,
-          missingColumns,
-          message: '🔧 Migración requerida: Faltan columnas anticipo en la tabla events',
+          missingColumns: ['anticipo_1_amount'],
+          message: '🔧 Migración requerida: Falta columna anticipo_1_amount en la tabla events',
           canProceed: false
         };
       }
@@ -50,12 +45,12 @@ export const checkAnticipoMigration = async (): Promise<MigrationStatus> => {
       };
     }
     
-    // Success - columns exist
-    console.log('✅ Anticipo columns are available');
+    // Success - column exists
+    console.log('✅ Anticipo column is available');
     return {
       isRequired: false,
       missingColumns: [],
-      message: '✅ Columnas anticipo disponibles - No se requiere migración',
+      message: '✅ Columna anticipo disponible - No se requiere migración',
       canProceed: true
     };
     
@@ -71,7 +66,7 @@ export const checkAnticipoMigration = async (): Promise<MigrationStatus> => {
 };
 
 /**
- * Test if we can insert an event with anticipo columns
+ * Test if we can insert an event with anticipo column
  */
 export const testAnticipoInsert = async (): Promise<{ success: boolean; message: string }> => {
   try {
@@ -92,10 +87,6 @@ export const testAnticipoInsert = async (): Promise<{ success: boolean; message:
       notes: 'Migration test event',
       anticipo_1_amount: 500,
       anticipo_1_date: '2024-12-31',
-      anticipo_2_amount: 0,
-      anticipo_2_date: null,
-      anticipo_3_amount: 0,
-      anticipo_3_date: null,
     };
     
     // Try to insert
@@ -110,7 +101,7 @@ export const testAnticipoInsert = async (): Promise<{ success: boolean; message:
           insertError.message?.includes('column') && insertError.message?.includes('does not exist')) {
         return {
           success: false,
-          message: '🔧 Migración requerida: No se pueden insertar eventos con columnas anticipo'
+          message: '🔧 Migración requerida: No se pueden insertar eventos con columna anticipo'
         };
       }
       
@@ -129,7 +120,7 @@ export const testAnticipoInsert = async (): Promise<{ success: boolean; message:
     console.log('✅ Test insert successful');
     return {
       success: true,
-      message: '✅ Inserción con columnas anticipo funciona correctamente'
+      message: '✅ Inserción con columna anticipo funciona correctamente'
     };
     
   } catch (error: any) {
@@ -148,7 +139,7 @@ export const getMigrationInstructions = (): string => {
   return `
 🔧 INSTRUCCIONES DE MIGRACIÓN
 
-Para resolver el error de columnas anticipo faltantes:
+Para resolver el error de columna anticipo faltante:
 
 1. Abrir Supabase Dashboard:
    https://supabase.com/dashboard
@@ -158,16 +149,34 @@ Para resolver el error de columnas anticipo faltantes:
 3. Ejecutar la siguiente migración:
 
 \`\`\`sql
--- Add anticipo columns to events table
-ALTER TABLE events 
-ADD COLUMN IF NOT EXISTS anticipo_1_amount DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS anticipo_1_date TEXT,
-ADD COLUMN IF NOT EXISTS anticipo_2_amount DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS anticipo_2_date TEXT,
-ADD COLUMN IF NOT EXISTS anticipo_3_amount DECIMAL(10,2) DEFAULT 0,
-ADD COLUMN IF NOT EXISTS anticipo_3_date TEXT;
+-- Create events table with proper structure
+CREATE TABLE IF NOT EXISTS events (
+  id TEXT PRIMARY KEY,
+  date TEXT NOT NULL,
+  time TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT NOT NULL,
+  child_name TEXT NOT NULL,
+  package_type TEXT NOT NULL CHECK (package_type IN ('Abra', 'Kadabra', 'Abrakadabra')),
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  deposit DECIMAL(10,2) NOT NULL DEFAULT 0,
+  remaining_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  is_paid BOOLEAN NOT NULL DEFAULT FALSE,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  anticipo_1_amount DECIMAL(10,2) DEFAULT 0,
+  anticipo_1_date TEXT
+);
 
--- Update existing events
+-- Enable RLS
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+
+-- Create RLS policy for public access
+CREATE POLICY "Allow all operations on events" ON events
+  FOR ALL USING (true);
+
+-- Update existing events if table already exists
 UPDATE events 
 SET anticipo_1_amount = deposit 
 WHERE anticipo_1_amount IS NULL OR anticipo_1_amount = 0;
@@ -175,7 +184,7 @@ WHERE anticipo_1_amount IS NULL OR anticipo_1_amount = 0;
 
 4. Reiniciar la aplicación
 
-📁 También puede encontrar el archivo completo en:
-   supabase/migrations/add_anticipo_columns.sql
+📝 NOTA: Esta migración crea la tabla con la estructura simplificada
+usando solo un campo anticipo como solicitado.
 `;
 };
