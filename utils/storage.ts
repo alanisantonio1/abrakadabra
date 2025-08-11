@@ -37,10 +37,6 @@ const eventToSupabaseFormat = (event: Event) => {
     notes: event.notes || null,
     anticipo_1_amount: event.anticipo1Amount || 0,
     anticipo_1_date: event.anticipo1Date || null,
-    anticipo_2_amount: event.anticipo2Amount || 0,
-    anticipo_2_date: event.anticipo2Date || null,
-    anticipo_3_amount: event.anticipo3Amount || 0,
-    anticipo_3_date: event.anticipo3Date || null,
   };
 };
 
@@ -62,10 +58,6 @@ const supabaseToEventFormat = (row: any): Event => {
     createdAt: row.created_at,
     anticipo1Amount: row.anticipo_1_amount || 0,
     anticipo1Date: row.anticipo_1_date || '',
-    anticipo2Amount: row.anticipo_2_amount || 0,
-    anticipo2Date: row.anticipo_2_date || '',
-    anticipo3Amount: row.anticipo_3_amount || 0,
-    anticipo3Date: row.anticipo_3_date || '',
   };
 };
 
@@ -741,7 +733,7 @@ export const testDatabaseConnections = async (): Promise<string> => {
     report += '\n✅ Validación de datos mejorada';
     report += '\n✅ Manejo de errores robusto';
     report += '\n✅ Base de datos PostgreSQL escalable';
-    report += '\n✅ Seguimiento de anticipos múltiples';
+    report += '\n✅ Seguimiento de anticipo único';
     
     report += '\n\n🔧 MIGRACIÓN REQUERIDA:';
     report += '\nSi ve errores relacionados con columnas anticipo,';
@@ -799,10 +791,6 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
           notes: 'Test event',
           anticipo_1_amount: 500,
           anticipo_1_date: '2024-12-31',
-          anticipo_2_amount: 0,
-          anticipo_2_date: null,
-          anticipo_3_amount: 0,
-          anticipo_3_date: null,
         };
         
         const { error: insertError } = await supabase

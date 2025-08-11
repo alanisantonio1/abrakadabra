@@ -13,13 +13,9 @@ export interface Event {
   isPaid: boolean;
   notes: string;
   createdAt: string;
-  // New anticipo tracking fields
+  // Only keep the first anticipo
   anticipo1Amount?: number;
   anticipo1Date?: string;
-  anticipo2Amount?: number;
-  anticipo2Date?: string;
-  anticipo3Amount?: number;
-  anticipo3Date?: string;
 }
 
 export interface Package {
@@ -63,10 +59,6 @@ export interface Database {
           updated_at: string;
           anticipo_1_amount?: number;
           anticipo_1_date?: string;
-          anticipo_2_amount?: number;
-          anticipo_2_date?: string;
-          anticipo_3_amount?: number;
-          anticipo_3_date?: string;
         };
         Insert: {
           id?: string;
@@ -83,10 +75,6 @@ export interface Database {
           notes?: string;
           anticipo_1_amount?: number;
           anticipo_1_date?: string;
-          anticipo_2_amount?: number;
-          anticipo_2_date?: string;
-          anticipo_3_amount?: number;
-          anticipo_3_date?: string;
         };
         Update: {
           id?: string;
@@ -103,10 +91,6 @@ export interface Database {
           notes?: string;
           anticipo_1_amount?: number;
           anticipo_1_date?: string;
-          anticipo_2_amount?: number;
-          anticipo_2_date?: string;
-          anticipo_3_amount?: number;
-          anticipo_3_date?: string;
         };
       };
     };
