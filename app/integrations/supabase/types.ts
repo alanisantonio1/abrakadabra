@@ -26,6 +26,12 @@ export type Database = {
           notes: string | null
           created_at: string
           updated_at: string
+          anticipo_1_amount: number | null
+          anticipo_1_date: string | null
+          anticipo_2_amount: number | null
+          anticipo_2_date: string | null
+          anticipo_3_amount: number | null
+          anticipo_3_date: string | null
         }
         Insert: {
           id?: string
@@ -40,6 +46,12 @@ export type Database = {
           remaining_amount?: number
           is_paid?: boolean
           notes?: string | null
+          anticipo_1_amount?: number | null
+          anticipo_1_date?: string | null
+          anticipo_2_amount?: number | null
+          anticipo_2_date?: string | null
+          anticipo_3_amount?: number | null
+          anticipo_3_date?: string | null
         }
         Update: {
           id?: string
@@ -54,6 +66,12 @@ export type Database = {
           remaining_amount?: number
           is_paid?: boolean
           notes?: string | null
+          anticipo_1_amount?: number | null
+          anticipo_1_date?: string | null
+          anticipo_2_amount?: number | null
+          anticipo_2_date?: string | null
+          anticipo_3_amount?: number | null
+          anticipo_3_date?: string | null
         }
         Relationships: []
       }
@@ -151,6 +169,6 @@ export type Enums<
     : never = never,
 > = PublicEnumNameOrOptions extends { schema: keyof Database }
   ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+  : PublicTableNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicTableNameOrOptions]
     : never

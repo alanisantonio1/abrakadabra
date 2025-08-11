@@ -147,7 +147,7 @@ const saveEventsToLocalStorage = async (events: Event[]): Promise<void> => {
   }
 };
 
-// Load events from Supabase
+// Load events from Supabase with better error handling for missing columns
 const loadEventsFromSupabase = async (): Promise<Event[]> => {
   try {
     console.log('🗄️ Loading events from Supabase...');
@@ -159,6 +159,14 @@ const loadEventsFromSupabase = async (): Promise<Event[]> => {
     
     if (error) {
       console.error('❌ Supabase error loading events:', error);
+      
+      // Check if error is related to missing columns
+      if (error.message?.includes('anticipo_1_amount') || 
+          error.message?.includes('column') && error.message?.includes('does not exist')) {
+        console.warn('⚠️ Anticipo columns missing in Supabase. Please run the migration.');
+        throw new Error('Database schema outdated. Please run the anticipo columns migration.');
+      }
+      
       throw new Error(`Supabase error: ${error.message}`);
     }
     
@@ -176,7 +184,7 @@ const loadEventsFromSupabase = async (): Promise<Event[]> => {
   }
 };
 
-// Save event to Supabase
+// Save event to Supabase with better error handling
 const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🗄️ Saving event to Supabase:', event.id);
@@ -189,6 +197,16 @@ const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; er
     
     if (error) {
       console.error('❌ Supabase error saving event:', error);
+      
+      // Check if error is related to missing columns
+      if (error.message?.includes('anticipo_1_amount') || 
+          error.message?.includes('column') && error.message?.includes('does not exist')) {
+        return { 
+          success: false, 
+          error: 'Database schema outdated. Please run the anticipo columns migration.' 
+        };
+      }
+      
       return { success: false, error: error.message };
     }
     
@@ -200,7 +218,7 @@ const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; er
   }
 };
 
-// Update event in Supabase
+// Update event in Supabase with better error handling
 const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; error?: string }> => {
   try {
     console.log('🗄️ Updating event in Supabase:', event.id);
@@ -214,6 +232,16 @@ const updateEventInSupabase = async (event: Event): Promise<{ success: boolean; 
     
     if (error) {
       console.error('❌ Supabase error updating event:', error);
+      
+      // Check if error is related to missing columns
+      if (error.message?.includes('anticipo_1_amount') || 
+          error.message?.includes('column') && error.message?.includes('does not exist')) {
+        return { 
+          success: false, 
+          error: 'Database schema outdated. Please run the anticipo columns migration.' 
+        };
+      }
+      
       return { success: false, error: error.message };
     }
     
@@ -344,6 +372,12 @@ export const loadEvents = async (): Promise<Event[]> => {
       }
     } catch (supabaseError: any) {
       console.warn('⚠️ Supabase unavailable, using local storage:', supabaseError.message);
+      
+      // If it's a schema error, show a more helpful message
+      if (supabaseError.message?.includes('Database schema outdated')) {
+        console.error('🔧 Database migration needed. Please run the anticipo columns migration.');
+      }
+      
       return localEvents;
     }
   } catch (error: any) {
@@ -397,6 +431,11 @@ export const saveEvent = async (event: Event): Promise<{ success: boolean; messa
       } else {
         console.warn('⚠️ Supabase save failed:', supabaseResult.error);
         messages.push(`⚠️ Supabase: ${supabaseResult.error || 'No disponible'}`);
+        
+        // If it's a schema error, add migration instruction
+        if (supabaseResult.error?.includes('Database schema outdated')) {
+          messages.push('🔧 Ejecute la migración de columnas anticipo');
+        }
       }
     } catch (supabaseError: any) {
       console.warn('⚠️ Supabase error:', supabaseError);
@@ -478,6 +517,11 @@ export const updateEvent = async (updatedEvent: Event): Promise<{ success: boole
       } else {
         console.warn('⚠️ Supabase update failed:', supabaseResult.error);
         messages.push(`⚠️ Supabase: ${supabaseResult.error || 'No disponible'}`);
+        
+        // If it's a schema error, add migration instruction
+        if (supabaseResult.error?.includes('Database schema outdated')) {
+          messages.push('🔧 Ejecute la migración de columnas anticipo');
+        }
       }
     } catch (supabaseError: any) {
       console.warn('⚠️ Supabase error:', supabaseError);
@@ -665,6 +709,12 @@ export const testDatabaseConnections = async (): Promise<string> => {
           }
         } catch (loadError: any) {
           report += `   - Error cargando eventos: ${loadError.message}\n`;
+          
+          // Check if it's a schema error
+          if (loadError.message?.includes('Database schema outdated')) {
+            report += '   - ⚠️ MIGRACIÓN REQUERIDA: Ejecute la migración de columnas anticipo\n';
+            report += '   - Archivo: supabase/migrations/add_anticipo_columns.sql\n';
+          }
         }
       } else {
         report += '❌ ERROR\n';
@@ -692,6 +742,11 @@ export const testDatabaseConnections = async (): Promise<string> => {
     report += '\n✅ Manejo de errores robusto';
     report += '\n✅ Base de datos PostgreSQL escalable';
     report += '\n✅ Seguimiento de anticipos múltiples';
+    
+    report += '\n\n🔧 MIGRACIÓN REQUERIDA:';
+    report += '\nSi ve errores relacionados con columnas anticipo,';
+    report += '\nejecute el archivo: supabase/migrations/add_anticipo_columns.sql';
+    report += '\nen su proyecto de Supabase para agregar las columnas faltantes.';
     
     return report;
   } catch (error: any) {
@@ -727,7 +782,7 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
         report += `Acceso a tabla: ❌ ERROR - ${error.message}\n`;
       }
       
-      // Test insert capability
+      // Test insert capability with anticipo columns
       try {
         const testEvent = {
           id: `test_${Date.now()}`,
@@ -742,6 +797,12 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
           remaining_amount: 500,
           is_paid: false,
           notes: 'Test event',
+          anticipo_1_amount: 500,
+          anticipo_1_date: '2024-12-31',
+          anticipo_2_amount: 0,
+          anticipo_2_date: null,
+          anticipo_3_amount: 0,
+          anticipo_3_date: null,
         };
         
         const { error: insertError } = await supabase
@@ -750,8 +811,16 @@ export const runSupabaseDiagnostics = async (): Promise<string> => {
         
         if (insertError) {
           report += `Inserción: ❌ ERROR - ${insertError.message}\n`;
+          
+          // Check if error is related to missing columns
+          if (insertError.message?.includes('anticipo_1_amount') || 
+              insertError.message?.includes('column') && insertError.message?.includes('does not exist')) {
+            report += '⚠️ MIGRACIÓN REQUERIDA: Columnas anticipo faltantes\n';
+            report += 'Ejecute: supabase/migrations/add_anticipo_columns.sql\n';
+          }
         } else {
           report += 'Inserción: ✅ OK\n';
+          report += 'Columnas anticipo: ✅ DISPONIBLES\n';
           
           // Clean up test event
           await supabase
@@ -806,10 +875,18 @@ export const syncSupabaseToLocal = async (): Promise<{ success: boolean; synced:
     };
   } catch (error: any) {
     console.error('❌ Error syncing Supabase to local:', error);
+    
+    let errorMessage = `❌ Error sincronizando: ${error.message || 'Unknown error'}`;
+    
+    // Check if it's a schema error
+    if (error.message?.includes('Database schema outdated')) {
+      errorMessage += '\n🔧 Ejecute la migración de columnas anticipo';
+    }
+    
     return {
       success: false,
       synced: 0,
-      message: `❌ Error sincronizando: ${error.message || 'Unknown error'}`
+      message: errorMessage
     };
   }
 };

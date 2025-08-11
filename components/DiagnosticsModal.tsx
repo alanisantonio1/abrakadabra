@@ -1,5 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import { 
+  testDatabaseConnections, 
+  runSupabaseDiagnostics,
+  syncSupabaseToLocal 
+} from '../utils/storage';
+import { 
+  checkAnticipoMigration,
+  testAnticipoInsert,
+  getMigrationInstructions,
+  MigrationStatus
+} from '../utils/migrationChecker';
 import { 
   View, 
   Text, 
@@ -9,14 +19,10 @@ import {
   Alert,
   StyleSheet 
 } from 'react-native';
-import { colors, commonStyles } from '../styles/commonStyles';
 import Button from './Button';
-import { 
-  testDatabaseConnections, 
-  runSupabaseDiagnostics,
-  syncSupabaseToLocal 
-} from '../utils/storage';
+import React, { useState, useEffect } from 'react';
 import { runHealthCheck, formatHealthReport } from '../utils/healthCheck';
+import { colors, commonStyles } from '../styles/commonStyles';
 
 interface DiagnosticsModalProps {
   visible: boolean;
@@ -32,31 +38,31 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderRadius: 15,
+    borderRadius: 20,
     padding: 20,
     width: '90%',
     maxHeight: '80%',
   },
-  title: {
-    fontSize: 20,
+  modalTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: colors.primary,
     textAlign: 'center',
     marginBottom: 20,
   },
-  section: {
+  diagnosticSection: {
     marginBottom: 15,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.primary,
     marginBottom: 10,
   },
   diagnosticText: {
-    fontSize: 12,
-    fontFamily: 'monospace',
+    fontSize: 14,
     color: colors.text,
+    fontFamily: 'monospace',
     backgroundColor: colors.lightGray,
     padding: 10,
     borderRadius: 8,
@@ -67,216 +73,344 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  smallButton: {
-    flex: 1,
-    marginHorizontal: 5,
+  halfButton: {
+    flex: 0.48,
   },
-  infoBox: {
-    backgroundColor: colors.lightBlue,
+  migrationWarning: {
+    backgroundColor: '#fff3cd',
+    borderColor: '#ffeaa7',
+    borderWidth: 1,
+    borderRadius: 8,
     padding: 15,
-    borderRadius: 10,
     marginBottom: 15,
   },
-  infoTitle: {
+  migrationTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.primary,
+    color: '#856404',
     marginBottom: 8,
   },
-  infoText: {
+  migrationText: {
     fontSize: 14,
-    color: colors.text,
+    color: '#856404',
     lineHeight: 20,
   },
-  closeButton: {
-    marginTop: 15,
+  migrationSuccess: {
+    backgroundColor: '#d4edda',
+    borderColor: '#c3e6cb',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+  },
+  migrationSuccessTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#155724',
+    marginBottom: 8,
+  },
+  migrationSuccessText: {
+    fontSize: 14,
+    color: '#155724',
+    lineHeight: 20,
   },
 });
 
 const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ visible, onClose }) => {
-  const [diagnosticResults, setDiagnosticResults] = useState<string>('');
+  const [diagnosticResult, setDiagnosticResult] = useState<string>('');
+  const [supabaseResult, setSupabaseResult] = useState<string>('');
+  const [healthResult, setHealthResult] = useState<string>('');
+  const [syncResult, setSyncResult] = useState<string>('');
+  const [migrationStatus, setMigrationStatus] = useState<MigrationStatus | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
-      runGeneralDiagnostics();
+      checkMigrationStatus();
     }
   }, [visible]);
 
-  const runGeneralDiagnostics = async () => {
-    setIsLoading(true);
+  const checkMigrationStatus = async () => {
     try {
-      console.log('🔍 Running general diagnostics...');
-      const results = await testDatabaseConnections();
-      setDiagnosticResults(results);
+      setIsLoading(true);
+      const status = await checkAnticipoMigration();
+      setMigrationStatus(status);
+    } catch (error) {
+      console.error('Error checking migration status:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const runGeneralDiagnostics = async () => {
+    try {
+      setIsLoading(true);
+      setDiagnosticResult('🔄 Ejecutando diagnósticos...');
+      const result = await testDatabaseConnections();
+      setDiagnosticResult(result);
     } catch (error: any) {
-      console.error('❌ Error running diagnostics:', error);
-      setDiagnosticResults(`❌ Error ejecutando diagnósticos: ${error.message}`);
+      setDiagnosticResult(`❌ Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const runSupabaseDiagnosticsTest = async () => {
-    setIsLoading(true);
     try {
-      console.log('🗄️ Running Supabase diagnostics...');
-      const results = await runSupabaseDiagnostics();
-      setDiagnosticResults(results);
+      setIsLoading(true);
+      setSupabaseResult('🔄 Ejecutando diagnósticos de Supabase...');
+      const result = await runSupabaseDiagnostics();
+      setSupabaseResult(result);
     } catch (error: any) {
-      console.error('❌ Error running Supabase diagnostics:', error);
-      setDiagnosticResults(`❌ Error en diagnósticos de Supabase: ${error.message}`);
+      setSupabaseResult(`❌ Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const runSystemHealthCheck = async () => {
-    setIsLoading(true);
     try {
-      console.log('🏥 Running system health check...');
+      setIsLoading(true);
+      setHealthResult('🔄 Ejecutando chequeo de salud del sistema...');
       const healthData = await runHealthCheck();
       const formattedReport = formatHealthReport(healthData);
-      setDiagnosticResults(formattedReport);
+      setHealthResult(formattedReport);
     } catch (error: any) {
-      console.error('❌ Error running health check:', error);
-      setDiagnosticResults(`❌ Error en chequeo de salud: ${error.message}`);
+      setHealthResult(`❌ Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const syncFromSupabase = async () => {
-    setIsLoading(true);
     try {
-      console.log('🔄 Syncing from Supabase...');
+      setIsLoading(true);
+      setSyncResult('🔄 Sincronizando desde Supabase...');
       const result = await syncSupabaseToLocal();
+      setSyncResult(result.message);
       
       if (result.success) {
         Alert.alert(
-          '✅ Sincronización Exitosa',
-          result.message,
-          [{ text: 'OK' }]
-        );
-        // Refresh diagnostics after sync
-        await runGeneralDiagnostics();
-      } else {
-        Alert.alert(
-          '❌ Error de Sincronización',
-          result.message,
+          'Sincronización Exitosa',
+          `Se sincronizaron ${result.synced} eventos desde Supabase`,
           [{ text: 'OK' }]
         );
       }
     } catch (error: any) {
-      console.error('❌ Error syncing from Supabase:', error);
-      Alert.alert(
-        '❌ Error de Sincronización',
-        `Error sincronizando desde Supabase: ${error.message}`,
-        [{ text: 'OK' }]
-      );
+      setSyncResult(`❌ Error: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const showSupabaseInfo = () => {
+  const testMigration = async () => {
+    try {
+      setIsLoading(true);
+      const result = await testAnticipoInsert();
+      
+      Alert.alert(
+        result.success ? 'Prueba Exitosa' : 'Prueba Fallida',
+        result.message,
+        [{ text: 'OK' }]
+      );
+      
+      // Refresh migration status
+      await checkMigrationStatus();
+    } catch (error: any) {
+      Alert.alert('Error', `Error en prueba: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const showMigrationInstructions = () => {
+    const instructions = getMigrationInstructions();
     Alert.alert(
-      '🗄️ Información de Supabase',
-      'Supabase es una plataforma de base de datos PostgreSQL en la nube que proporciona:\n\n' +
-      '• Base de datos PostgreSQL escalable\n' +
-      '• API REST automática\n' +
-      '• Sincronización en tiempo real\n' +
-      '• Respaldo automático\n' +
-      '• Seguridad avanzada con RLS\n\n' +
-      'La aplicación usa Supabase como almacenamiento principal con respaldo local.',
+      'Instrucciones de Migración',
+      instructions,
       [{ text: 'Entendido' }]
     );
   };
 
-  const getInfoBoxContent = () => {
-    return (
-      <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>🗄️ Sistema de Almacenamiento Supabase</Text>
-        <Text style={styles.infoText}>
-          La aplicación ahora utiliza Supabase como base de datos principal con PostgreSQL. 
-          Los datos se sincronizan automáticamente y se mantiene un respaldo local para 
-          funcionamiento offline.
-        </Text>
-      </View>
+  const showSupabaseInfo = () => {
+    Alert.alert(
+      'Información de Supabase',
+      'Supabase es la base de datos principal de la aplicación. Proporciona almacenamiento en la nube, sincronización en tiempo real y respaldo de datos.',
+      [{ text: 'OK' }]
     );
   };
 
+  const getInfoBoxContent = () => {
+    return `
+🎯 DIAGNÓSTICOS DEL SISTEMA
+
+Esta herramienta ayuda a identificar y resolver problemas:
+
+✅ Almacenamiento Local: Verifica AsyncStorage
+🗄️ Supabase: Prueba conexión y esquema de BD
+🔧 Migración: Verifica columnas anticipo
+🔄 Sincronización: Actualiza datos desde Supabase
+💊 Salud del Sistema: Estado general de la app
+
+📊 FUNCIONES DISPONIBLES:
+- Diagnóstico general de almacenamiento
+- Pruebas específicas de Supabase
+- Verificación de migración de esquema
+- Sincronización de datos
+- Chequeo de salud del sistema
+    `;
+  };
+
+  const renderMigrationStatus = () => {
+    if (!migrationStatus) return null;
+
+    if (migrationStatus.isRequired) {
+      return (
+        <View style={styles.migrationWarning}>
+          <Text style={styles.migrationTitle}>⚠️ Migración Requerida</Text>
+          <Text style={styles.migrationText}>
+            {migrationStatus.message}
+          </Text>
+          {migrationStatus.missingColumns.length > 0 && (
+            <Text style={styles.migrationText}>
+              Columnas faltantes: {migrationStatus.missingColumns.join(', ')}
+            </Text>
+          )}
+          <View style={[styles.buttonRow, { marginTop: 10 }]}>
+            <View style={styles.halfButton}>
+              <Button
+                title="Ver Instrucciones"
+                onPress={showMigrationInstructions}
+                variant="secondary"
+              />
+            </View>
+            <View style={styles.halfButton}>
+              <Button
+                title="Probar Migración"
+                onPress={testMigration}
+                variant="primary"
+              />
+            </View>
+          </View>
+        </View>
+      );
+    } else if (migrationStatus.canProceed) {
+      return (
+        <View style={styles.migrationSuccess}>
+          <Text style={styles.migrationSuccessTitle}>✅ Migración Completa</Text>
+          <Text style={styles.migrationSuccessText}>
+            {migrationStatus.message}
+          </Text>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="slide">
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.title}>🔍 Diagnósticos del Sistema</Text>
+          <Text style={styles.modalTitle}>🔍 Diagnósticos del Sistema</Text>
           
-          {getInfoBoxContent()}
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Herramientas de Diagnóstico</Text>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Migration Status */}
+            {renderMigrationStatus()}
             
-            <View style={styles.buttonRow}>
-              <Button
-                title="🔍 General"
-                onPress={runGeneralDiagnostics}
-                style={styles.smallButton}
-                disabled={isLoading}
-              />
-              <Button
-                title="🗄️ Supabase"
-                onPress={runSupabaseDiagnosticsTest}
-                style={styles.smallButton}
-                disabled={isLoading}
-              />
+            {/* Info Box */}
+            <View style={styles.diagnosticSection}>
+              <Text style={styles.sectionTitle}>ℹ️ Información</Text>
+              <Text style={styles.diagnosticText}>
+                {getInfoBoxContent()}
+              </Text>
             </View>
-            
-            <View style={styles.buttonRow}>
+
+            {/* Diagnostic Buttons */}
+            <View style={styles.diagnosticSection}>
+              <Text style={styles.sectionTitle}>🧪 Pruebas de Diagnóstico</Text>
+              
+              <View style={styles.buttonRow}>
+                <View style={styles.halfButton}>
+                  <Button
+                    title="Diagnóstico General"
+                    onPress={runGeneralDiagnostics}
+                    variant="primary"
+                    disabled={isLoading}
+                  />
+                </View>
+                <View style={styles.halfButton}>
+                  <Button
+                    title="Pruebas Supabase"
+                    onPress={runSupabaseDiagnosticsTest}
+                    variant="secondary"
+                    disabled={isLoading}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.buttonRow}>
+                <View style={styles.halfButton}>
+                  <Button
+                    title="Salud del Sistema"
+                    onPress={runSystemHealthCheck}
+                    variant="secondary"
+                    disabled={isLoading}
+                  />
+                </View>
+                <View style={styles.halfButton}>
+                  <Button
+                    title="Sincronizar Datos"
+                    onPress={syncFromSupabase}
+                    variant="primary"
+                    disabled={isLoading}
+                  />
+                </View>
+              </View>
+
               <Button
-                title="🏥 Salud"
-                onPress={runSystemHealthCheck}
-                style={styles.smallButton}
-                disabled={isLoading}
-              />
-              <Button
-                title="ℹ️ Info"
+                title="ℹ️ Info Supabase"
                 onPress={showSupabaseInfo}
-                style={styles.smallButton}
+                variant="secondary"
                 disabled={isLoading}
               />
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sincronización</Text>
-            <Button
-              title="🔄 Sincronizar desde Supabase"
-              onPress={syncFromSupabase}
-              disabled={isLoading}
-            />
-          </View>
+            {/* Results */}
+            {diagnosticResult ? (
+              <View style={styles.diagnosticSection}>
+                <Text style={styles.sectionTitle}>📊 Resultado General</Text>
+                <Text style={styles.diagnosticText}>{diagnosticResult}</Text>
+              </View>
+            ) : null}
 
-          {diagnosticResults ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Resultados</Text>
-              <ScrollView style={{ maxHeight: 200 }}>
-                <Text style={styles.diagnosticText}>
-                  {isLoading ? 'Ejecutando diagnósticos...' : diagnosticResults}
-                </Text>
-              </ScrollView>
-            </View>
-          ) : null}
+            {supabaseResult ? (
+              <View style={styles.diagnosticSection}>
+                <Text style={styles.sectionTitle}>🗄️ Resultado Supabase</Text>
+                <Text style={styles.diagnosticText}>{supabaseResult}</Text>
+              </View>
+            ) : null}
+
+            {healthResult ? (
+              <View style={styles.diagnosticSection}>
+                <Text style={styles.sectionTitle}>💊 Salud del Sistema</Text>
+                <Text style={styles.diagnosticText}>{healthResult}</Text>
+              </View>
+            ) : null}
+
+            {syncResult ? (
+              <View style={styles.diagnosticSection}>
+                <Text style={styles.sectionTitle}>🔄 Sincronización</Text>
+                <Text style={styles.diagnosticText}>{syncResult}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
 
           <Button
             title="Cerrar"
             onPress={onClose}
-            style={styles.closeButton}
+            variant="secondary"
+            style={{ marginTop: 20 }}
           />
         </View>
       </View>
