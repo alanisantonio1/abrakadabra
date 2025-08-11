@@ -36,6 +36,16 @@ export const checkAnticipoMigration = async (): Promise<MigrationStatus> => {
         };
       }
       
+      // Check for policy errors
+      if (error.message?.includes('policy') && error.message?.includes('already exists')) {
+        return {
+          isRequired: true,
+          missingColumns: [],
+          message: '🔧 Migración requerida: Error de política duplicada - Ejecute la migración para corregir',
+          canProceed: false
+        };
+      }
+      
       // Other error
       return {
         isRequired: false,
@@ -56,6 +66,17 @@ export const checkAnticipoMigration = async (): Promise<MigrationStatus> => {
     
   } catch (error: any) {
     console.error('❌ Error checking migration:', error);
+    
+    // Check for policy errors in catch block too
+    if (error.message?.includes('policy') && error.message?.includes('already exists')) {
+      return {
+        isRequired: true,
+        missingColumns: [],
+        message: '🔧 Migración requerida: Error de política duplicada - Ejecute la migración para corregir',
+        canProceed: false
+      };
+    }
+    
     return {
       isRequired: false,
       missingColumns: [],
@@ -139,7 +160,7 @@ export const getMigrationInstructions = (): string => {
   return `
 🔧 INSTRUCCIONES DE MIGRACIÓN
 
-Para resolver el error de columna anticipo faltante:
+Para resolver el error de política duplicada:
 
 1. Abrir Supabase Dashboard:
    https://supabase.com/dashboard
@@ -149,7 +170,10 @@ Para resolver el error de columna anticipo faltante:
 3. Ejecutar la siguiente migración:
 
 \`\`\`sql
--- Create events table with proper structure
+-- Drop existing policy if it exists to avoid conflicts
+DROP POLICY IF EXISTS "Allow all operations on events" ON events;
+
+-- Ensure events table exists with proper structure
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,
@@ -169,14 +193,26 @@ CREATE TABLE IF NOT EXISTS events (
   anticipo_1_date TEXT
 );
 
+-- Add missing columns if they don't exist
+ALTER TABLE events 
+ADD COLUMN IF NOT EXISTS anticipo_1_amount DECIMAL(10,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS anticipo_1_date TEXT;
+
+-- Remove extra anticipo columns that are no longer needed
+ALTER TABLE events 
+DROP COLUMN IF EXISTS anticipo_2_amount,
+DROP COLUMN IF EXISTS anticipo_2_date,
+DROP COLUMN IF EXISTS anticipo_3_amount,
+DROP COLUMN IF EXISTS anticipo_3_date;
+
 -- Enable RLS
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policy for public access
-CREATE POLICY "Allow all operations on events" ON events
+-- Create the policy with a unique name to avoid conflicts
+CREATE POLICY "events_all_operations_policy" ON events
   FOR ALL USING (true);
 
--- Update existing events if table already exists
+-- Update existing events to have anticipo_1_amount equal to their deposit if not set
 UPDATE events 
 SET anticipo_1_amount = deposit 
 WHERE anticipo_1_amount IS NULL OR anticipo_1_amount = 0;
@@ -184,7 +220,10 @@ WHERE anticipo_1_amount IS NULL OR anticipo_1_amount = 0;
 
 4. Reiniciar la aplicación
 
-📝 NOTA: Esta migración crea la tabla con la estructura simplificada
-usando solo un campo anticipo como solicitado.
+📝 NOTA: Esta migración:
+- Elimina la política duplicada que causaba el error
+- Simplifica la estructura usando solo un campo anticipo
+- Remueve las columnas anticipo_2 y anticipo_3 que ya no se necesitan
+- Crea una nueva política con nombre único
 `;
 };
