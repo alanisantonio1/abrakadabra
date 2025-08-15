@@ -258,10 +258,38 @@ const getDaysInMonth = (year: number, month: number): number => {
 };
 
 // Helper function to validate that we have the correct number of days for each month
-const validateMonthDays = (year: number, month: number, expectedDays: number): boolean => {
+const validateMonthDays = (year: number, month: number): number => {
   const actualDays = getDaysInMonth(year, month);
-  console.log(`📅 Month ${month + 1}/${year}: Expected ${expectedDays} days, Got ${actualDays} days`);
-  return actualDays === expectedDays;
+  
+  // Expected days for each month
+  const monthDaysMap: { [key: number]: number } = {
+    0: 31,  // January
+    1: year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28, // February (leap year check)
+    2: 31,  // March
+    3: 30,  // April
+    4: 31,  // May
+    5: 30,  // June
+    6: 31,  // July
+    7: 31,  // August
+    8: 30,  // September
+    9: 31,  // October
+    10: 30, // November
+    11: 31  // December
+  };
+  
+  const expectedDays = monthDaysMap[month];
+  
+  console.log(`📅 CALENDAR VALIDATION: ${getMonthName(month)} ${year}`);
+  console.log(`   Expected days: ${expectedDays}`);
+  console.log(`   Actual days: ${actualDays}`);
+  
+  if (actualDays !== expectedDays) {
+    console.error(`❌ CALENDAR ERROR: Month ${month + 1}/${year} should have ${expectedDays} days but got ${actualDays}`);
+  } else {
+    console.log(`✅ CALENDAR CORRECT: ${getMonthName(month)} ${year} has correct ${actualDays} days`);
+  }
+  
+  return actualDays;
 };
 
 const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selectedDate }) => {
@@ -269,55 +297,37 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const [calendarRows, setCalendarRows] = useState<(CalendarDay | null)[][]>([]);
 
   const generateCalendarDays = useCallback(() => {
-    console.log('🗓️ Generating calendar days for current month only...');
+    console.log('🗓️ ===== GENERATING CALENDAR =====');
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth(); // 0-based (0 = January, 11 = December)
     
+    console.log(`📅 Generating calendar for: ${getMonthName(month)} ${year} (month index: ${month})`);
+    
     // Get the correct number of days in this month
-    const daysInMonth = getDaysInMonth(year, month);
-    
-    // Validate against expected days for common months
-    const monthDaysMap: { [key: number]: number } = {
-      0: 31,  // January
-      1: year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28, // February (leap year check)
-      2: 31,  // March
-      3: 30,  // April
-      4: 31,  // May
-      5: 30,  // June
-      6: 31,  // July
-      7: 31,  // August
-      8: 30,  // September
-      9: 31,  // October
-      10: 30, // November
-      11: 31  // December
-    };
-    
-    const expectedDays = monthDaysMap[month];
-    if (daysInMonth !== expectedDays) {
-      console.error(`❌ CALENDAR ERROR: Month ${month + 1}/${year} should have ${expectedDays} days but got ${daysInMonth}`);
-    } else {
-      console.log(`✅ CALENDAR CORRECT: Month ${month + 1}/${year} has correct ${daysInMonth} days`);
-    }
+    const daysInMonth = validateMonthDays(year, month);
     
     // Get first day of the month and its day of week
     const firstDay = new Date(year, month, 1);
     const startDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
+    console.log(`📅 First day of ${getMonthName(month)}: ${getDayName(startDayOfWeek)} (index: ${startDayOfWeek})`);
+    console.log(`📅 Days in ${getMonthName(month)}: ${daysInMonth}`);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
     const todayString = today.toISOString().split('T')[0];
-    
-    console.log(`📅 ${getMonthName(month)} ${year}: ${daysInMonth} days, starts on ${getDayName(startDayOfWeek)}`);
     
     // Create array to hold all calendar cells (including empty ones for alignment)
     const allCells: (CalendarDay | null)[] = [];
     
     // Add empty cells for days before the first day of the month
+    console.log(`📅 Adding ${startDayOfWeek} empty cells at the beginning`);
     for (let i = 0; i < startDayOfWeek; i++) {
       allCells.push(null);
     }
     
-    // Add all days of the current month (1 to daysInMonth)
+    // Add all days of the current month ONLY (1 to daysInMonth)
+    console.log(`📅 Adding days 1 to ${daysInMonth} for ${getMonthName(month)} ${year}`);
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       date.setHours(0, 0, 0, 0); // Reset time for accurate comparison
@@ -346,12 +356,41 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       rows.push(row);
     }
     
-    console.log(`✅ Calendar generated: ${daysInMonth} days in ${rows.length} rows`);
-    console.log(`📊 Total cells: ${allCells.length}, Empty cells at start: ${startDayOfWeek}`);
+    console.log(`✅ Calendar generated successfully:`);
+    console.log(`   - Month: ${getMonthName(month)} ${year}`);
+    console.log(`   - Days in month: ${daysInMonth}`);
+    console.log(`   - Empty cells at start: ${startDayOfWeek}`);
+    console.log(`   - Total cells: ${allCells.length}`);
+    console.log(`   - Rows: ${rows.length}`);
     
     // Log the actual days being displayed for verification
-    const actualDays = allCells.filter(cell => cell !== null).map(cell => cell ? new Date(cell.date).getDate() : null);
-    console.log(`🔍 Days displayed: ${actualDays.join(', ')}`);
+    const actualDays = allCells
+      .filter(cell => cell !== null)
+      .map(cell => cell ? new Date(cell.date).getDate() : null);
+    console.log(`🔍 Days displayed: [${actualDays.join(', ')}]`);
+    
+    // Verify no days from other months are included
+    const datesFromOtherMonths = allCells
+      .filter(cell => cell !== null)
+      .filter(cell => {
+        if (!cell) return false;
+        const cellDate = new Date(cell.date);
+        return cellDate.getMonth() !== month || cellDate.getFullYear() !== year;
+      });
+    
+    if (datesFromOtherMonths.length > 0) {
+      console.error(`❌ ERROR: Found ${datesFromOtherMonths.length} dates from other months!`);
+      datesFromOtherMonths.forEach(cell => {
+        if (cell) {
+          const cellDate = new Date(cell.date);
+          console.error(`   - ${cell.date} (${getMonthName(cellDate.getMonth())} ${cellDate.getFullYear()})`);
+        }
+      });
+    } else {
+      console.log(`✅ VERIFICATION PASSED: All dates belong to ${getMonthName(month)} ${year}`);
+    }
+    
+    console.log('🗓️ ===== CALENDAR GENERATION COMPLETE =====');
     
     setCalendarRows(rows);
   }, [currentMonth, events]);
