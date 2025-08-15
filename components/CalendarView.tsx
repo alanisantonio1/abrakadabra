@@ -292,6 +292,46 @@ const validateMonthDays = (year: number, month: number): number => {
   return actualDays;
 };
 
+// FIXED: Helper function to format date correctly without timezone issues
+const formatDateString = (year: number, month: number, day: number): string => {
+  // Use local date formatting to avoid timezone issues
+  const monthStr = (month + 1).toString().padStart(2, '0');
+  const dayStr = day.toString().padStart(2, '0');
+  return `${year}-${monthStr}-${dayStr}`;
+};
+
+// FIXED: Helper function to parse date string correctly
+const parseDateString = (dateString: string): { year: number; month: number; day: number } => {
+  const parts = dateString.split('-');
+  return {
+    year: parseInt(parts[0], 10),
+    month: parseInt(parts[1], 10) - 1, // Convert to 0-based month
+    day: parseInt(parts[2], 10)
+  };
+};
+
+// FIXED: Helper function to get day of week correctly
+const getDayOfWeek = (dateString: string): number => {
+  const { year, month, day } = parseDateString(dateString);
+  // Create date in local timezone to avoid day shifting
+  const date = new Date(year, month, day);
+  return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+};
+
+// FIXED: Helper function to format date for display
+const formatDateForDisplay = (dateString: string): string => {
+  const { year, month, day } = parseDateString(dateString);
+  const date = new Date(year, month, day);
+  const dayOfWeek = getDayOfWeek(dateString);
+  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  
+  return `${dayNames[dayOfWeek]} ${day} de ${monthNames[month]}`;
+};
+
 const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selectedDate }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [calendarRows, setCalendarRows] = useState<(CalendarDay | null)[][]>([]);
@@ -333,10 +373,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     // Add all days of the current month ONLY (1 to daysInMonth)
     console.log(`📅 Adding days 1 to ${daysInMonth} for ${getMonthName(month)} ${year}`);
     for (let day = 1; day <= daysInMonth; day++) {
-      // Create date string in YYYY-MM-DD format (ISO format)
-      const monthStr = (month + 1).toString().padStart(2, '0');
-      const dayStr = day.toString().padStart(2, '0');
-      const dateString = `${year}-${monthStr}-${dayStr}`;
+      // FIXED: Use proper date formatting without timezone issues
+      const dateString = formatDateString(year, month, day);
       
       // Check if this is today
       const isToday = (year === todayYear && month === todayMonth && day === todayDate);
@@ -349,7 +387,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       // Find events for this date
       const dayEvents = events.filter(e => e.date === dateString);
       
-      console.log(`📅 Day ${day}: ${dateString} - Events: ${dayEvents.length} - Today: ${isToday} - Past: ${isPast}`);
+      // FIXED: Log the day of week for verification
+      const dayOfWeek = getDayOfWeek(dateString);
+      const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      console.log(`📅 Day ${day}: ${dateString} (${dayNames[dayOfWeek]}) - Events: ${dayEvents.length} - Today: ${isToday} - Past: ${isPast}`);
       
       allCells.push({
         date: dateString,
@@ -382,7 +423,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     // Log the actual days being displayed for verification
     const actualDays = allCells
       .filter(cell => cell !== null)
-      .map(cell => cell ? new Date(cell.date + 'T00:00:00').getDate() : null);
+      .map(cell => cell ? parseDateString(cell.date).day : null);
     console.log(`🔍 Days displayed: [${actualDays.join(', ')}]`);
     
     // Verify no days from other months are included
@@ -390,16 +431,16 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       .filter(cell => cell !== null)
       .filter(cell => {
         if (!cell) return false;
-        const cellDate = new Date(cell.date + 'T00:00:00');
-        return cellDate.getMonth() !== month || cellDate.getFullYear() !== year;
+        const { year: cellYear, month: cellMonth } = parseDateString(cell.date);
+        return cellMonth !== month || cellYear !== year;
       });
     
     if (datesFromOtherMonths.length > 0) {
       console.error(`❌ ERROR: Found ${datesFromOtherMonths.length} dates from other months!`);
       datesFromOtherMonths.forEach(cell => {
         if (cell) {
-          const cellDate = new Date(cell.date + 'T00:00:00');
-          console.error(`   - ${cell.date} (${getMonthName(cellDate.getMonth())} ${cellDate.getFullYear()})`);
+          const { year: cellYear, month: cellMonth } = parseDateString(cell.date);
+          console.error(`   - ${cell.date} (${getMonthName(cellMonth)} ${cellYear})`);
         }
       });
     } else {
@@ -426,20 +467,35 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     console.log(`🔄 Navigating to: ${getMonthName(newMonth.getMonth())} ${newMonth.getFullYear()}`);
   };
 
+  // FIXED: Date selection handler with proper logging
+  const handleDateSelect = (dateString: string) => {
+    console.log('🎯 ===== DATE SELECTION =====');
+    console.log(`📅 Selected date string: ${dateString}`);
+    console.log(`📅 Formatted display: ${formatDateForDisplay(dateString)}`);
+    console.log(`📅 Day of week: ${getDayOfWeek(dateString)} (${['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'][getDayOfWeek(dateString)]})`);
+    
+    // Call the parent's onDateSelect with the correct date string
+    onDateSelect(dateString);
+  };
+
+  // FIXED: Get date style - only show red for dates with actual events, not selected dates
   const getDateStyle = (day: CalendarDay) => {
     const styles_array = [styles.dayButton];
     
-    if (day.date === selectedDate) {
-      styles_array.push(styles.selectedDay);
-    } else if (day.isToday) {
+    // Priority order: Today > Past > Multiple Events > Has Event > Selected > Available
+    if (day.isToday) {
       styles_array.push(styles.todayDay);
     } else if (day.isPast) {
       styles_array.push(styles.pastDay);
     } else if (day.eventCount > 1) {
+      // MULTIPLE EVENTS - Darker red
       styles_array.push(styles.multipleEventsDay);
     } else if (day.hasEvent) {
-      // OCCUPIED - RED
+      // OCCUPIED - RED (only for dates with actual events)
       styles_array.push(styles.occupiedDay);
+    } else if (day.date === selectedDate) {
+      // SELECTED - Primary color (only if no events)
+      styles_array.push(styles.selectedDay);
     } else {
       // AVAILABLE - GREEN
       styles_array.push(styles.availableDay);
@@ -448,18 +504,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     return styles_array;
   };
 
+  // FIXED: Get text style - match the date style logic
   const getTextStyle = (day: CalendarDay) => {
     const styles_array = [styles.dayText];
     
-    if (day.date === selectedDate) {
-      styles_array.push(styles.selectedText);
-    } else if (day.isToday) {
+    if (day.isToday) {
       styles_array.push(styles.todayText);
     } else if (day.isPast) {
       styles_array.push(styles.pastText);
     } else if (day.hasEvent) {
-      // OCCUPIED - WHITE TEXT
+      // OCCUPIED - WHITE TEXT (for any date with events)
       styles_array.push(styles.occupiedText);
+    } else if (day.date === selectedDate) {
+      // SELECTED - WHITE TEXT (only if no events)
+      styles_array.push(styles.selectedText);
     } else {
       // AVAILABLE - WHITE TEXT
       styles_array.push(styles.availableText);
@@ -480,7 +538,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       {/* Instruction Banner */}
       <View style={styles.instructionBanner}>
         <Text style={styles.instructionText}>
-          🎯 Verde = Disponible | Rojo = Ocupado | Solo días del mes actual
+          🎯 Verde = Disponible | Rojo = Ocupado (solo con eventos reservados)
         </Text>
       </View>
 
@@ -523,11 +581,11 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
                 {day ? (
                   <TouchableOpacity
                     style={getDateStyle(day)}
-                    onPress={() => onDateSelect(day.date)}
+                    onPress={() => handleDateSelect(day.date)}
                     activeOpacity={0.7}
                   >
                     <Text style={getTextStyle(day)}>
-                      {new Date(day.date + 'T00:00:00').getDate()}
+                      {parseDateString(day.date).day}
                     </Text>
                     
                     {day.eventCount > 0 && (
@@ -560,7 +618,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
           
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: colors.occupied }]} />
-            <Text style={styles.legendText}>❌ Ocupado</Text>
+            <Text style={styles.legendText}>❌ Ocupado (con eventos)</Text>
           </View>
           
           <View style={styles.legendItem}>

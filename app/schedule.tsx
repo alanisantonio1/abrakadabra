@@ -48,6 +48,49 @@ const scheduleStyles = StyleSheet.create({
   },
 });
 
+// FIXED: Helper function to parse date string correctly
+const parseDateString = (dateString: string): { year: number; month: number; day: number } => {
+  const parts = dateString.split('-');
+  return {
+    year: parseInt(parts[0], 10),
+    month: parseInt(parts[1], 10) - 1, // Convert to 0-based month
+    day: parseInt(parts[2], 10)
+  };
+};
+
+// FIXED: Helper function to get day of week correctly
+const getDayOfWeek = (dateString: string): number => {
+  const { year, month, day } = parseDateString(dateString);
+  // Create date in local timezone to avoid day shifting
+  const date = new Date(year, month, day);
+  return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+};
+
+// FIXED: Helper function to format date for display
+const formatDateForDisplay = (dateString: string): string => {
+  if (!dateString) return 'No seleccionada';
+  
+  try {
+    const { year, month, day } = parseDateString(dateString);
+    const dayOfWeek = getDayOfWeek(dateString);
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    
+    console.log(`🗓️ FORMATTING DATE: ${dateString}`);
+    console.log(`   - Parsed: ${day}/${month + 1}/${year}`);
+    console.log(`   - Day of week: ${dayOfWeek} (${dayNames[dayOfWeek]})`);
+    console.log(`   - Formatted: ${dayNames[dayOfWeek]} ${day} de ${monthNames[month]}`);
+    
+    return `${dayNames[dayOfWeek]} ${day} de ${monthNames[month]}`;
+  } catch (error) {
+    console.error('❌ Error formatting date:', error);
+    return dateString;
+  }
+};
+
 const ScheduleScreen: React.FC = () => {
   const { date } = useLocalSearchParams<{ date: string }>();
   const [formData, setFormData] = useState({
@@ -76,6 +119,8 @@ const ScheduleScreen: React.FC = () => {
 
   useEffect(() => {
     if (date) {
+      console.log('📅 SCHEDULE: Received date parameter:', date);
+      console.log('📅 SCHEDULE: Formatted display:', formatDateForDisplay(date));
       setFormData(prev => ({ ...prev, date }));
     }
   }, [date]);
@@ -156,7 +201,7 @@ const ScheduleScreen: React.FC = () => {
       const conflictEvent = conflictingEvents[0];
       Alert.alert(
         'Conflicto de Horario',
-        `Ya existe un evento programado para ${formData.date} a las ${formData.time}:\n\n` +
+        `Ya existe un evento programado para ${formatDateForDisplay(formData.date)} a las ${formData.time}:\n\n` +
         `Cliente: ${conflictEvent.customerName}\n` +
         `Niño/a: ${conflictEvent.childName}\n\n` +
         `Por favor selecciona otro horario.`
@@ -170,6 +215,8 @@ const ScheduleScreen: React.FC = () => {
   const handleSubmit = async (skipValidation: boolean = false) => {
     try {
       console.log('📝 Submitting event form...');
+      console.log('📅 SUBMIT: Date being saved:', formData.date);
+      console.log('📅 SUBMIT: Formatted display:', formatDateForDisplay(formData.date));
       
       if (!skipValidation) {
         if (!validateForm()) return;
@@ -211,7 +258,7 @@ const ScheduleScreen: React.FC = () => {
         console.log('✅ Event saved successfully');
         Alert.alert(
           '✅ Evento Creado',
-          `El evento para ${newEvent.childName} ha sido creado exitosamente.\n\n${result.message}`,
+          `El evento para ${newEvent.childName} ha sido creado exitosamente para ${formatDateForDisplay(newEvent.date)}.\n\n${result.message}`,
           [
             {
               text: 'Ver Evento',
@@ -265,22 +312,6 @@ const ScheduleScreen: React.FC = () => {
     }
   };
 
-  const formatSelectedDate = (dateString: string): string => {
-    if (!dateString) return 'No seleccionada';
-    
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return dateString;
-    }
-  };
-
   return (
     <View style={scheduleStyles.container}>
       <ScrollView 
@@ -320,7 +351,7 @@ const ScheduleScreen: React.FC = () => {
                 marginBottom: 8
               }
             ]}>
-              {formatSelectedDate(formData.date)}
+              {formatDateForDisplay(formData.date)}
             </Text>
             {formData.date && (
               <View style={{

@@ -1,88 +1,131 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity, TextInput } from 'react-native';
-import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Event } from '../../types';
+import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 import { loadEvents, updateEvent, deleteEvent } from '../../utils/storage';
 import { sendWhatsAppReminder, sendWhatsAppCancellation, sendWhatsAppAnticipoConfirmation, calculateEventCost, getPricingInfo } from '../../utils/whatsapp';
 import Button from '../../components/Button';
+import { Event } from '../../types';
+
+// FIXED: Helper function to parse date string correctly
+const parseDateString = (dateString: string): { year: number; month: number; day: number } => {
+  const parts = dateString.split('-');
+  return {
+    year: parseInt(parts[0], 10),
+    month: parseInt(parts[1], 10) - 1, // Convert to 0-based month
+    day: parseInt(parts[2], 10)
+  };
+};
+
+// FIXED: Helper function to get day of week correctly
+const getDayOfWeek = (dateString: string): number => {
+  const { year, month, day } = parseDateString(dateString);
+  // Create date in local timezone to avoid day shifting
+  const date = new Date(year, month, day);
+  return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+};
+
+// FIXED: Helper function to format date for display
+const formatDateForDisplay = (dateString: string): string => {
+  if (!dateString) return 'Fecha no disponible';
+  
+  try {
+    const { year, month, day } = parseDateString(dateString);
+    const dayOfWeek = getDayOfWeek(dateString);
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const monthNames = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    
+    console.log(`🗓️ EVENT DETAIL: Formatting date ${dateString}`);
+    console.log(`   - Parsed: ${day}/${month + 1}/${year}`);
+    console.log(`   - Day of week: ${dayOfWeek} (${dayNames[dayOfWeek]})`);
+    
+    return `${dayNames[dayOfWeek]} ${day} de ${monthNames[month]} de ${year}`;
+  } catch (error) {
+    console.error('❌ Error formatting date:', error);
+    return dateString;
+  }
+};
 
 const EventDetailScreen: React.FC = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
-  const [isEditingNotes, setIsEditingNotes] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const loadEventData = useCallback(async () => {
-    if (!id) return;
-    
     try {
       console.log('📥 Loading event data for ID:', id);
       setLoading(true);
+      
       const events = await loadEvents();
       const foundEvent = events.find(e => e.id === id);
       
       if (foundEvent) {
+        console.log('✅ Event found:', foundEvent);
+        console.log('📅 EVENT DETAIL: Event date:', foundEvent.date);
+        console.log('📅 EVENT DETAIL: Formatted display:', formatDateForDisplay(foundEvent.date));
         setEvent(foundEvent);
         setNotes(foundEvent.notes || '');
-        console.log('✅ Event loaded:', foundEvent.childName);
       } else {
-        console.warn('⚠️ Event not found:', id);
-        Alert.alert('Error', 'Evento no encontrado', [
-          { text: 'OK', onPress: () => router.replace('/events') }
-        ]);
+        console.error('❌ Event not found with ID:', id);
+        Alert.alert(
+          'Error',
+          'No se encontró el evento solicitado.',
+          [{ text: 'Volver', onPress: () => router.back() }]
+        );
       }
     } catch (error: any) {
       console.error('❌ Error loading event:', error);
-      Alert.alert('Error', `Error al cargar evento: ${error.message}`, [
-        { text: 'OK', onPress: () => router.replace('/events') }
-      ]);
+      Alert.alert(
+        'Error',
+        `Error cargando el evento: ${error.message}`,
+        [{ text: 'Volver', onPress: () => router.back() }]
+      );
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    loadEventData();
+    if (id) {
+      loadEventData();
+    }
   }, [id, loadEventData]);
 
   const handleMarkAsPaid = async () => {
     if (!event) return;
 
     try {
-      console.log('💰 Marking event as paid:', event.id);
+      console.log('💰 Marking event as paid...');
       
-      Alert.alert(
-        'Confirmar Pago',
-        `¿Marcar el evento de ${event.childName} como pagado completamente?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Confirmar',
-            onPress: async () => {
-              const updatedEvent: Event = {
-                ...event,
-                isPaid: true,
-                remainingAmount: 0,
-              };
+      const updatedEvent: Event = {
+        ...event,
+        isPaid: true,
+        deposit: event.totalAmount,
+        remainingAmount: 0,
+        anticipo1Amount: event.totalAmount,
+        anticipo1Date: new Date().toISOString().split('T')[0],
+      };
 
-              const updateResult = await updateEvent(updatedEvent);
-              
-              if (updateResult.success) {
-                setEvent(updatedEvent);
-                Alert.alert('✅ Éxito', 'Evento marcado como pagado');
-              } else {
-                Alert.alert('Error', `Error al marcar como pagado: ${updateResult.message}`);
-              }
-            }
-          }
-        ]
-      );
+      const result = await updateEvent(updatedEvent);
+      
+      if (result.success) {
+        setEvent(updatedEvent);
+        Alert.alert(
+          '✅ Evento Actualizado',
+          `El evento de ${event.childName} ha sido marcado como pagado en su totalidad.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', `No se pudo actualizar el evento: ${result.message}`);
+      }
     } catch (error: any) {
       console.error('❌ Error marking as paid:', error);
-      Alert.alert('Error', `Error al marcar como pagado: ${error.message}`);
+      Alert.alert('Error', `Error actualizando el evento: ${error.message}`);
     }
   };
 
@@ -90,8 +133,8 @@ const EventDetailScreen: React.FC = () => {
     if (!event) return;
 
     Alert.alert(
-      'Confirmar Eliminación',
-      `¿Estás seguro de que quieres eliminar el evento de ${event.childName}?\n\nEsta acción no se puede deshacer.`,
+      '⚠️ Confirmar Eliminación',
+      `¿Estás seguro de que quieres eliminar el evento de ${event.childName} programado para ${formatDateForDisplay(event.date)}?\n\nEsta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -99,62 +142,26 @@ const EventDetailScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('🗑️ Deleting event:', event.id);
-              console.log('🔍 Event ID format check:', {
-                id: event.id,
-                type: typeof event.id,
-                length: event.id.length,
-                isString: typeof event.id === 'string'
-              });
+              console.log('🗑️ Deleting event...');
+              const result = await deleteEvent(event);
               
-              const deleteResult = await deleteEvent(event);
-              
-              if (deleteResult.success) {
-                console.log('✅ Event deleted successfully, navigating to events list');
-                
-                // Show success message and navigate
+              if (result.success) {
                 Alert.alert(
-                  '✅ Éxito', 
-                  'Evento eliminado exitosamente', 
+                  '✅ Evento Eliminado',
+                  `El evento de ${event.childName} ha sido eliminado exitosamente.`,
                   [
-                    { 
-                      text: 'OK', 
-                      onPress: () => {
-                        console.log('📋 Navigating to events list after deletion');
-                        // Use replace to prevent going back to deleted event
-                        router.replace('/events');
-                      }
+                    {
+                      text: 'OK',
+                      onPress: () => router.replace('/events')
                     }
                   ]
                 );
               } else {
-                console.error('❌ Delete failed:', deleteResult.message);
-                
-                // Show detailed error message
-                Alert.alert(
-                  'Error al Eliminar', 
-                  `No se pudo eliminar el evento:\n\n${deleteResult.message}\n\n¿Deseas intentar nuevamente?`,
-                  [
-                    { text: 'Cancelar', style: 'cancel' },
-                    { 
-                      text: 'Reintentar', 
-                      onPress: () => handleDeleteEvent() 
-                    }
-                  ]
-                );
+                Alert.alert('Error', `No se pudo eliminar el evento: ${result.message}`);
               }
             } catch (error: any) {
               console.error('❌ Error deleting event:', error);
-              
-              // Show detailed error information
-              Alert.alert(
-                'Error Inesperado', 
-                `Error al eliminar evento:\n\n${error.message}\n\nID del evento: ${event.id}\nTipo: ${typeof event.id}`,
-                [
-                  { text: 'Volver a Eventos', onPress: () => router.replace('/events') },
-                  { text: 'Reintentar', onPress: () => handleDeleteEvent() }
-                ]
-              );
+              Alert.alert('Error', `Error eliminando el evento: ${error.message}`);
             }
           }
         }
@@ -162,55 +169,35 @@ const EventDetailScreen: React.FC = () => {
     );
   };
 
-  const handleWhatsAppReminder = async () => {
+  const handleWhatsAppReminder = () => {
     if (!event) return;
-
-    try {
-      console.log('📱 Sending WhatsApp reminder for event:', event.id);
-      await sendWhatsAppReminder(event);
-      Alert.alert('✅ Éxito', 'Recordatorio enviado por WhatsApp');
-    } catch (error: any) {
-      console.error('❌ Error sending WhatsApp reminder:', error);
-      Alert.alert('Error', `Error al enviar WhatsApp: ${error.message}`);
-    }
+    
+    console.log('📱 Sending WhatsApp reminder...');
+    sendWhatsAppReminder(event);
   };
 
   const handleSaveNotes = async () => {
     if (!event) return;
 
     try {
-      console.log('📝 Saving notes for event:', event.id);
+      console.log('📝 Saving notes...');
+      
       const updatedEvent: Event = {
         ...event,
         notes: notes.trim(),
       };
 
-      const updateResult = await updateEvent(updatedEvent);
+      const result = await updateEvent(updatedEvent);
       
-      if (updateResult.success) {
+      if (result.success) {
         setEvent(updatedEvent);
-        setIsEditingNotes(false);
-        Alert.alert('✅ Éxito', 'Notas guardadas');
+        Alert.alert('✅ Notas Guardadas', 'Las notas han sido actualizadas exitosamente.');
       } else {
-        Alert.alert('Error', `Error al guardar notas: ${updateResult.message}`);
+        Alert.alert('Error', `No se pudieron guardar las notas: ${result.message}`);
       }
     } catch (error: any) {
       console.error('❌ Error saving notes:', error);
-      Alert.alert('Error', `Error al guardar notas: ${error.message}`);
-    }
-  };
-
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (error) {
-      return dateString;
+      Alert.alert('Error', `Error guardando las notas: ${error.message}`);
     }
   };
 
@@ -231,9 +218,9 @@ const EventDetailScreen: React.FC = () => {
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={commonStyles.errorText}>❌ Evento no encontrado</Text>
         <Button
-          text="← Volver a Eventos"
-          onPress={() => router.replace('/events')}
-          variant="primary"
+          text="← Volver"
+          onPress={() => router.back()}
+          variant="outline"
           style={{ marginTop: 20 }}
         />
       </View>
@@ -243,83 +230,76 @@ const EventDetailScreen: React.FC = () => {
   return (
     <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 24,
-      }}>
-        <Button
-          text="← Volver"
+      <View style={commonStyles.header}>
+        <TouchableOpacity
+          style={commonStyles.backButton}
           onPress={() => router.back()}
-          variant="outline"
-          size="small"
-          style={{ flex: 0.3 }}
-        />
-        
-        <Text style={[commonStyles.title, { flex: 0.4, textAlign: 'center', fontSize: 20 }]}>
-          📋 Detalles
-        </Text>
-        
-        <View style={{ flex: 0.3 }} />
+        >
+          <Text style={commonStyles.buttonText}>← Volver</Text>
+        </TouchableOpacity>
+        <Text style={commonStyles.title}>🎪 Detalles del Evento</Text>
       </View>
 
-      {/* Event Title */}
-      <View style={commonStyles.card}>
-        <Text style={{
-          fontSize: 28,
-          fontWeight: 'bold',
-          color: colors.primary,
-          textAlign: 'center',
-          marginBottom: 8,
-        }}>
-          🎈 {event.childName}
-        </Text>
-        
-        <View style={[
-          commonStyles.statusBadge,
-          { backgroundColor: event.isPaid ? colors.success : colors.warning }
+      {/* Event Status Badge */}
+      <View style={[
+        commonStyles.statusBadge,
+        {
+          backgroundColor: event.isPaid ? colors.success : colors.warning,
+          padding: 12,
+          borderRadius: 8,
+          alignItems: 'center',
+          marginBottom: 20
+        }
+      ]}>
+        <Text style={[
+          commonStyles.statusText,
+          {
+            color: colors.white,
+            fontSize: 16,
+            fontWeight: 'bold'
+          }
         ]}>
-          <Text style={[commonStyles.statusText, { color: colors.white }]}>
-            {event.isPaid ? '✅ PAGADO COMPLETAMENTE' : '⏳ PAGO PENDIENTE'}
-          </Text>
-        </View>
+          {event.isPaid ? '✅ PAGADO EN SU TOTALIDAD' : '⏳ PAGO PENDIENTE'}
+        </Text>
       </View>
 
-      {/* Event Details */}
+      {/* Event Information */}
       <View style={commonStyles.card}>
         <Text style={commonStyles.sectionTitle}>📋 Información del Evento</Text>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>👤 Cliente:</Text>
-          <Text style={commonStyles.detailValue}>{event.customerName}</Text>
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>👶 Niño/a:</Text>
+          <Text style={commonStyles.infoValue}>{event.childName}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>📞 Teléfono:</Text>
-          <Text style={commonStyles.detailValue}>{event.customerPhone}</Text>
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>📅 Fecha:</Text>
+          <Text style={commonStyles.infoValue}>{formatDateForDisplay(event.date)}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>📅 Fecha:</Text>
-          <Text style={commonStyles.detailValue}>{formatDate(event.date)}</Text>
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>⏰ Hora:</Text>
+          <Text style={commonStyles.infoValue}>{event.time}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>🕐 Hora:</Text>
-          <Text style={commonStyles.detailValue}>{event.time}</Text>
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>📦 Paquete:</Text>
+          <Text style={commonStyles.infoValue}>{event.packageType}</Text>
+        </View>
+      </View>
+
+      {/* Customer Information */}
+      <View style={commonStyles.card}>
+        <Text style={commonStyles.sectionTitle}>👥 Información del Cliente</Text>
+        
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>👤 Nombre:</Text>
+          <Text style={commonStyles.infoValue}>{event.customerName}</Text>
         </View>
         
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>📦 Paquete:</Text>
-          <Text style={commonStyles.detailValue}>{event.packageType}</Text>
-        </View>
-        
-        <View style={commonStyles.detailRow}>
-          <Text style={commonStyles.detailLabel}>🆔 ID:</Text>
-          <Text style={[commonStyles.detailValue, { fontSize: 12, fontFamily: 'monospace' }]}>
-            {event.id}
-          </Text>
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>📱 Teléfono:</Text>
+          <Text style={commonStyles.infoValue}>{event.customerPhone}</Text>
         </View>
       </View>
 
@@ -327,148 +307,140 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.card}>
         <Text style={commonStyles.sectionTitle}>💰 Información de Pago</Text>
         
-        {/* Pricing Info */}
-        <View style={{
-          backgroundColor: colors.lightGray,
-          padding: 12,
-          borderRadius: 8,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: colors.border
-        }}>
-          <Text style={{
-            fontSize: 12,
-            color: colors.textLight,
-            textAlign: 'center',
-            marginBottom: 4
-          }}>
-            📅 Precio para {getPricingInfo(event.date).dayName}
-          </Text>
-          <Text style={{
-            fontSize: 14,
-            color: colors.primary,
-            fontWeight: 'bold',
-            textAlign: 'center'
-          }}>
-            {getPricingInfo(event.date).priceCategory}
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>💵 Total:</Text>
+          <Text style={[commonStyles.infoValue, { fontWeight: 'bold' }]}>
+            {formatCurrency(event.totalAmount)}
           </Text>
         </View>
         
-        <View style={commonStyles.summaryContainer}>
-          <View style={commonStyles.summaryRow}>
-            <Text style={commonStyles.summaryLabel}>Total del evento:</Text>
-            <Text style={[commonStyles.summaryValue, { fontSize: 18 }]}>
-              {(() => {
-                const correctCost = calculateEventCost(event.date);
-                const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
-                return formatCurrency(actualTotal);
-              })()}
-            </Text>
-          </View>
-          
-          <View style={commonStyles.summaryRow}>
-            <Text style={commonStyles.summaryLabel}>Anticipo pagado:</Text>
-            <Text style={[commonStyles.summaryValue, { color: colors.success }]}>
-              {formatCurrency(event.anticipo1Amount || event.deposit || 0)}
-            </Text>
-          </View>
-          
-          <View style={commonStyles.summaryRow}>
-            <Text style={commonStyles.summaryLabel}>Saldo pendiente:</Text>
-            <Text style={[
-              commonStyles.summaryValue,
-              { 
-                color: (() => {
-                  const correctCost = calculateEventCost(event.date);
-                  const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
-                  const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
-                  const actualRemaining = actualTotal - anticipoPaid;
-                  return actualRemaining > 0 ? colors.danger : colors.success;
-                })(),
-                fontSize: 18,
-                fontWeight: 'bold'
-              }
-            ]}>
-              {(() => {
-                const correctCost = calculateEventCost(event.date);
-                const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
-                const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
-                const actualRemaining = actualTotal - anticipoPaid;
-                return formatCurrency(actualRemaining);
-              })()}
-            </Text>
-          </View>
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>💳 Anticipo:</Text>
+          <Text style={[commonStyles.infoValue, { color: colors.primary, fontWeight: 'bold' }]}>
+            {formatCurrency(event.deposit)}
+          </Text>
         </View>
+        
+        <View style={commonStyles.infoRow}>
+          <Text style={commonStyles.infoLabel}>📊 Saldo:</Text>
+          <Text style={[
+            commonStyles.infoValue,
+            {
+              color: event.remainingAmount > 0 ? colors.warning : colors.success,
+              fontWeight: 'bold'
+            }
+          ]}>
+            {formatCurrency(event.remainingAmount)}
+          </Text>
+        </View>
+
+        {/* Anticipo Information */}
+        {event.anticipo1Amount && event.anticipo1Amount > 0 && (
+          <View style={{
+            backgroundColor: colors.lightGray,
+            padding: 12,
+            borderRadius: 8,
+            marginTop: 12
+          }}>
+            <Text style={[commonStyles.infoLabel, { marginBottom: 4 }]}>💰 Anticipo Registrado:</Text>
+            <Text style={commonStyles.infoValue}>
+              Monto: {formatCurrency(event.anticipo1Amount)}
+            </Text>
+            {event.anticipo1Date && (
+              <Text style={commonStyles.infoValue}>
+                Fecha: {formatDateForDisplay(event.anticipo1Date)}
+              </Text>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Notes Section */}
       <View style={commonStyles.card}>
-        <View style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-        }}>
-          <Text style={commonStyles.sectionTitle}>📝 Notas</Text>
-          <Button
-            text={isEditingNotes ? "💾 Guardar" : "✏️ Editar"}
-            onPress={isEditingNotes ? handleSaveNotes : () => setIsEditingNotes(true)}
-            variant={isEditingNotes ? "success" : "accent"}
-            size="small"
-          />
-        </View>
+        <Text style={commonStyles.sectionTitle}>📝 Notas</Text>
         
-        {isEditingNotes ? (
-          <TextInput
-            style={[commonStyles.input, { minHeight: 100, textAlignVertical: 'top' }]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Agregar notas sobre el evento..."
-            multiline
-            numberOfLines={4}
-          />
-        ) : (
-          <Text style={commonStyles.notesText}>
-            {event.notes || 'Sin notas adicionales'}
-          </Text>
-        )}
+        <TextInput
+          style={[
+            commonStyles.input,
+            {
+              height: 100,
+              textAlignVertical: 'top',
+              marginBottom: 12
+            }
+          ]}
+          placeholder="Agregar notas sobre el evento..."
+          placeholderTextColor={colors.textLight}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          numberOfLines={4}
+        />
+        
+        <Button
+          text="💾 Guardar Notas"
+          onPress={handleSaveNotes}
+          variant="secondary"
+          size="small"
+        />
       </View>
 
       {/* Action Buttons */}
       <View style={commonStyles.card}>
-        <Text style={commonStyles.sectionTitle}>🎯 Acciones</Text>
+        <Text style={commonStyles.sectionTitle}>🚀 Acciones</Text>
         
-        <View style={{ gap: 12 }}>
-          {/* WhatsApp Button */}
+        <Button
+          text="📱 Enviar Recordatorio WhatsApp"
+          onPress={handleWhatsAppReminder}
+          variant="success"
+          style={{ marginBottom: 12 }}
+        />
+        
+        {!event.isPaid && (
           <Button
-            text="📱 Enviar Recordatorio WhatsApp"
-            onPress={handleWhatsAppReminder}
-            variant="success"
-            icon="📱"
+            text="✅ Marcar como Pagado"
+            onPress={handleMarkAsPaid}
+            variant="primary"
+            style={{ marginBottom: 12 }}
           />
-          
-          {/* Mark as Paid Button */}
-          {!event.isPaid && (
-            <Button
-              text="💰 Marcar como Pagado"
-              onPress={handleMarkAsPaid}
-              variant="accent"
-              icon="💰"
-            />
-          )}
-          
-          {/* Delete Button */}
-          <Button
-            text="🗑️ Eliminar Evento"
-            onPress={handleDeleteEvent}
-            variant="danger"
-            icon="🗑️"
-          />
-        </View>
+        )}
+        
+        <Button
+          text="🗑️ Eliminar Evento"
+          onPress={handleDeleteEvent}
+          variant="danger"
+        />
       </View>
 
-      {/* Bottom Spacing */}
-      <View style={{ height: 30 }} />
+      {/* Pricing Information */}
+      <View style={commonStyles.card}>
+        <Text style={commonStyles.sectionTitle}>💡 Información de Precios</Text>
+        <Text style={commonStyles.infoText}>
+          {getPricingInfo(event.date).priceCategory}
+        </Text>
+        <Text style={[commonStyles.infoText, { fontSize: 12, color: colors.textMuted, marginTop: 8 }]}>
+          Los precios varían según el día de la semana:
+          {'\n'}• Lunes a Viernes: $4,000
+          {'\n'}• Sábado: $6,000  
+          {'\n'}• Domingo: $5,000
+        </Text>
+      </View>
+
+      {/* Creation Date */}
+      {event.createdAt && (
+        <View style={[commonStyles.card, { marginBottom: 30 }]}>
+          <Text style={commonStyles.sectionTitle}>📅 Información de Registro</Text>
+          <Text style={commonStyles.infoText}>
+            Evento creado: {new Date(event.createdAt).toLocaleDateString('es-ES', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 };
