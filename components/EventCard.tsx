@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Event } from '../types';
 import { colors, commonStyles } from '../styles/commonStyles';
-import { sendWhatsAppReminder } from '../utils/whatsapp';
+import { sendWhatsAppReminder, calculateEventCost } from '../utils/whatsapp';
 
 interface EventCardProps {
   event: Event;
@@ -255,7 +255,11 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>💰 Total:</Text>
           <Text style={[styles.detailValue, styles.amountValue]}>
-            {formatCurrency(event.totalAmount)}
+            {(() => {
+              const correctCost = calculateEventCost(event.date);
+              const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+              return formatCurrency(actualTotal);
+            })()}
           </Text>
         </View>
         
@@ -264,9 +268,21 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
           <Text style={[
             styles.detailValue, 
             styles.amountValue,
-            event.remainingAmount > 0 ? styles.negativeAmount : styles.positiveAmount
+            (() => {
+              const correctCost = calculateEventCost(event.date);
+              const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+              const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+              const actualRemaining = actualTotal - anticipoPaid;
+              return actualRemaining > 0 ? styles.negativeAmount : styles.positiveAmount;
+            })()
           ]}>
-            {formatCurrency(event.remainingAmount)}
+            {(() => {
+              const correctCost = calculateEventCost(event.date);
+              const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+              const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+              const actualRemaining = actualTotal - anticipoPaid;
+              return formatCurrency(actualRemaining);
+            })()}
           </Text>
         </View>
       </View>

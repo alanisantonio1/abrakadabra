@@ -4,6 +4,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet 
 import { router, useLocalSearchParams } from 'expo-router';
 import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
 import { saveEvent, generateEventId, loadEvents } from '../utils/storage';
+import { calculateEventCost, getPricingInfo } from '../utils/whatsapp';
 import { packages } from '../data/packages';
 import PackageCard from '../components/PackageCard';
 import Button from '../components/Button';
@@ -63,16 +64,11 @@ const ScheduleScreen: React.FC = () => {
   const [existingEvents, setExistingEvents] = useState<Event[]>([]);
 
   useEffect(() => {
-    if (formData.packageType && formData.date) {
-      const selectedPackage = packages.find(p => p.name === formData.packageType);
-      if (selectedPackage) {
-        const eventDate = new Date(formData.date);
-        const isWeekend = eventDate.getDay() === 0 || eventDate.getDay() === 6;
-        const price = isWeekend ? selectedPackage.weekendPrice : selectedPackage.weekdayPrice;
-        setFormData(prev => ({ ...prev, totalAmount: price }));
-      }
+    if (formData.date) {
+      const price = calculateEventCost(formData.date);
+      setFormData(prev => ({ ...prev, totalAmount: price }));
     }
-  }, [formData.packageType, formData.date]);
+  }, [formData.date]);
 
   useEffect(() => {
     loadExistingEvents();
@@ -315,11 +311,63 @@ const ScheduleScreen: React.FC = () => {
                 color: colors.white,
                 fontSize: 18,
                 fontWeight: 'bold',
-                textAlign: 'center'
+                textAlign: 'center',
+                marginBottom: 8
               }
             ]}>
               {formatSelectedDate(formData.date)}
             </Text>
+            {formData.date && (
+              <View style={{
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+              }}>
+                <Text style={{
+                  color: colors.white,
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  textAlign: 'center'
+                }}>
+                  💰 Costo: ${formData.totalAmount.toLocaleString()}
+                </Text>
+                <Text style={{
+                  color: colors.white,
+                  fontSize: 12,
+                  textAlign: 'center',
+                  opacity: 0.9
+                }}>
+                  {getPricingInfo(formData.date).priceCategory}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Pricing Information */}
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>💰 Precios por Día</Text>
+          <View style={{
+            backgroundColor: colors.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: 8
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Lunes a Viernes:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$4,000</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Sábado:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$6,000</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Domingo:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$5,000</Text>
+            </View>
           </View>
         </View>
 

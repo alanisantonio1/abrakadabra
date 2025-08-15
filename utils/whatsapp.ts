@@ -2,6 +2,84 @@
 import { Event } from '../types';
 import { Linking, Platform } from 'react-native';
 
+// Utility function to calculate cost based on day of the week
+export const calculateEventCost = (dateString: string): number => {
+  if (!dateString) return 0;
+  
+  try {
+    const date = new Date(dateString);
+    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    console.log(`📅 Calculating cost for date: ${dateString}, day of week: ${dayOfWeek}`);
+    
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      // Monday to Friday: $4,000
+      console.log('💰 Monday-Friday rate: $4,000');
+      return 4000;
+    } else if (dayOfWeek === 6) {
+      // Saturday: $6,000
+      console.log('💰 Saturday rate: $6,000');
+      return 6000;
+    } else if (dayOfWeek === 0) {
+      // Sunday: $5,000
+      console.log('💰 Sunday rate: $5,000');
+      return 5000;
+    }
+    
+    return 0; // Fallback
+  } catch (error) {
+    console.error('❌ Error calculating event cost:', error);
+    return 0; // Fallback
+  }
+};
+
+// Helper function to get day name in Spanish
+export const getDayName = (dateString: string): string => {
+  if (!dateString) return 'Fecha no válida';
+  
+  try {
+    const date = new Date(dateString);
+    const dayOfWeek = date.getDay();
+    
+    const dayNames = [
+      'Domingo',
+      'Lunes', 
+      'Martes', 
+      'Miércoles', 
+      'Jueves', 
+      'Viernes', 
+      'Sábado'
+    ];
+    
+    return dayNames[dayOfWeek] || 'Día desconocido';
+  } catch (error) {
+    console.error('❌ Error getting day name:', error);
+    return 'Fecha no válida';
+  }
+};
+
+// Helper function to get pricing info for display
+export const getPricingInfo = (dateString: string): { cost: number; dayName: string; priceCategory: string } => {
+  const cost = calculateEventCost(dateString);
+  const dayName = getDayName(dateString);
+  
+  let priceCategory = '';
+  if (!dateString) {
+    priceCategory = 'Selecciona fecha';
+  } else {
+    const dayOfWeek = new Date(dateString).getDay();
+    if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      priceCategory = 'Lunes a Viernes';
+    } else if (dayOfWeek === 6) {
+      priceCategory = 'Sábado';
+    } else if (dayOfWeek === 0) {
+      priceCategory = 'Domingo';
+    }
+  }
+  
+  return { cost, dayName, priceCategory };
+};
+
 export const generateWhatsAppMessage = (event: Event): string => {
   const eventDate = new Date(event.date).toLocaleDateString('es-ES', {
     weekday: 'long',
@@ -11,17 +89,22 @@ export const generateWhatsAppMessage = (event: Event): string => {
   });
 
   const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+  
+  // Calculate the correct cost based on the day of the week
+  const correctCost = calculateEventCost(event.date);
+  const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+  const actualRemaining = actualTotal - anticipoPaid;
 
   const message = `🎉 ¡Hola ${event.customerName}!
 
 Te recordamos que tienes reservado el evento de ${event.childName} para el ${eventDate} a las ${event.time}.
 
 📦 Paquete: ${event.packageType}
-💰 Total: $${event.totalAmount.toLocaleString()}
+💰 Total: $${actualTotal.toLocaleString()}
 💳 Anticipo pagado: $${anticipoPaid.toLocaleString()}
-💵 Saldo pendiente: $${event.remainingAmount.toLocaleString()}
+💵 Saldo pendiente: $${actualRemaining.toLocaleString()}
 
-${event.remainingAmount > 0 ? 
+${actualRemaining > 0 ? 
   '⏰ Recuerda completar el pago antes del evento.' : 
   '🎉 ¡Tu evento está completamente pagado!'
 }
@@ -65,7 +148,11 @@ export const generateAnticipoConfirmationMessage = (event: Event, amount: number
   });
 
   const totalAnticipos = event.anticipo1Amount || amount;
-  const remainingBalance = event.totalAmount - totalAnticipos;
+  
+  // Calculate the correct cost based on the day of the week
+  const correctCost = calculateEventCost(event.date);
+  const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+  const remainingBalance = actualTotal - totalAnticipos;
 
   const message = `✅ ¡Hola ${event.customerName}!
 
@@ -73,7 +160,7 @@ Confirmamos que hemos recibido tu ANTICIPO por $${amount.toLocaleString()} para 
 
 📅 Fecha del evento: ${eventDate} a las ${event.time}
 📦 Paquete: ${event.packageType}
-💰 Total del evento: $${event.totalAmount.toLocaleString()}
+💰 Total del evento: $${actualTotal.toLocaleString()}
 💳 Anticipo pagado: $${totalAnticipos.toLocaleString()}
 💵 Saldo pendiente: $${remainingBalance.toLocaleString()}
 

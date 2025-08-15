@@ -5,7 +5,7 @@ import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Event } from '../../types';
 import { loadEvents, updateEvent, deleteEvent } from '../../utils/storage';
-import { sendWhatsAppReminder, sendWhatsAppCancellation, sendWhatsAppAnticipoConfirmation } from '../../utils/whatsapp';
+import { sendWhatsAppReminder, sendWhatsAppCancellation, sendWhatsAppAnticipoConfirmation, calculateEventCost, getPricingInfo } from '../../utils/whatsapp';
 import Button from '../../components/Button';
 
 const EventDetailScreen: React.FC = () => {
@@ -327,11 +327,42 @@ const EventDetailScreen: React.FC = () => {
       <View style={commonStyles.card}>
         <Text style={commonStyles.sectionTitle}>💰 Información de Pago</Text>
         
+        {/* Pricing Info */}
+        <View style={{
+          backgroundColor: colors.lightGray,
+          padding: 12,
+          borderRadius: 8,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: colors.border
+        }}>
+          <Text style={{
+            fontSize: 12,
+            color: colors.textLight,
+            textAlign: 'center',
+            marginBottom: 4
+          }}>
+            📅 Precio para {getPricingInfo(event.date).dayName}
+          </Text>
+          <Text style={{
+            fontSize: 14,
+            color: colors.primary,
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}>
+            {getPricingInfo(event.date).priceCategory}
+          </Text>
+        </View>
+        
         <View style={commonStyles.summaryContainer}>
           <View style={commonStyles.summaryRow}>
             <Text style={commonStyles.summaryLabel}>Total del evento:</Text>
             <Text style={[commonStyles.summaryValue, { fontSize: 18 }]}>
-              {formatCurrency(event.totalAmount)}
+              {(() => {
+                const correctCost = calculateEventCost(event.date);
+                const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+                return formatCurrency(actualTotal);
+              })()}
             </Text>
           </View>
           
@@ -347,12 +378,24 @@ const EventDetailScreen: React.FC = () => {
             <Text style={[
               commonStyles.summaryValue,
               { 
-                color: event.remainingAmount > 0 ? colors.danger : colors.success,
+                color: (() => {
+                  const correctCost = calculateEventCost(event.date);
+                  const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+                  const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+                  const actualRemaining = actualTotal - anticipoPaid;
+                  return actualRemaining > 0 ? colors.danger : colors.success;
+                })(),
                 fontSize: 18,
                 fontWeight: 'bold'
               }
             ]}>
-              {formatCurrency(event.remainingAmount)}
+              {(() => {
+                const correctCost = calculateEventCost(event.date);
+                const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+                const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+                const actualRemaining = actualTotal - anticipoPaid;
+                return formatCurrency(actualRemaining);
+              })()}
             </Text>
           </View>
         </View>

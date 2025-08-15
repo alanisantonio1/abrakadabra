@@ -3,16 +3,19 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../styles/commonStyles';
 import { Package } from '../types';
+import { getPricingInfo } from '../utils/whatsapp';
 
 interface PackageCardProps {
   package: Package;
-  isWeekend: boolean;
-  onSelect: () => void;
   isSelected?: boolean;
+  selectedDate?: string;
 }
 
-const PackageCard: React.FC<PackageCardProps> = ({ package: pkg, isWeekend, onSelect, isSelected }) => {
-  const price = isWeekend ? pkg.weekendPrice : pkg.weekdayPrice;
+const PackageCard: React.FC<PackageCardProps> = ({ package: pkg, isSelected, selectedDate }) => {
+  const { cost: price, priceCategory } = getPricingInfo(selectedDate || '');
+  
+  // If no date is selected, show a default message
+  const displayPrice = price > 0 ? price : 0;
 
   return (
     <TouchableOpacity 
@@ -25,10 +28,10 @@ const PackageCard: React.FC<PackageCardProps> = ({ package: pkg, isWeekend, onSe
         <Text style={styles.description}>{pkg.description}</Text>
         
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>${price}</Text>
-          <Text style={styles.priceLabel}>
-            {isWeekend ? 'Fin de semana' : 'Entre semana'}
+          <Text style={styles.price}>
+            {displayPrice > 0 ? `$${displayPrice.toLocaleString()}` : 'Selecciona fecha'}
           </Text>
+          <Text style={styles.priceLabel}>{priceCategory}</Text>
         </View>
 
         <View style={styles.features}>
