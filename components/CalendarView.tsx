@@ -250,6 +250,20 @@ const styles = StyleSheet.create({
   },
 });
 
+// Helper function to get the correct number of days in a month
+const getDaysInMonth = (year: number, month: number): number => {
+  // Create a date for the first day of the next month, then subtract one day
+  // This gives us the last day of the current month
+  return new Date(year, month + 1, 0).getDate();
+};
+
+// Helper function to validate that we have the correct number of days for each month
+const validateMonthDays = (year: number, month: number, expectedDays: number): boolean => {
+  const actualDays = getDaysInMonth(year, month);
+  console.log(`📅 Month ${month + 1}/${year}: Expected ${expectedDays} days, Got ${actualDays} days`);
+  return actualDays === expectedDays;
+};
+
 const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selectedDate }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [calendarRows, setCalendarRows] = useState<(CalendarDay | null)[][]>([]);
@@ -257,21 +271,43 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const generateCalendarDays = useCallback(() => {
     console.log('🗓️ Generating calendar days for current month only...');
     const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
+    const month = currentMonth.getMonth(); // 0-based (0 = January, 11 = December)
     
-    // Get first day of the month and how many days in month
+    // Get the correct number of days in this month
+    const daysInMonth = getDaysInMonth(year, month);
+    
+    // Validate against expected days for common months
+    const monthDaysMap: { [key: number]: number } = {
+      0: 31,  // January
+      1: year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28, // February (leap year check)
+      2: 31,  // March
+      3: 30,  // April
+      4: 31,  // May
+      5: 30,  // June
+      6: 31,  // July
+      7: 31,  // August
+      8: 30,  // September
+      9: 31,  // October
+      10: 30, // November
+      11: 31  // December
+    };
+    
+    const expectedDays = monthDaysMap[month];
+    if (daysInMonth !== expectedDays) {
+      console.error(`❌ CALENDAR ERROR: Month ${month + 1}/${year} should have ${expectedDays} days but got ${daysInMonth}`);
+    } else {
+      console.log(`✅ CALENDAR CORRECT: Month ${month + 1}/${year} has correct ${daysInMonth} days`);
+    }
+    
+    // Get first day of the month and its day of week
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    
-    // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
-    const startDayOfWeek = firstDay.getDay();
+    const startDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
     
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
     const todayString = today.toISOString().split('T')[0];
     
-    console.log(`📅 Month: ${month + 1}/${year}, Days: ${daysInMonth}, Starts on: ${startDayOfWeek}`);
+    console.log(`📅 ${getMonthName(month)} ${year}: ${daysInMonth} days, starts on ${getDayName(startDayOfWeek)}`);
     
     // Create array to hold all calendar cells (including empty ones for alignment)
     const allCells: (CalendarDay | null)[] = [];
@@ -281,7 +317,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       allCells.push(null);
     }
     
-    // Add all days of the current month
+    // Add all days of the current month (1 to daysInMonth)
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       date.setHours(0, 0, 0, 0); // Reset time for accurate comparison
@@ -313,6 +349,10 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     console.log(`✅ Calendar generated: ${daysInMonth} days in ${rows.length} rows`);
     console.log(`📊 Total cells: ${allCells.length}, Empty cells at start: ${startDayOfWeek}`);
     
+    // Log the actual days being displayed for verification
+    const actualDays = allCells.filter(cell => cell !== null).map(cell => cell ? new Date(cell.date).getDate() : null);
+    console.log(`🔍 Days displayed: ${actualDays.join(', ')}`);
+    
     setCalendarRows(rows);
   }, [currentMonth, events]);
 
@@ -328,7 +368,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       newMonth.setMonth(newMonth.getMonth() + 1);
     }
     setCurrentMonth(newMonth);
-    console.log(`🔄 Navigating to: ${newMonth.getMonth() + 1}/${newMonth.getFullYear()}`);
+    console.log(`🔄 Navigating to: ${getMonthName(newMonth.getMonth())} ${newMonth.getFullYear()}`);
   };
 
   const getDateStyle = (day: CalendarDay) => {
@@ -491,6 +531,20 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       </View>
     </ScrollView>
   );
+};
+
+// Helper functions for better logging
+const getMonthName = (month: number): string => {
+  const names = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  return names[month];
+};
+
+const getDayName = (day: number): string => {
+  const names = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  return names[day];
 };
 
 export default CalendarView;
