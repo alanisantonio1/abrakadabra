@@ -2,27 +2,46 @@
 import { Event } from '../types';
 import { Linking, Platform } from 'react-native';
 
-// Utility function to calculate cost based on day of the week
+// FIXED: Helper function to parse date string correctly without timezone issues
+const parseDateString = (dateString: string): { year: number; month: number; day: number } => {
+  const parts = dateString.split('-');
+  return {
+    year: parseInt(parts[0], 10),
+    month: parseInt(parts[1], 10) - 1, // Convert to 0-based month
+    day: parseInt(parts[2], 10)
+  };
+};
+
+// FIXED: Helper function to get day of week correctly without timezone issues
+const getDayOfWeek = (dateString: string): number => {
+  const { year, month, day } = parseDateString(dateString);
+  // Create date in local timezone to avoid day shifting
+  const date = new Date(year, month, day);
+  return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+};
+
+// FIXED: Utility function to calculate cost based on day of the week
 export const calculateEventCost = (dateString: string): number => {
   if (!dateString) return 0;
   
   try {
-    const date = new Date(dateString);
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    // Use the same date parsing logic as the calendar to avoid timezone issues
+    const dayOfWeek = getDayOfWeek(dateString);
     
-    console.log(`📅 Calculating cost for date: ${dateString}, day of week: ${dayOfWeek}`);
+    console.log(`📅 COST CALCULATION: Calculating cost for date: ${dateString}`);
+    console.log(`📅 COST CALCULATION: Day of week: ${dayOfWeek} (${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOfWeek]})`);
     
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
       // Monday to Friday: $4,000
-      console.log('💰 Monday-Friday rate: $4,000');
+      console.log('💰 COST CALCULATION: Monday-Friday rate: $4,000');
       return 4000;
     } else if (dayOfWeek === 6) {
       // Saturday: $6,000
-      console.log('💰 Saturday rate: $6,000');
+      console.log('💰 COST CALCULATION: Saturday rate: $6,000');
       return 6000;
     } else if (dayOfWeek === 0) {
       // Sunday: $5,000
-      console.log('💰 Sunday rate: $5,000');
+      console.log('💰 COST CALCULATION: Sunday rate: $5,000');
       return 5000;
     }
     
@@ -38,8 +57,7 @@ export const getDayName = (dateString: string): string => {
   if (!dateString) return 'Fecha no válida';
   
   try {
-    const date = new Date(dateString);
-    const dayOfWeek = date.getDay();
+    const dayOfWeek = getDayOfWeek(dateString);
     
     const dayNames = [
       'Domingo',
@@ -67,7 +85,7 @@ export const getPricingInfo = (dateString: string): { cost: number; dayName: str
   if (!dateString) {
     priceCategory = 'Selecciona fecha';
   } else {
-    const dayOfWeek = new Date(dateString).getDay();
+    const dayOfWeek = getDayOfWeek(dateString);
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
       priceCategory = 'Lunes a Viernes';
     } else if (dayOfWeek === 6) {
