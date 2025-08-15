@@ -19,15 +19,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     backgroundColor: colors.white,
-    padding: 20,
-    borderRadius: 20,
+    padding: 16,
+    borderRadius: 16,
     boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
     elevation: 6,
   },
   monthTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: colors.primary,
     textShadowColor: 'rgba(0,0,0,0.1)',
@@ -36,10 +36,10 @@ const styles = StyleSheet.create({
   },
   navButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 16,
-    minWidth: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minWidth: 44,
     alignItems: 'center',
     boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
     elevation: 4,
@@ -47,29 +47,29 @@ const styles = StyleSheet.create({
   navButtonText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 20,
+    fontSize: 18,
   },
   instructionBanner: {
     backgroundColor: colors.info,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 20,
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
     alignItems: 'center',
     boxShadow: '0 4px 12px rgba(116, 185, 255, 0.3)',
     elevation: 4,
   },
   instructionText: {
-    fontSize: 16,
+    fontSize: 14,
     color: colors.white,
     textAlign: 'center',
     fontWeight: '600',
   },
   weekHeader: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 12,
     backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 12,
+    borderRadius: 12,
+    padding: 8,
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
     elevation: 3,
   },
@@ -78,39 +78,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     color: colors.text,
-    paddingVertical: 8,
-    fontSize: 15,
+    paddingVertical: 6,
+    fontSize: 12, // Reduced from 15 to 12
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     backgroundColor: colors.white,
-    borderRadius: 20,
-    padding: 12,
+    borderRadius: 16,
+    padding: 8, // Reduced from 12 to 8
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     elevation: 8,
   },
   dayContainer: {
-    width: '14.28%', // 7 days per week
+    width: '14.285714%', // More precise calculation for 7 days
     aspectRatio: 1,
-    padding: 4,
+    padding: 2, // Reduced from 4 to 2
   },
   dayButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 12, // Reduced from 16 to 12
     backgroundColor: colors.white,
-    borderWidth: 2,
+    borderWidth: 1.5, // Reduced from 2 to 1.5
     borderColor: colors.border,
     position: 'relative',
     boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
     elevation: 2,
+    minHeight: 36, // Added minimum height for consistency
   },
   dayText: {
-    fontSize: 16,
+    fontSize: 13, // Reduced from 16 to 13
     fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
   },
   
   // FIXED AVAILABILITY COLORS - Green for available, Red for occupied
@@ -135,14 +137,14 @@ const styles = StyleSheet.create({
   selectedDay: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
-    borderWidth: 3,
+    borderWidth: 2.5, // Slightly thicker for selected
     boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
     elevation: 6,
   },
   todayDay: {
     backgroundColor: colors.today,
     borderColor: colors.today,
-    borderWidth: 3,
+    borderWidth: 2.5, // Slightly thicker for today
     boxShadow: '0 4px 12px rgba(69, 183, 209, 0.4)',
     elevation: 5,
   },
@@ -161,34 +163,40 @@ const styles = StyleSheet.create({
   availableText: {
     color: colors.white, // White text on green background
     fontWeight: 'bold',
+    fontSize: 13, // Consistent with dayText
   },
   occupiedText: {
     color: colors.white, // White text on red background
     fontWeight: 'bold',
+    fontSize: 13, // Consistent with dayText
   },
   selectedText: {
     color: colors.white,
     fontWeight: 'bold',
+    fontSize: 13, // Consistent with dayText
   },
   todayText: {
     color: colors.white,
     fontWeight: 'bold',
+    fontSize: 13, // Consistent with dayText
   },
   pastText: {
     color: colors.textMuted,
+    fontSize: 13, // Consistent with dayText
   },
   otherMonthText: {
     color: colors.textMuted,
+    fontSize: 13, // Consistent with dayText
   },
   
   eventCount: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 1,
+    right: 1,
     backgroundColor: colors.white,
-    borderRadius: 12,
-    minWidth: 20,
-    height: 20,
+    borderRadius: 8, // Reduced from 12 to 8
+    minWidth: 16, // Reduced from 20 to 16
+    height: 16, // Reduced from 20 to 16
     justifyContent: 'center',
     alignItems: 'center',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
@@ -196,48 +204,48 @@ const styles = StyleSheet.create({
   },
   eventCountText: {
     color: colors.danger,
-    fontSize: 10,
+    fontSize: 9, // Reduced from 10 to 9
     fontWeight: 'bold',
   },
   legend: {
-    marginTop: 24,
-    padding: 24,
+    marginTop: 20, // Reduced from 24 to 20
+    padding: 20, // Reduced from 24 to 20
     backgroundColor: colors.white,
-    borderRadius: 20,
+    borderRadius: 16,
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     elevation: 8,
   },
   legendTitle: {
-    fontSize: 20,
+    fontSize: 18, // Reduced from 20 to 18
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 20,
+    marginBottom: 16, // Reduced from 20 to 16
     textAlign: 'center',
   },
   legendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: 12, // Reduced from 16 to 12
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     minWidth: '45%',
-    marginBottom: 12,
+    marginBottom: 10, // Reduced from 12 to 10
   },
   legendColor: {
-    width: 28,
-    height: 28,
-    borderRadius: 12,
-    marginRight: 12,
-    borderWidth: 2,
+    width: 24, // Reduced from 28 to 24
+    height: 24, // Reduced from 28 to 24
+    borderRadius: 10, // Reduced from 12 to 10
+    marginRight: 10, // Reduced from 12 to 10
+    borderWidth: 1.5, // Reduced from 2 to 1.5
     borderColor: colors.border,
     boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   legendText: {
-    fontSize: 14,
+    fontSize: 13, // Reduced from 14 to 13
     color: colors.text,
     fontWeight: '600',
     flex: 1,
@@ -249,7 +257,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
 
   const generateCalendarDays = useCallback(() => {
-    console.log('🗓️ Generating calendar days with fixed availability colors...');
+    console.log('🗓️ Generating calendar days with improved alignment...');
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
@@ -319,7 +327,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       });
     }
     
-    console.log('✅ Calendar days generated with availability colors:', days.length);
+    console.log('✅ Calendar days generated with better alignment:', days.length);
     setCalendarDays(days);
   }, [currentMonth, events]);
 
