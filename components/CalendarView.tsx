@@ -79,37 +79,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     paddingVertical: 6,
-    fontSize: 12, // Reduced from 15 to 12
+    fontSize: 12,
   },
   calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     backgroundColor: colors.white,
     borderRadius: 16,
-    padding: 8, // Reduced from 12 to 8
+    padding: 8,
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     elevation: 8,
   },
+  calendarRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
   dayContainer: {
-    width: '14.285714%', // More precise calculation for 7 days
+    flex: 1,
     aspectRatio: 1,
-    padding: 2, // Reduced from 4 to 2
+    padding: 2,
+  },
+  emptyDayContainer: {
+    flex: 1,
+    aspectRatio: 1,
+    padding: 2,
   },
   dayButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12, // Reduced from 16 to 12
+    borderRadius: 12,
     backgroundColor: colors.white,
-    borderWidth: 1.5, // Reduced from 2 to 1.5
+    borderWidth: 1.5,
     borderColor: colors.border,
     position: 'relative',
     boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
     elevation: 2,
-    minHeight: 36, // Added minimum height for consistency
+    minHeight: 36,
   },
   dayText: {
-    fontSize: 13, // Reduced from 16 to 13
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
@@ -137,14 +144,14 @@ const styles = StyleSheet.create({
   selectedDay: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
-    borderWidth: 2.5, // Slightly thicker for selected
+    borderWidth: 2.5,
     boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)',
     elevation: 6,
   },
   todayDay: {
     backgroundColor: colors.today,
     borderColor: colors.today,
-    borderWidth: 2.5, // Slightly thicker for today
+    borderWidth: 2.5,
     boxShadow: '0 4px 12px rgba(69, 183, 209, 0.4)',
     elevation: 5,
   },
@@ -153,40 +160,31 @@ const styles = StyleSheet.create({
     borderColor: colors.past,
     opacity: 0.6,
   },
-  otherMonthDay: {
-    backgroundColor: colors.lightGray,
-    borderColor: colors.lightGray,
-    opacity: 0.4,
-  },
   
   // FIXED TEXT COLORS
   availableText: {
     color: colors.white, // White text on green background
     fontWeight: 'bold',
-    fontSize: 13, // Consistent with dayText
+    fontSize: 13,
   },
   occupiedText: {
     color: colors.white, // White text on red background
     fontWeight: 'bold',
-    fontSize: 13, // Consistent with dayText
+    fontSize: 13,
   },
   selectedText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 13, // Consistent with dayText
+    fontSize: 13,
   },
   todayText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 13, // Consistent with dayText
+    fontSize: 13,
   },
   pastText: {
     color: colors.textMuted,
-    fontSize: 13, // Consistent with dayText
-  },
-  otherMonthText: {
-    color: colors.textMuted,
-    fontSize: 13, // Consistent with dayText
+    fontSize: 13,
   },
   
   eventCount: {
@@ -194,9 +192,9 @@ const styles = StyleSheet.create({
     top: 1,
     right: 1,
     backgroundColor: colors.white,
-    borderRadius: 8, // Reduced from 12 to 8
-    minWidth: 16, // Reduced from 20 to 16
-    height: 16, // Reduced from 20 to 16
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
@@ -204,48 +202,48 @@ const styles = StyleSheet.create({
   },
   eventCountText: {
     color: colors.danger,
-    fontSize: 9, // Reduced from 10 to 9
+    fontSize: 9,
     fontWeight: 'bold',
   },
   legend: {
-    marginTop: 20, // Reduced from 24 to 20
-    padding: 20, // Reduced from 24 to 20
+    marginTop: 20,
+    padding: 20,
     backgroundColor: colors.white,
     borderRadius: 16,
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     elevation: 8,
   },
   legendTitle: {
-    fontSize: 18, // Reduced from 20 to 18
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16, // Reduced from 20 to 16
+    marginBottom: 16,
     textAlign: 'center',
   },
   legendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12, // Reduced from 16 to 12
+    gap: 12,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     minWidth: '45%',
-    marginBottom: 10, // Reduced from 12 to 10
+    marginBottom: 10,
   },
   legendColor: {
-    width: 24, // Reduced from 28 to 24
-    height: 24, // Reduced from 28 to 24
-    borderRadius: 10, // Reduced from 12 to 10
-    marginRight: 10, // Reduced from 12 to 10
-    borderWidth: 1.5, // Reduced from 2 to 1.5
+    width: 24,
+    height: 24,
+    borderRadius: 10,
+    marginRight: 10,
+    borderWidth: 1.5,
     borderColor: colors.border,
     boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   legendText: {
-    fontSize: 13, // Reduced from 14 to 13
+    fontSize: 13,
     color: colors.text,
     fontWeight: '600',
     flex: 1,
@@ -254,10 +252,10 @@ const styles = StyleSheet.create({
 
 const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selectedDate }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
+  const [calendarRows, setCalendarRows] = useState<CalendarDay[][]>([]);
 
   const generateCalendarDays = useCallback(() => {
-    console.log('🗓️ Generating calendar days with improved alignment...');
+    console.log('🗓️ Generating calendar days for current month only...');
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
@@ -269,40 +267,18 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
     const startDayOfWeek = firstDay.getDay();
     
-    // Calculate days from previous month to show
-    const prevMonth = new Date(year, month - 1, 0);
-    const daysFromPrevMonth = startDayOfWeek;
-    
-    // Calculate days from next month to show (to fill the grid)
-    const totalCells = Math.ceil((daysInMonth + daysFromPrevMonth) / 7) * 7;
-    const daysFromNextMonth = totalCells - daysInMonth - daysFromPrevMonth;
-    
-    const days: CalendarDay[] = [];
     const today = new Date();
     const todayString = today.toISOString().split('T')[0];
     
-    // Add days from previous month
-    for (let i = daysFromPrevMonth - 1; i >= 0; i--) {
-      const day = prevMonth.getDate() - i;
-      const date = new Date(year, month - 1, day);
-      const dateString = date.toISOString().split('T')[0];
-      
-      days.push({
-        date: dateString,
-        isCurrentMonth: false,
-        isToday: dateString === todayString,
-        isPast: date < today,
-        hasEvent: events.some(e => e.date === dateString),
-        eventCount: events.filter(e => e.date === dateString).length,
-      });
-    }
+    // Create array to hold all days of the current month
+    const monthDays: CalendarDay[] = [];
     
-    // Add days from current month
+    // Add days from current month only
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dateString = date.toISOString().split('T')[0];
       
-      days.push({
+      monthDays.push({
         date: dateString,
         isCurrentMonth: true,
         isToday: dateString === todayString,
@@ -312,23 +288,32 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       });
     }
     
-    // Add days from next month
-    for (let day = 1; day <= daysFromNextMonth; day++) {
-      const date = new Date(year, month + 1, day);
-      const dateString = date.toISOString().split('T')[0];
-      
-      days.push({
-        date: dateString,
-        isCurrentMonth: false,
-        isToday: dateString === todayString,
-        isPast: date < today,
-        hasEvent: events.some(e => e.date === dateString),
-        eventCount: events.filter(e => e.date === dateString).length,
-      });
+    // Organize days into rows for proper calendar layout
+    const rows: CalendarDay[][] = [];
+    let currentRow: CalendarDay[] = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startDayOfWeek; i++) {
+      currentRow.push(null as any); // We'll handle null in rendering
     }
     
-    console.log('✅ Calendar days generated with better alignment:', days.length);
-    setCalendarDays(days);
+    // Add all days of the month
+    monthDays.forEach((day, index) => {
+      currentRow.push(day);
+      
+      // If we've filled a week (7 days) or it's the last day, start a new row
+      if (currentRow.length === 7 || index === monthDays.length - 1) {
+        // Fill remaining cells in the last row if needed
+        while (currentRow.length < 7) {
+          currentRow.push(null as any);
+        }
+        rows.push([...currentRow]);
+        currentRow = [];
+      }
+    });
+    
+    console.log(`✅ Calendar generated: ${daysInMonth} days in ${rows.length} rows`);
+    setCalendarRows(rows);
   }, [currentMonth, events]);
 
   useEffect(() => {
@@ -348,9 +333,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const getDateStyle = (day: CalendarDay) => {
     const styles_array = [styles.dayButton];
     
-    if (!day.isCurrentMonth) {
-      styles_array.push(styles.otherMonthDay);
-    } else if (day.date === selectedDate) {
+    if (day.date === selectedDate) {
       styles_array.push(styles.selectedDay);
     } else if (day.isToday) {
       styles_array.push(styles.todayDay);
@@ -372,9 +355,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
   const getTextStyle = (day: CalendarDay) => {
     const styles_array = [styles.dayText];
     
-    if (!day.isCurrentMonth) {
-      styles_array.push(styles.otherMonthText);
-    } else if (day.date === selectedDate) {
+    if (day.date === selectedDate) {
       styles_array.push(styles.selectedText);
     } else if (day.isToday) {
       styles_array.push(styles.todayText);
@@ -403,7 +384,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       {/* Instruction Banner */}
       <View style={styles.instructionBanner}>
         <Text style={styles.instructionText}>
-          🎯 Verde = Disponible | Rojo = Ocupado | Selecciona una fecha disponible
+          🎯 Verde = Disponible | Rojo = Ocupado | Solo días del mes actual
         </Text>
       </View>
 
@@ -437,28 +418,36 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
         ))}
       </View>
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid - Only Current Month Days */}
       <View style={styles.calendarGrid}>
-        {calendarDays.map((day) => (
-          <View key={day.date} style={styles.dayContainer}>
-            <TouchableOpacity
-              style={getDateStyle(day)}
-              onPress={() => onDateSelect(day.date)}
-              disabled={!day.isCurrentMonth}
-              activeOpacity={0.7}
-            >
-              <Text style={getTextStyle(day)}>
-                {new Date(day.date).getDate()}
-              </Text>
-              
-              {day.eventCount > 0 && (
-                <View style={styles.eventCount}>
-                  <Text style={styles.eventCountText}>
-                    {day.eventCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
+        {calendarRows.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.calendarRow}>
+            {row.map((day, dayIndex) => (
+              <View key={dayIndex} style={day ? styles.dayContainer : styles.emptyDayContainer}>
+                {day ? (
+                  <TouchableOpacity
+                    style={getDateStyle(day)}
+                    onPress={() => onDateSelect(day.date)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={getTextStyle(day)}>
+                      {new Date(day.date).getDate()}
+                    </Text>
+                    
+                    {day.eventCount > 0 && (
+                      <View style={styles.eventCount}>
+                        <Text style={styles.eventCountText}>
+                          {day.eventCount}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  // Empty cell for alignment
+                  <View />
+                )}
+              </View>
+            ))}
           </View>
         ))}
       </View>
