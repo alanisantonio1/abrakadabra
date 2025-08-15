@@ -313,9 +313,13 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     console.log(`📅 First day of ${getMonthName(month)}: ${getDayName(startDayOfWeek)} (index: ${startDayOfWeek})`);
     console.log(`📅 Days in ${getMonthName(month)}: ${daysInMonth}`);
     
+    // Create today's date for comparison (in local timezone)
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
-    const todayString = today.toISOString().split('T')[0];
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
+    const todayDate = today.getDate();
+    
+    console.log(`📅 Today: ${todayYear}-${todayMonth + 1}-${todayDate}`);
     
     // Create array to hold all calendar cells (including empty ones for alignment)
     const allCells: (CalendarDay | null)[] = [];
@@ -329,17 +333,29 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     // Add all days of the current month ONLY (1 to daysInMonth)
     console.log(`📅 Adding days 1 to ${daysInMonth} for ${getMonthName(month)} ${year}`);
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      date.setHours(0, 0, 0, 0); // Reset time for accurate comparison
-      const dateString = date.toISOString().split('T')[0];
+      // Create date string in YYYY-MM-DD format (ISO format)
+      const monthStr = (month + 1).toString().padStart(2, '0');
+      const dayStr = day.toString().padStart(2, '0');
+      const dateString = `${year}-${monthStr}-${dayStr}`;
       
+      // Check if this is today
+      const isToday = (year === todayYear && month === todayMonth && day === todayDate);
+      
+      // Check if this date is in the past
+      const isPast = (year < todayYear) || 
+                    (year === todayYear && month < todayMonth) || 
+                    (year === todayYear && month === todayMonth && day < todayDate);
+      
+      // Find events for this date
       const dayEvents = events.filter(e => e.date === dateString);
+      
+      console.log(`📅 Day ${day}: ${dateString} - Events: ${dayEvents.length} - Today: ${isToday} - Past: ${isPast}`);
       
       allCells.push({
         date: dateString,
         isCurrentMonth: true,
-        isToday: dateString === todayString,
-        isPast: date < today,
+        isToday: isToday,
+        isPast: isPast,
         hasEvent: dayEvents.length > 0,
         eventCount: dayEvents.length,
       });
@@ -366,7 +382,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     // Log the actual days being displayed for verification
     const actualDays = allCells
       .filter(cell => cell !== null)
-      .map(cell => cell ? new Date(cell.date).getDate() : null);
+      .map(cell => cell ? new Date(cell.date + 'T00:00:00').getDate() : null);
     console.log(`🔍 Days displayed: [${actualDays.join(', ')}]`);
     
     // Verify no days from other months are included
@@ -374,7 +390,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       .filter(cell => cell !== null)
       .filter(cell => {
         if (!cell) return false;
-        const cellDate = new Date(cell.date);
+        const cellDate = new Date(cell.date + 'T00:00:00');
         return cellDate.getMonth() !== month || cellDate.getFullYear() !== year;
       });
     
@@ -382,7 +398,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       console.error(`❌ ERROR: Found ${datesFromOtherMonths.length} dates from other months!`);
       datesFromOtherMonths.forEach(cell => {
         if (cell) {
-          const cellDate = new Date(cell.date);
+          const cellDate = new Date(cell.date + 'T00:00:00');
           console.error(`   - ${cell.date} (${getMonthName(cellDate.getMonth())} ${cellDate.getFullYear()})`);
         }
       });
@@ -511,7 +527,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
                     activeOpacity={0.7}
                   >
                     <Text style={getTextStyle(day)}>
-                      {new Date(day.date).getDate()}
+                      {new Date(day.date + 'T00:00:00').getDate()}
                     </Text>
                     
                     {day.eventCount > 0 && (
