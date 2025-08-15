@@ -9,18 +9,31 @@ interface PackageCardProps {
   package: Package;
   isSelected?: boolean;
   selectedDate?: string;
+  onSelect?: () => void;
 }
 
-const PackageCard: React.FC<PackageCardProps> = ({ package: pkg, isSelected, selectedDate }) => {
+const PackageCard: React.FC<PackageCardProps> = ({ 
+  package: pkg, 
+  isSelected, 
+  selectedDate,
+  onSelect 
+}) => {
   const { cost: price, priceCategory } = getPricingInfo(selectedDate || '');
   
   // If no date is selected, show a default message
   const displayPrice = price > 0 ? price : 0;
 
+  const handlePress = () => {
+    console.log('PackageCard pressed:', pkg.name);
+    if (onSelect) {
+      onSelect();
+    }
+  };
+
   return (
     <TouchableOpacity 
       style={[styles.card, isSelected && styles.selectedCard]} 
-      onPress={onSelect}
+      onPress={handlePress}
     >
       <Image source={{ uri: pkg.image }} style={styles.image} />
       <View style={styles.content}>

@@ -95,6 +95,11 @@ const ScheduleScreen: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handlePackageSelect = (packageName: string) => {
+    console.log('Package selected:', packageName);
+    handleInputChange('packageType', packageName);
+  };
+
   const validateForm = (): boolean => {
     console.log('🔍 Validating form data...');
     
@@ -376,17 +381,13 @@ const ScheduleScreen: React.FC = () => {
           <Text style={commonStyles.sectionTitle}>Seleccionar Paquete</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {packages.map((pkg) => (
-              <TouchableOpacity
+              <PackageCard
                 key={pkg.id}
-                onPress={() => handleInputChange('packageType', pkg.name as any)}
-                style={{ marginRight: 15 }}
-              >
-                <PackageCard
-                  package={pkg}
-                  isSelected={formData.packageType === pkg.name}
-                  selectedDate={formData.date}
-                />
-              </TouchableOpacity>
+                package={pkg}
+                isSelected={formData.packageType === pkg.name}
+                selectedDate={formData.date}
+                onSelect={() => handlePackageSelect(pkg.name as any)}
+              />
             ))}
           </ScrollView>
         </View>
