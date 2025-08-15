@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   monthTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.primary,
     textShadowColor: 'rgba(0,0,0,0.1)',
@@ -36,10 +36,10 @@ const styles = StyleSheet.create({
   },
   navButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
-    minWidth: 44,
+    minWidth: 40,
     alignItems: 'center',
     boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
     elevation: 4,
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   navButtonText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 18,
+    fontSize: 16,
   },
   instructionBanner: {
     backgroundColor: colors.info,
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   instructionText: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.white,
     textAlign: 'center',
     fontWeight: '600',
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 8,
+    padding: 6,
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
     elevation: 3,
   },
@@ -78,45 +78,45 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: 'bold',
     color: colors.text,
-    paddingVertical: 6,
-    fontSize: 12,
+    paddingVertical: 4,
+    fontSize: 11,
   },
   calendarGrid: {
     backgroundColor: colors.white,
     borderRadius: 16,
-    padding: 8,
+    padding: 6,
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     elevation: 8,
   },
   calendarRow: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   dayContainer: {
     flex: 1,
     aspectRatio: 1,
-    padding: 2,
+    padding: 1,
   },
   emptyDayContainer: {
     flex: 1,
     aspectRatio: 1,
-    padding: 2,
+    padding: 1,
   },
   dayButton: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: colors.white,
     borderWidth: 1.5,
     borderColor: colors.border,
     position: 'relative',
     boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
     elevation: 2,
-    minHeight: 36,
+    minHeight: 32,
   },
   dayText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
@@ -165,26 +165,26 @@ const styles = StyleSheet.create({
   availableText: {
     color: colors.white, // White text on green background
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   occupiedText: {
     color: colors.white, // White text on red background
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   selectedText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   todayText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 13,
+    fontSize: 12,
   },
   pastText: {
     color: colors.textMuted,
-    fontSize: 13,
+    fontSize: 12,
   },
   
   eventCount: {
@@ -192,9 +192,9 @@ const styles = StyleSheet.create({
     top: 1,
     right: 1,
     backgroundColor: colors.white,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+    borderRadius: 6,
+    minWidth: 14,
+    height: 14,
     justifyContent: 'center',
     alignItems: 'center',
     boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
@@ -202,48 +202,48 @@ const styles = StyleSheet.create({
   },
   eventCountText: {
     color: colors.danger,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 'bold',
   },
   legend: {
     marginTop: 20,
-    padding: 20,
+    padding: 16,
     backgroundColor: colors.white,
     borderRadius: 16,
     boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
     elevation: 8,
   },
   legendTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   legendGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     minWidth: '45%',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   legendColor: {
-    width: 24,
-    height: 24,
-    borderRadius: 10,
-    marginRight: 10,
+    width: 20,
+    height: 20,
+    borderRadius: 8,
+    marginRight: 8,
     borderWidth: 1.5,
     borderColor: colors.border,
     boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
     elevation: 2,
   },
   legendText: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.text,
     fontWeight: '600',
     flex: 1,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
 
 const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selectedDate }) => {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
-  const [calendarRows, setCalendarRows] = useState<CalendarDay[][]>([]);
+  const [calendarRows, setCalendarRows] = useState<(CalendarDay | null)[][]>([]);
 
   const generateCalendarDays = useCallback(() => {
     console.log('🗓️ Generating calendar days for current month only...');
@@ -268,51 +268,51 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
     const startDayOfWeek = firstDay.getDay();
     
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time for accurate comparison
     const todayString = today.toISOString().split('T')[0];
     
-    // Create array to hold all days of the current month
-    const monthDays: CalendarDay[] = [];
+    console.log(`📅 Month: ${month + 1}/${year}, Days: ${daysInMonth}, Starts on: ${startDayOfWeek}`);
     
-    // Add days from current month only
+    // Create array to hold all calendar cells (including empty ones for alignment)
+    const allCells: (CalendarDay | null)[] = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startDayOfWeek; i++) {
+      allCells.push(null);
+    }
+    
+    // Add all days of the current month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
+      date.setHours(0, 0, 0, 0); // Reset time for accurate comparison
       const dateString = date.toISOString().split('T')[0];
       
-      monthDays.push({
+      const dayEvents = events.filter(e => e.date === dateString);
+      
+      allCells.push({
         date: dateString,
         isCurrentMonth: true,
         isToday: dateString === todayString,
         isPast: date < today,
-        hasEvent: events.some(e => e.date === dateString),
-        eventCount: events.filter(e => e.date === dateString).length,
+        hasEvent: dayEvents.length > 0,
+        eventCount: dayEvents.length,
       });
     }
     
-    // Organize days into rows for proper calendar layout
-    const rows: CalendarDay[][] = [];
-    let currentRow: CalendarDay[] = [];
-    
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startDayOfWeek; i++) {
-      currentRow.push(null as any); // We'll handle null in rendering
+    // Organize cells into rows of 7 days each
+    const rows: (CalendarDay | null)[][] = [];
+    for (let i = 0; i < allCells.length; i += 7) {
+      const row = allCells.slice(i, i + 7);
+      // Ensure each row has exactly 7 cells
+      while (row.length < 7) {
+        row.push(null);
+      }
+      rows.push(row);
     }
     
-    // Add all days of the month
-    monthDays.forEach((day, index) => {
-      currentRow.push(day);
-      
-      // If we've filled a week (7 days) or it's the last day, start a new row
-      if (currentRow.length === 7 || index === monthDays.length - 1) {
-        // Fill remaining cells in the last row if needed
-        while (currentRow.length < 7) {
-          currentRow.push(null as any);
-        }
-        rows.push([...currentRow]);
-        currentRow = [];
-      }
-    });
-    
     console.log(`✅ Calendar generated: ${daysInMonth} days in ${rows.length} rows`);
+    console.log(`📊 Total cells: ${allCells.length}, Empty cells at start: ${startDayOfWeek}`);
+    
     setCalendarRows(rows);
   }, [currentMonth, events]);
 
@@ -328,6 +328,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
       newMonth.setMonth(newMonth.getMonth() + 1);
     }
     setCurrentMonth(newMonth);
+    console.log(`🔄 Navigating to: ${newMonth.getMonth() + 1}/${newMonth.getFullYear()}`);
   };
 
   const getDateStyle = (day: CalendarDay) => {
@@ -423,7 +424,7 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
         {calendarRows.map((row, rowIndex) => (
           <View key={rowIndex} style={styles.calendarRow}>
             {row.map((day, dayIndex) => (
-              <View key={dayIndex} style={day ? styles.dayContainer : styles.emptyDayContainer}>
+              <View key={`${rowIndex}-${dayIndex}`} style={day ? styles.dayContainer : styles.emptyDayContainer}>
                 {day ? (
                   <TouchableOpacity
                     style={getDateStyle(day)}
@@ -443,8 +444,8 @@ const CalendarView: React.FC<CalendarViewProps> = ({ events, onDateSelect, selec
                     )}
                   </TouchableOpacity>
                 ) : (
-                  // Empty cell for alignment
-                  <View />
+                  // Empty cell for alignment - completely invisible
+                  <View style={{ flex: 1 }} />
                 )}
               </View>
             ))}
