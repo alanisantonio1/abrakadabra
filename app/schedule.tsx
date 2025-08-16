@@ -41,6 +41,10 @@ const scheduleStyles = StyleSheet.create({
     boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
     elevation: 3,
   },
+  submitButtonDisabled: {
+    backgroundColor: colors.textLight,
+    opacity: 0.6,
+  },
   submitButtonText: {
     color: colors.white,
     fontSize: 18,
@@ -105,6 +109,7 @@ const ScheduleScreen: React.FC = () => {
     date: date || ''
   });
   const [existingEvents, setExistingEvents] = useState<Event[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false); // NEW: State to prevent multiple submissions
 
   useEffect(() => {
     if (formData.date) {
@@ -213,14 +218,27 @@ const ScheduleScreen: React.FC = () => {
   };
 
   const handleSubmit = async (skipValidation: boolean = false) => {
+    // FIXED: Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('⚠️ Submit already in progress, ignoring duplicate request');
+      return;
+    }
+
     try {
+      setIsSubmitting(true); // FIXED: Set submitting state
       console.log('📝 Submitting event form...');
       console.log('📅 SUBMIT: Date being saved:', formData.date);
       console.log('📅 SUBMIT: Formatted display:', formatDateForDisplay(formData.date));
       
       if (!skipValidation) {
-        if (!validateForm()) return;
-        if (!continueValidation()) return;
+        if (!validateForm()) {
+          setIsSubmitting(false); // FIXED: Reset submitting state on validation failure
+          return;
+        }
+        if (!continueValidation()) {
+          setIsSubmitting(false); // FIXED: Reset submitting state on validation failure
+          return;
+        }
       }
 
       const eventId = generateEventId();
@@ -256,17 +274,22 @@ const ScheduleScreen: React.FC = () => {
 
       if (result.success) {
         console.log('✅ Event saved successfully');
+        // FIXED: Show success message with proper formatting
         Alert.alert(
-          '✅ Evento Creado',
+          '✅ Guardado Exitosamente',
           `El evento para ${newEvent.childName} ha sido creado exitosamente para ${formatDateForDisplay(newEvent.date)}.\n\n${result.message}`,
           [
             {
               text: 'Ver Evento',
-              onPress: () => router.replace(`/event/${newEvent.id}`)
+              onPress: () => {
+                setIsSubmitting(false); // FIXED: Reset submitting state
+                router.replace(`/event/${newEvent.id}`);
+              }
             },
             {
               text: 'Crear Otro',
               onPress: () => {
+                setIsSubmitting(false); // FIXED: Reset submitting state
                 // Reset form
                 setFormData({
                   customerName: '',
@@ -284,12 +307,16 @@ const ScheduleScreen: React.FC = () => {
             },
             {
               text: 'Ir al Inicio',
-              onPress: () => router.replace('/')
+              onPress: () => {
+                setIsSubmitting(false); // FIXED: Reset submitting state
+                router.replace('/');
+              }
             }
           ]
         );
       } else {
         console.error('❌ Failed to save event:', result.message);
+        setIsSubmitting(false); // FIXED: Reset submitting state on error
         Alert.alert(
           '❌ Error',
           `No se pudo crear el evento:\n\n${result.message}`,
@@ -301,6 +328,7 @@ const ScheduleScreen: React.FC = () => {
       }
     } catch (error: any) {
       console.error('❌ Error submitting form:', error);
+      setIsSubmitting(false); // FIXED: Reset submitting state on error
       Alert.alert(
         '❌ Error',
         `Error creando el evento: ${error.message || 'Unknown error'}`,
@@ -434,6 +462,7 @@ const ScheduleScreen: React.FC = () => {
             placeholderTextColor={colors.textLight}
             value={formData.customerName}
             onChangeText={(value) => handleInputChange('customerName', value)}
+            editable={!isSubmitting} // FIXED: Disable input while submitting
           />
 
           <Text style={commonStyles.inputLabel}>Teléfono del Cliente *</Text>
@@ -444,6 +473,7 @@ const ScheduleScreen: React.FC = () => {
             value={formData.customerPhone}
             onChangeText={(value) => handleInputChange('customerPhone', value)}
             keyboardType="phone-pad"
+            editable={!isSubmitting} // FIXED: Disable input while submitting
           />
 
           <Text style={commonStyles.inputLabel}>Nombre del Niño/a *</Text>
@@ -453,6 +483,7 @@ const ScheduleScreen: React.FC = () => {
             placeholderTextColor={colors.textLight}
             value={formData.childName}
             onChangeText={(value) => handleInputChange('childName', value)}
+            editable={!isSubmitting} // FIXED: Disable input while submitting
           />
 
           <Text style={commonStyles.inputLabel}>Hora del Evento *</Text>
@@ -462,6 +493,7 @@ const ScheduleScreen: React.FC = () => {
             placeholderTextColor={colors.textLight}
             value={formData.time}
             onChangeText={(value) => handleInputChange('time', value)}
+            editable={!isSubmitting} // FIXED: Disable input while submitting
           />
 
           <Text style={commonStyles.inputLabel}>Monto Total</Text>
@@ -479,6 +511,7 @@ const ScheduleScreen: React.FC = () => {
             value={formData.deposit.toString()}
             onChangeText={(value) => handleInputChange('deposit', parseFloat(value) || 0)}
             keyboardType="numeric"
+            editable={!isSubmitting} // FIXED: Disable input while submitting
           />
 
           <Text style={commonStyles.inputLabel}>Notas (Opcional)</Text>
@@ -490,6 +523,7 @@ const ScheduleScreen: React.FC = () => {
             onChangeText={(value) => handleInputChange('notes', value)}
             multiline
             numberOfLines={3}
+            editable={!isSubmitting} // FIXED: Disable input while submitting
           />
         </View>
 
@@ -537,10 +571,16 @@ const ScheduleScreen: React.FC = () => {
       {/* Fixed Submit Button */}
       <View style={scheduleStyles.submitButtonContainer}>
         <TouchableOpacity
-          style={scheduleStyles.submitButton}
+          style={[
+            scheduleStyles.submitButton,
+            isSubmitting && scheduleStyles.submitButtonDisabled // FIXED: Apply disabled style when submitting
+          ]}
           onPress={() => handleSubmit()}
+          disabled={isSubmitting} // FIXED: Disable button while submitting
         >
-          <Text style={scheduleStyles.submitButtonText}>📅 Crear Evento</Text>
+          <Text style={scheduleStyles.submitButtonText}>
+            {isSubmitting ? '⏳ Guardando...' : '📅 Crear Evento'} {/* FIXED: Show loading state */}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
