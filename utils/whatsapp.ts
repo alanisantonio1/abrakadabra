@@ -20,6 +20,30 @@ const getDayOfWeek = (dateString: string): number => {
   return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
 };
 
+// FIXED: Helper function to format date for display without timezone issues
+const formatDateForDisplay = (dateString: string): string => {
+  if (!dateString) return 'Fecha no disponible';
+  
+  try {
+    const { year, month, day } = parseDateString(dateString);
+    const dayOfWeek = getDayOfWeek(dateString);
+    const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const monthNames = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    
+    console.log(`📅 WHATSAPP: Formatting date ${dateString}`);
+    console.log(`   - Parsed: ${day}/${month + 1}/${year}`);
+    console.log(`   - Day of week: ${dayOfWeek} (${dayNames[dayOfWeek]})`);
+    
+    return `${dayNames[dayOfWeek]} ${day} de ${monthNames[month]} de ${year}`;
+  } catch (error) {
+    console.error('❌ Error formatting date for WhatsApp:', error);
+    return dateString;
+  }
+};
+
 // FIXED: Utility function to calculate cost based on day of the week
 export const calculateEventCost = (dateString: string): number => {
   if (!dateString) return 0;
@@ -98,13 +122,14 @@ export const getPricingInfo = (dateString: string): { cost: number; dayName: str
   return { cost, dayName, priceCategory };
 };
 
+// FIXED: Generate WhatsApp message with correct date formatting
 export const generateWhatsAppMessage = (event: Event): string => {
-  const eventDate = new Date(event.date).toLocaleDateString('es-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  console.log('📱 WHATSAPP: Generating message for event:', event.id);
+  console.log('📱 WHATSAPP: Event date:', event.date);
+  
+  // Use the same date formatting logic to avoid timezone issues
+  const eventDate = formatDateForDisplay(event.date);
+  console.log('📱 WHATSAPP: Formatted date:', eventDate);
 
   const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
   
@@ -129,16 +154,18 @@ ${actualRemaining > 0 ?
 
 ¡Nos vemos pronto en Abrakadabra! 🎈✨`;
 
+  console.log('📱 WHATSAPP: Generated message preview:', message.substring(0, 100) + '...');
   return message;
 };
 
+// FIXED: Generate cancellation message with correct date formatting
 export const generateCancellationMessage = (event: Event): string => {
-  const eventDate = new Date(event.date).toLocaleDateString('es-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  console.log('📱 WHATSAPP: Generating cancellation message for event:', event.id);
+  console.log('📱 WHATSAPP: Event date:', event.date);
+  
+  // Use the same date formatting logic to avoid timezone issues
+  const eventDate = formatDateForDisplay(event.date);
+  console.log('📱 WHATSAPP: Formatted cancellation date:', eventDate);
 
   const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
 
@@ -154,16 +181,18 @@ Nos pondremos en contacto contigo para coordinar el reembolso y reprogramar si e
 Disculpa las molestias.
 Equipo Abrakadabra 🎈`;
 
+  console.log('📱 WHATSAPP: Generated cancellation message preview:', message.substring(0, 100) + '...');
   return message;
 };
 
+// FIXED: Generate anticipo confirmation message with correct date formatting
 export const generateAnticipoConfirmationMessage = (event: Event, amount: number): string => {
-  const eventDate = new Date(event.date).toLocaleDateString('es-ES', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  console.log('📱 WHATSAPP: Generating anticipo confirmation for event:', event.id);
+  console.log('📱 WHATSAPP: Event date:', event.date);
+  
+  // Use the same date formatting logic to avoid timezone issues
+  const eventDate = formatDateForDisplay(event.date);
+  console.log('📱 WHATSAPP: Formatted anticipo date:', eventDate);
 
   const totalAnticipos = event.anticipo1Amount || amount;
   
@@ -189,6 +218,7 @@ ${remainingBalance > 0 ?
 
 ¡Gracias por confiar en Abrakadabra! 🎈✨`;
 
+  console.log('📱 WHATSAPP: Generated anticipo message preview:', message.substring(0, 100) + '...');
   return message;
 };
 
@@ -232,6 +262,7 @@ const openWhatsApp = async (phoneNumber: string, message: string): Promise<void>
 export const sendWhatsAppReminder = async (event: Event): Promise<void> => {
   try {
     console.log('📱 Sending WhatsApp reminder for event:', event.id);
+    console.log('📱 Event date being sent:', event.date);
     const message = generateWhatsAppMessage(event);
     await openWhatsApp(event.customerPhone, message);
   } catch (error: any) {
@@ -243,6 +274,7 @@ export const sendWhatsAppReminder = async (event: Event): Promise<void> => {
 export const sendWhatsAppCancellation = async (event: Event): Promise<void> => {
   try {
     console.log('📱 Sending WhatsApp cancellation for event:', event.id);
+    console.log('📱 Event date being sent:', event.date);
     const message = generateCancellationMessage(event);
     await openWhatsApp(event.customerPhone, message);
   } catch (error: any) {
@@ -254,6 +286,7 @@ export const sendWhatsAppCancellation = async (event: Event): Promise<void> => {
 export const sendWhatsAppAnticipoConfirmation = async (event: Event, amount: number): Promise<void> => {
   try {
     console.log('📱 Sending WhatsApp anticipo confirmation for event:', event.id);
+    console.log('📱 Event date being sent:', event.date);
     const message = generateAnticipoConfirmationMessage(event, amount);
     await openWhatsApp(event.customerPhone, message);
   } catch (error: any) {
