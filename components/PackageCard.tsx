@@ -18,13 +18,16 @@ const PackageCard: React.FC<PackageCardProps> = ({
   selectedDate,
   onSelect 
 }) => {
-  const { cost: price, priceCategory } = getPricingInfo(selectedDate || '');
+  // UPDATED: Get pricing info for this specific package and date
+  const { cost: price, priceCategory } = getPricingInfo(selectedDate || '', pkg.name);
   
   // If no date is selected, show a default message
   const displayPrice = price > 0 ? price : 0;
 
   const handlePress = () => {
-    console.log('PackageCard pressed:', pkg.name);
+    console.log('📦 PackageCard pressed:', pkg.name);
+    console.log('📅 Selected date:', selectedDate);
+    console.log('💰 Price for this package:', displayPrice);
     if (onSelect) {
       onSelect();
     }
@@ -68,6 +71,7 @@ const styles = StyleSheet.create({
     boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
     elevation: 3,
     overflow: 'hidden',
+    width: 280, // Fixed width for horizontal scroll
   },
   selectedCard: {
     borderColor: colors.primary,

@@ -67,6 +67,7 @@ const EventDetailScreen: React.FC = () => {
       if (foundEvent) {
         console.log('✅ Event found:', foundEvent);
         console.log('📅 EVENT DETAIL: Event date:', foundEvent.date);
+        console.log('📦 EVENT DETAIL: Package type:', foundEvent.packageType);
         console.log('📅 EVENT DETAIL: Formatted display:', formatDateForDisplay(foundEvent.date));
         setEvent(foundEvent);
         setNotes(foundEvent.notes || '');
@@ -205,6 +206,12 @@ const EventDetailScreen: React.FC = () => {
     return `$${amount.toLocaleString()}`;
   };
 
+  // UPDATED: Get pricing info for this specific event
+  const getEventPricingInfo = () => {
+    if (!event) return { cost: 0, dayName: '', priceCategory: '' };
+    return getPricingInfo(event.date, event.packageType);
+  };
+
   if (loading) {
     return (
       <View style={[commonStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -226,6 +233,8 @@ const EventDetailScreen: React.FC = () => {
       </View>
     );
   }
+
+  const eventPricing = getEventPricingInfo();
 
   return (
     <ScrollView style={commonStyles.container} showsVerticalScrollIndicator={false}>
@@ -411,18 +420,31 @@ const EventDetailScreen: React.FC = () => {
         />
       </View>
 
-      {/* Pricing Information */}
+      {/* UPDATED: Pricing Information with package-specific details */}
       <View style={commonStyles.card}>
         <Text style={commonStyles.sectionTitle}>💡 Información de Precios</Text>
         <Text style={commonStyles.infoText}>
-          {getPricingInfo(event.date).priceCategory}
+          Paquete {event.packageType} - {eventPricing.priceCategory}
         </Text>
-        <Text style={[commonStyles.infoText, { fontSize: 12, color: colors.textMuted, marginTop: 8 }]}>
-          Los precios varían según el día de la semana:
-          {'\n'}• Lunes a Viernes: $4,000
-          {'\n'}• Sábado: $6,000  
-          {'\n'}• Domingo: $5,000
+        <Text style={[commonStyles.infoText, { fontSize: 14, fontWeight: 'bold', color: colors.primary, marginTop: 4 }]}>
+          Precio aplicado: {formatCurrency(eventPricing.cost)}
         </Text>
+        
+        <View style={{ marginTop: 12, padding: 12, backgroundColor: colors.lightGray, borderRadius: 8 }}>
+          <Text style={[commonStyles.infoText, { fontSize: 12, color: colors.textMuted, fontWeight: 'bold', marginBottom: 8 }]}>
+            Tarifas por Paquete:
+          </Text>
+          
+          <Text style={[commonStyles.infoText, { fontSize: 12, color: colors.textMuted, marginBottom: 4 }]}>
+            📦 Abra: L-V $4,000 | Sáb $6,000 | Dom $5,000
+          </Text>
+          <Text style={[commonStyles.infoText, { fontSize: 12, color: colors.textMuted, marginBottom: 4 }]}>
+            📦 Kadabra: L-V $12,000 | Sáb $14,000 | Dom $13,000
+          </Text>
+          <Text style={[commonStyles.infoText, { fontSize: 12, color: colors.textMuted }]}>
+            📦 Abrakadabra: L-V $35,000 | Sáb $40,000 | Dom $37,500
+          </Text>
+        </View>
       </View>
 
       {/* Creation Date */}

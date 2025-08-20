@@ -111,12 +111,14 @@ const ScheduleScreen: React.FC = () => {
   const [existingEvents, setExistingEvents] = useState<Event[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false); // NEW: State to prevent multiple submissions
 
+  // UPDATED: Calculate price based on both date and package type
   useEffect(() => {
-    if (formData.date) {
-      const price = calculateEventCost(formData.date);
+    if (formData.date && formData.packageType) {
+      const price = calculateEventCost(formData.date, formData.packageType);
+      console.log(`💰 SCHEDULE: Updating price for ${formData.packageType} on ${formData.date}: $${price.toLocaleString()}`);
       setFormData(prev => ({ ...prev, totalAmount: price }));
     }
-  }, [formData.date]);
+  }, [formData.date, formData.packageType]);
 
   useEffect(() => {
     loadExistingEvents();
@@ -146,7 +148,7 @@ const ScheduleScreen: React.FC = () => {
   };
 
   const handlePackageSelect = (packageName: string) => {
-    console.log('Package selected:', packageName);
+    console.log('📦 Package selected:', packageName);
     handleInputChange('packageType', packageName);
   };
 
@@ -228,6 +230,8 @@ const ScheduleScreen: React.FC = () => {
       setIsSubmitting(true); // FIXED: Set submitting state
       console.log('📝 Submitting event form...');
       console.log('📅 SUBMIT: Date being saved:', formData.date);
+      console.log('📦 SUBMIT: Package type:', formData.packageType);
+      console.log('💰 SUBMIT: Total amount:', formData.totalAmount);
       console.log('📅 SUBMIT: Formatted display:', formatDateForDisplay(formData.date));
       
       if (!skipValidation) {
@@ -340,6 +344,14 @@ const ScheduleScreen: React.FC = () => {
     }
   };
 
+  // UPDATED: Get pricing info for the selected package
+  const getCurrentPricingInfo = () => {
+    if (!formData.date) return { cost: 0, dayName: '', priceCategory: 'Selecciona fecha' };
+    return getPricingInfo(formData.date, formData.packageType);
+  };
+
+  const currentPricing = getCurrentPricingInfo();
+
   return (
     <View style={scheduleStyles.container}>
       <ScrollView 
@@ -394,7 +406,7 @@ const ScheduleScreen: React.FC = () => {
                   fontWeight: 'bold',
                   textAlign: 'center'
                 }}>
-                  💰 Costo: ${formData.totalAmount.toLocaleString()}
+                  💰 Costo {formData.packageType}: ${formData.totalAmount.toLocaleString()}
                 </Text>
                 <Text style={{
                   color: colors.white,
@@ -402,16 +414,70 @@ const ScheduleScreen: React.FC = () => {
                   textAlign: 'center',
                   opacity: 0.9
                 }}>
-                  {getPricingInfo(formData.date).priceCategory}
+                  {currentPricing.priceCategory}
                 </Text>
               </View>
             )}
           </View>
         </View>
 
-        {/* Pricing Information */}
+        {/* Updated Pricing Information */}
         <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>💰 Precios por Día</Text>
+          <Text style={commonStyles.sectionTitle}>💰 Precios por Paquete y Día</Text>
+          
+          {/* Abra Package Pricing */}
+          <View style={{
+            backgroundColor: colors.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: 12
+          }}>
+            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
+              📦 Paquete Abra
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Lunes a Viernes:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$4,000</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Sábado:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$6,000</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Domingo:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$5,000</Text>
+            </View>
+          </View>
+
+          {/* Kadabra Package Pricing */}
+          <View style={{
+            backgroundColor: colors.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.border,
+            marginBottom: 12
+          }}>
+            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
+              📦 Paquete Kadabra
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Lunes a Viernes:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$12,000</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Sábado:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$14,000</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: colors.text, fontSize: 14 }}>📅 Domingo:</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$13,000</Text>
+            </View>
+          </View>
+
+          {/* Abrakadabra Package Pricing */}
           <View style={{
             backgroundColor: colors.cardBackground,
             padding: 16,
@@ -420,17 +486,20 @@ const ScheduleScreen: React.FC = () => {
             borderColor: colors.border,
             marginBottom: 8
           }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ color: colors.primary, fontSize: 16, fontWeight: 'bold', marginBottom: 8 }}>
+              📦 Paquete Abrakadabra
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
               <Text style={{ color: colors.text, fontSize: 14 }}>📅 Lunes a Viernes:</Text>
-              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$4,000</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$35,000</Text>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
               <Text style={{ color: colors.text, fontSize: 14 }}>📅 Sábado:</Text>
-              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$6,000</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$40,000</Text>
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: colors.text, fontSize: 14 }}>📅 Domingo:</Text>
-              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$5,000</Text>
+              <Text style={{ color: colors.primary, fontSize: 14, fontWeight: 'bold' }}>$37,500</Text>
             </View>
           </View>
         </View>

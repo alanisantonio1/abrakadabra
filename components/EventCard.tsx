@@ -208,6 +208,21 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
     return `$${amount.toLocaleString()}`;
   };
 
+  // UPDATED: Calculate correct pricing based on package type and date
+  const getCorrectPricing = () => {
+    const correctCost = calculateEventCost(event.date, event.packageType);
+    const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
+    const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
+    const actualRemaining = actualTotal - anticipoPaid;
+    
+    return {
+      total: actualTotal,
+      remaining: actualRemaining
+    };
+  };
+
+  const pricing = getCorrectPricing();
+  
   // Calculate anticipo information
   const anticipoAmount = event.anticipo1Amount || event.deposit || 0;
   const hasAnticipo = anticipoAmount > 0;
@@ -255,11 +270,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>💰 Total:</Text>
           <Text style={[styles.detailValue, styles.amountValue]}>
-            {(() => {
-              const correctCost = calculateEventCost(event.date);
-              const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
-              return formatCurrency(actualTotal);
-            })()}
+            {formatCurrency(pricing.total)}
           </Text>
         </View>
         
@@ -268,21 +279,9 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
           <Text style={[
             styles.detailValue, 
             styles.amountValue,
-            (() => {
-              const correctCost = calculateEventCost(event.date);
-              const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
-              const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
-              const actualRemaining = actualTotal - anticipoPaid;
-              return actualRemaining > 0 ? styles.negativeAmount : styles.positiveAmount;
-            })()
+            pricing.remaining > 0 ? styles.negativeAmount : styles.positiveAmount
           ]}>
-            {(() => {
-              const correctCost = calculateEventCost(event.date);
-              const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
-              const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
-              const actualRemaining = actualTotal - anticipoPaid;
-              return formatCurrency(actualRemaining);
-            })()}
+            {formatCurrency(pricing.remaining)}
           </Text>
         </View>
       </View>

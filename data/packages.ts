@@ -6,8 +6,8 @@ export const packages: Package[] = [
     id: '1',
     name: 'Abra',
     description: 'Paquete básico perfecto para celebraciones íntimas',
-    weekdayPrice: 2500,
-    weekendPrice: 3000,
+    weekdayPrice: 4000,    // Monday to Friday: 4,000
+    weekendPrice: 6000,    // Saturday: 6,000 (Sunday will be handled separately: 5,000)
     image: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=400',
     features: [
       'Decoración básica',
@@ -20,8 +20,8 @@ export const packages: Package[] = [
     id: '2',
     name: 'Kadabra',
     description: 'Paquete intermedio con más diversión y actividades',
-    weekdayPrice: 3500,
-    weekendPrice: 4200,
+    weekdayPrice: 12000,   // Monday to Friday: 12,000
+    weekendPrice: 14000,   // Saturday: 14,000 (Sunday will be handled separately: 13,000)
     image: 'https://images.unsplash.com/photo-1464207687429-7505649dae38?w=400',
     features: [
       'Decoración temática',
@@ -35,8 +35,8 @@ export const packages: Package[] = [
     id: '3',
     name: 'Abrakadabra',
     description: 'Paquete premium con toda la magia incluida',
-    weekdayPrice: 5000,
-    weekendPrice: 6000,
+    weekdayPrice: 35000,   // Monday to Friday: 35,000
+    weekendPrice: 40000,   // Saturday: 40,000 (Sunday will be handled separately: 37,500)
     image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400',
     features: [
       'Decoración premium',

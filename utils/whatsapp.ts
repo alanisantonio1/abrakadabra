@@ -44,8 +44,8 @@ const formatDateForDisplay = (dateString: string): string => {
   }
 };
 
-// FIXED: Utility function to calculate cost based on day of the week
-export const calculateEventCost = (dateString: string): number => {
+// UPDATED: Calculate cost based on package type and day of the week
+export const calculateEventCost = (dateString: string, packageType: string = 'Abra'): number => {
   if (!dateString) return 0;
   
   try {
@@ -53,20 +53,42 @@ export const calculateEventCost = (dateString: string): number => {
     const dayOfWeek = getDayOfWeek(dateString);
     
     console.log(`📅 COST CALCULATION: Calculating cost for date: ${dateString}`);
+    console.log(`📅 COST CALCULATION: Package: ${packageType}`);
     console.log(`📅 COST CALCULATION: Day of week: ${dayOfWeek} (${['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][dayOfWeek]})`);
     
+    // Define pricing for each package
+    const pricing = {
+      'Abra': {
+        weekday: 4000,    // Monday to Friday
+        saturday: 6000,   // Saturday
+        sunday: 5000      // Sunday
+      },
+      'Kadabra': {
+        weekday: 12000,   // Monday to Friday
+        saturday: 14000,  // Saturday
+        sunday: 13000     // Sunday
+      },
+      'Abrakadabra': {
+        weekday: 35000,   // Monday to Friday
+        saturday: 40000,  // Saturday
+        sunday: 37500     // Sunday
+      }
+    };
+
+    const packagePricing = pricing[packageType as keyof typeof pricing] || pricing['Abra'];
+    
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-      // Monday to Friday: $4,000
-      console.log('💰 COST CALCULATION: Monday-Friday rate: $4,000');
-      return 4000;
+      // Monday to Friday
+      console.log(`💰 COST CALCULATION: ${packageType} Monday-Friday rate: $${packagePricing.weekday.toLocaleString()}`);
+      return packagePricing.weekday;
     } else if (dayOfWeek === 6) {
-      // Saturday: $6,000
-      console.log('💰 COST CALCULATION: Saturday rate: $6,000');
-      return 6000;
+      // Saturday
+      console.log(`💰 COST CALCULATION: ${packageType} Saturday rate: $${packagePricing.saturday.toLocaleString()}`);
+      return packagePricing.saturday;
     } else if (dayOfWeek === 0) {
-      // Sunday: $5,000
-      console.log('💰 COST CALCULATION: Sunday rate: $5,000');
-      return 5000;
+      // Sunday
+      console.log(`💰 COST CALCULATION: ${packageType} Sunday rate: $${packagePricing.sunday.toLocaleString()}`);
+      return packagePricing.sunday;
     }
     
     return 0; // Fallback
@@ -100,9 +122,9 @@ export const getDayName = (dateString: string): string => {
   }
 };
 
-// Helper function to get pricing info for display
-export const getPricingInfo = (dateString: string): { cost: number; dayName: string; priceCategory: string } => {
-  const cost = calculateEventCost(dateString);
+// UPDATED: Helper function to get pricing info for display
+export const getPricingInfo = (dateString: string, packageType: string = 'Abra'): { cost: number; dayName: string; priceCategory: string } => {
+  const cost = calculateEventCost(dateString, packageType);
   const dayName = getDayName(dateString);
   
   let priceCategory = '';
@@ -133,8 +155,8 @@ export const generateWhatsAppMessage = (event: Event): string => {
 
   const anticipoPaid = event.anticipo1Amount || event.deposit || 0;
   
-  // Calculate the correct cost based on the day of the week
-  const correctCost = calculateEventCost(event.date);
+  // Calculate the correct cost based on the day of the week and package type
+  const correctCost = calculateEventCost(event.date, event.packageType);
   const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
   const actualRemaining = actualTotal - anticipoPaid;
 
@@ -196,8 +218,8 @@ export const generateAnticipoConfirmationMessage = (event: Event, amount: number
 
   const totalAnticipos = event.anticipo1Amount || amount;
   
-  // Calculate the correct cost based on the day of the week
-  const correctCost = calculateEventCost(event.date);
+  // Calculate the correct cost based on the day of the week and package type
+  const correctCost = calculateEventCost(event.date, event.packageType);
   const actualTotal = correctCost > 0 ? correctCost : event.totalAmount;
   const remainingBalance = actualTotal - totalAnticipos;
 
