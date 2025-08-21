@@ -54,7 +54,7 @@ export default function RootLayout() {
           <Stack.Screen 
             name="index" 
             options={{ 
-              title: 'Abrakadabra Events',
+              title: 'Abrakadabra',
               headerShown: true
             }} 
           />

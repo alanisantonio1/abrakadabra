@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "abrakadabra-events-app-mcuwhd",
-    "slug": "abrakadabra-events-app-mcuwhd",
+    "name": "Abrakadabra",
+    "slug": "Abrakadabra",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -41,5 +41,6 @@
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "Abrakadabra"
 }
