@@ -187,15 +187,40 @@ const EventCard: React.FC<EventCardProps> = ({ event, onPress, onMarkAsPaid }) =
     }
   };
 
+  // FIXED: Helper function to parse date string correctly without timezone issues
+  const parseDateString = (dateString: string): { year: number; month: number; day: number } => {
+    const parts = dateString.split('-');
+    return {
+      year: parseInt(parts[0], 10),
+      month: parseInt(parts[1], 10) - 1, // Convert to 0-based month
+      day: parseInt(parts[2], 10)
+    };
+  };
+
+  // FIXED: Helper function to get day of week correctly without timezone issues
+  const getDayOfWeek = (dateString: string): number => {
+    const { year, month, day } = parseDateString(dateString);
+    // Create date in local timezone to avoid day shifting
+    const date = new Date(year, month, day);
+    return date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  };
+
   const formatDate = (dateString: string): string => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('es-ES', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      });
+      console.log('📅 EVENTCARD: Formatting date:', dateString);
+      
+      const { year, month, day } = parseDateString(dateString);
+      const dayOfWeek = getDayOfWeek(dateString);
+      
+      const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      
+      const formatted = `${dayNames[dayOfWeek]} ${day} ${monthNames[month]}`;
+      console.log('📅 EVENTCARD: Formatted result:', formatted);
+      
+      return formatted;
     } catch (error) {
+      console.error('❌ EVENTCARD: Error formatting date:', error);
       return dateString;
     }
   };

@@ -59,14 +59,58 @@ const MainScreen: React.FC = () => {
     });
   };
 
+  // FIXED: Helper function to parse date string correctly without timezone issues
+  const parseDateString = (dateString: string): { year: number; month: number; day: number } => {
+    const parts = dateString.split('-');
+    return {
+      year: parseInt(parts[0], 10),
+      month: parseInt(parts[1], 10) - 1, // Convert to 0-based month
+      day: parseInt(parts[2], 10)
+    };
+  };
+
+  // FIXED: Helper function to compare dates without timezone issues
+  const compareDates = (dateA: string, dateB: string): number => {
+    const a = parseDateString(dateA);
+    const b = parseDateString(dateB);
+    
+    // Compare year first
+    if (a.year !== b.year) {
+      return a.year - b.year;
+    }
+    
+    // Then month
+    if (a.month !== b.month) {
+      return a.month - b.month;
+    }
+    
+    // Finally day
+    return a.day - b.day;
+  };
+
   const getUpcomingEvents = (): Event[] => {
     const today = new Date();
     const todayString = today.toISOString().split('T')[0];
     
-    return events
-      .filter(event => event.date >= todayString)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    console.log('📅 UPCOMING EVENTS: Getting upcoming events...');
+    console.log('📅 UPCOMING EVENTS: Today string:', todayString);
+    
+    const upcomingEvents = events
+      .filter(event => {
+        const isUpcoming = event.date >= todayString;
+        console.log(`📅 UPCOMING EVENTS: Event ${event.childName} (${event.date}) - Upcoming: ${isUpcoming}`);
+        return isUpcoming;
+      })
+      .sort((a, b) => {
+        const comparison = compareDates(a.date, b.date);
+        console.log(`📅 UPCOMING EVENTS: Comparing ${a.date} vs ${b.date} = ${comparison}`);
+        return comparison;
+      })
       .slice(0, 5);
+    
+    console.log('📅 UPCOMING EVENTS: Final upcoming events:', upcomingEvents.map(e => `${e.childName} (${e.date})`));
+    
+    return upcomingEvents;
   };
 
   const getEventStats = () => {
