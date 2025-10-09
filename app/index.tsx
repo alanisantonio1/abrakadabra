@@ -6,19 +6,23 @@ import { loadEvents, testDatabaseConnections } from '../utils/storage';
 import EventCard from '../components/EventCard';
 import { router, useFocusEffect } from 'expo-router';
 import DiagnosticsModal from '../components/DiagnosticsModal';
+import SupabaseSetupModal from '../components/SupabaseSetupModal';
 import MigrationAlert from '../components/MigrationAlert';
 import Button from '../components/Button';
 import { Event } from '../types';
 import { commonStyles, colors } from '../styles/commonStyles';
+import { checkEventsTableExists } from '../utils/supabaseSetup';
 
 const MainScreen: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentView, setCurrentView] = useState<'main' | 'calendar'>('main');
   const [showDiagnostics, setShowDiagnostics] = useState<boolean>(false);
+  const [showSupabaseSetup, setShowSupabaseSetup] = useState<boolean>(false);
   const [showTools, setShowTools] = useState<boolean>(false);
   const [showMigrationAlert, setShowMigrationAlert] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(true);
+  const [supabaseSetup, setSupabaseSetup] = useState<boolean>(false);
 
   // Load events when screen comes into focus
   useFocusEffect(
@@ -29,7 +33,21 @@ const MainScreen: React.FC = () => {
 
   useEffect(() => {
     loadEventsData();
+    checkSupabaseSetup();
   }, []);
+
+  const checkSupabaseSetup = async () => {
+    try {
+      const result = await checkEventsTableExists();
+      setSupabaseSetup(result.exists);
+      
+      if (!result.exists) {
+        console.log('⚠️ Supabase not set up, events will only be stored locally');
+      }
+    } catch (error: any) {
+      console.error('Error checking Supabase setup:', error);
+    }
+  };
 
   const loadEventsData = useCallback(async () => {
     try {
@@ -138,6 +156,11 @@ const MainScreen: React.FC = () => {
     router.push(path as any);
   };
 
+  const handleSetupComplete = () => {
+    setSupabaseSetup(true);
+    loadEventsData();
+  };
+
   const renderToolsModal = () => {
     if (!showTools) return null;
 
@@ -173,12 +196,22 @@ const MainScreen: React.FC = () => {
           </Text>
           
           <Button
+            text="☁️ Configurar Supabase"
+            onPress={() => {
+              setShowTools(false);
+              setShowSupabaseSetup(true);
+            }}
+            variant="primary"
+            style={{ marginBottom: 12 }}
+          />
+          
+          <Button
             text="🔍 Diagnósticos"
             onPress={() => {
               setShowTools(false);
               setShowDiagnostics(true);
             }}
-            variant="primary"
+            variant="secondary"
             style={{ marginBottom: 12 }}
           />
           
@@ -212,12 +245,70 @@ const MainScreen: React.FC = () => {
           <MigrationAlert onDismiss={() => setShowMigrationAlert(false)} />
         )}
         
+        {/* Supabase Setup Warning */}
+        {!supabaseSetup && (
+          <View style={{
+            backgroundColor: '#fff3cd',
+            borderColor: '#ffc107',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 15,
+            marginHorizontal: 20,
+            marginBottom: 15,
+          }}>
+            <Text style={{
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: '#856404',
+              marginBottom: 8,
+            }}>
+              ⚠️ Almacenamiento Solo Local
+            </Text>
+            <Text style={{
+              fontSize: 14,
+              color: '#856404',
+              marginBottom: 12,
+              lineHeight: 20,
+            }}>
+              Tus eventos solo se están guardando en este dispositivo. Configura Supabase para habilitar el almacenamiento en la nube.
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowSupabaseSetup(true)}
+              style={{
+                backgroundColor: '#ffc107',
+                paddingVertical: 10,
+                paddingHorizontal: 15,
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{
+                color: '#856404',
+                fontWeight: 'bold',
+                fontSize: 14,
+              }}>
+                ☁️ Configurar Supabase Ahora
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
         {/* Header */}
         <View style={commonStyles.header}>
-          <Text style={commonStyles.title}>🎪 Abrakadabra Events</Text>
+          <Text style={commonStyles.title}>🎪 Abrakadabra</Text>
           <Text style={commonStyles.subtitle}>
             Gestión de eventos y reservaciones
           </Text>
+          {supabaseSetup && (
+            <Text style={{
+              fontSize: 12,
+              color: colors.success,
+              textAlign: 'center',
+              marginTop: 5,
+            }}>
+              ☁️ Sincronizado con la nube
+            </Text>
+          )}
         </View>
         
         {/* Quick Stats */}
@@ -372,6 +463,13 @@ const MainScreen: React.FC = () => {
       
       {/* Tools Modal */}
       {renderToolsModal()}
+      
+      {/* Supabase Setup Modal */}
+      <SupabaseSetupModal
+        visible={showSupabaseSetup}
+        onClose={() => setShowSupabaseSetup(false)}
+        onSetupComplete={handleSetupComplete}
+      />
       
       {/* Diagnostics Modal */}
       <DiagnosticsModal

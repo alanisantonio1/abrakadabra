@@ -244,6 +244,14 @@ const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; er
       console.error('❌ Error details:', error.details);
       console.error('❌ Error hint:', error.hint);
       
+      // Check if error is due to table not existing
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        return { 
+          success: false, 
+          error: 'Tabla no configurada. Ve a Herramientas → Configurar Supabase' 
+        };
+      }
+      
       return { success: false, error: error.message };
     }
     
@@ -252,6 +260,15 @@ const saveEventToSupabase = async (event: Event): Promise<{ success: boolean; er
   } catch (error: any) {
     console.error('❌ Error saving event to Supabase:', error);
     console.error('❌ Error stack:', error.stack);
+    
+    // Check if error is due to table not existing
+    if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
+      return { 
+        success: false, 
+        error: 'Tabla no configurada. Ve a Herramientas → Configurar Supabase' 
+      };
+    }
+    
     return { success: false, error: error.message };
   }
 };
