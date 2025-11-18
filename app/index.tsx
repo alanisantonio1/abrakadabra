@@ -161,6 +161,59 @@ const MainScreen: React.FC = () => {
     loadEventsData();
   };
 
+  const handleSyncToCloud = async () => {
+    try {
+      setShowTools(false);
+      Alert.alert(
+        '🔄 Sincronizar a la Nube',
+        '¿Deseas sincronizar todos los eventos locales a Supabase?\n\n• Los eventos nuevos se subirán\n• Los eventos existentes se omitirán',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Sincronizar',
+            onPress: async () => {
+              try {
+                setLoading(true);
+                const { migrateLocalEventsToSupabase } = await import('../utils/supabaseSetup');
+                const result = await migrateLocalEventsToSupabase();
+                
+                let message = '';
+                
+                if (result.migrated > 0) {
+                  message += `✅ ${result.migrated} evento(s) sincronizado(s)\n`;
+                }
+                
+                if (result.skipped > 0) {
+                  message += `⏭️ ${result.skipped} evento(s) ya existían\n`;
+                }
+                
+                if (result.errors.length > 0) {
+                  message += `\n❌ Errores (${result.errors.length}):\n${result.errors.slice(0, 3).join('\n')}`;
+                  if (result.errors.length > 3) {
+                    message += `\n... y ${result.errors.length - 3} más`;
+                  }
+                }
+                
+                Alert.alert(
+                  result.success ? '✅ Sincronización Completa' : '⚠️ Sincronización con Errores',
+                  message || 'Todos los eventos están sincronizados.',
+                  [{ text: 'OK', onPress: () => loadEventsData() }]
+                );
+              } catch (error: any) {
+                Alert.alert('Error', `Error durante la sincronización: ${error.message}`);
+              } finally {
+                setLoading(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.error('Error in sync:', error);
+      Alert.alert('Error', `Error: ${error.message}`);
+    }
+  };
+
   const renderToolsModal = () => {
     if (!showTools) return null;
 
@@ -204,6 +257,15 @@ const MainScreen: React.FC = () => {
             variant="primary"
             style={{ marginBottom: 12 }}
           />
+          
+          {supabaseSetup && (
+            <Button
+              text="🔄 Sincronizar a la Nube"
+              onPress={handleSyncToCloud}
+              variant="secondary"
+              style={{ marginBottom: 12 }}
+            />
+          )}
           
           <Button
             text="🔍 Diagnósticos"

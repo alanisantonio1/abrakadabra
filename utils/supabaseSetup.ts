@@ -168,61 +168,121 @@ export const migrateLocalEventsToSupabase = async (): Promise<{
   success: boolean;
   migrated: number;
   errors: string[];
+  skipped: number;
 }> => {
   try {
     console.log('🔄 Starting migration of local events to Supabase...');
     
-    // Import storage functions
-    const { loadEventsFromLocalStorage, saveEventToSupabase } = await import('./storage');
+    // Import storage functions and AsyncStorage
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    const { Event } = await import('../types');
     
-    // Load local events
-    const localEvents = await loadEventsFromLocalStorage();
+    // Load local events directly from AsyncStorage
+    const EVENTS_KEY = '@abrakadabra_events';
+    const eventsJson = await AsyncStorage.getItem(EVENTS_KEY);
+    
+    if (!eventsJson) {
+      console.log('📱 No local events found');
+      return {
+        success: true,
+        migrated: 0,
+        errors: [],
+        skipped: 0
+      };
+    }
+    
+    const localEvents = JSON.parse(eventsJson);
     console.log(`📱 Found ${localEvents.length} local events to migrate`);
     
     if (localEvents.length === 0) {
       return {
         success: true,
         migrated: 0,
-        errors: []
+        errors: [],
+        skipped: 0
       };
     }
     
+    // Check which events already exist in Supabase
+    const { data: existingEvents, error: fetchError } = await supabase
+      .from('events')
+      .select('id');
+    
+    if (fetchError) {
+      console.error('❌ Error fetching existing events:', fetchError);
+      throw new Error(`Error fetching existing events: ${fetchError.message}`);
+    }
+    
+    const existingIds = new Set(existingEvents?.map(e => e.id) || []);
+    console.log(`🗄️ Found ${existingIds.size} existing events in Supabase`);
+    
     let migrated = 0;
+    let skipped = 0;
     const errors: string[] = [];
     
     // Migrate each event
     for (const event of localEvents) {
       try {
-        const result = await saveEventToSupabase(event);
+        // Skip if event already exists in Supabase
+        if (existingIds.has(event.id)) {
+          skipped++;
+          console.log(`⏭️ Skipped (already exists): ${event.customerName} - ${event.date}`);
+          continue;
+        }
         
-        if (result.success) {
-          migrated++;
-          console.log(`✅ Migrated event: ${event.customerName} - ${event.date}`);
-        } else {
-          const errorMsg = `Failed to migrate ${event.customerName}: ${result.error}`;
+        // Convert to Supabase format
+        const supabaseEvent = {
+          id: String(event.id || ''),
+          date: String(event.date || ''),
+          time: String(event.time || ''),
+          customer_name: String(event.customerName || ''),
+          customer_phone: String(event.customerPhone || ''),
+          child_name: String(event.childName || ''),
+          package_type: event.packageType as 'Abra' | 'Kadabra' | 'Abrakadabra',
+          total_amount: Number(event.totalAmount || 0),
+          deposit: Number(event.deposit || 0),
+          remaining_amount: Number(event.remainingAmount || 0),
+          is_paid: Boolean(event.isPaid),
+          notes: event.notes ? String(event.notes) : null,
+          anticipo_1_amount: Number(event.anticipo1Amount || event.deposit || 0),
+          anticipo_1_date: event.anticipo1Date ? String(event.anticipo1Date) : null,
+        };
+        
+        // Insert into Supabase
+        const { error: insertError } = await supabase
+          .from('events')
+          .insert([supabaseEvent]);
+        
+        if (insertError) {
+          const errorMsg = `${event.customerName} (${event.date}): ${insertError.message}`;
           errors.push(errorMsg);
-          console.error(`❌ ${errorMsg}`);
+          console.error(`❌ Failed to migrate: ${errorMsg}`);
+        } else {
+          migrated++;
+          console.log(`✅ Migrated: ${event.customerName} - ${event.date}`);
         }
       } catch (error: any) {
-        const errorMsg = `Error migrating ${event.customerName}: ${error.message}`;
+        const errorMsg = `${event.customerName} (${event.date}): ${error.message}`;
         errors.push(errorMsg);
-        console.error(`❌ ${errorMsg}`);
+        console.error(`❌ Error migrating: ${errorMsg}`);
       }
     }
     
-    console.log(`✅ Migration complete: ${migrated}/${localEvents.length} events migrated`);
+    console.log(`✅ Migration complete: ${migrated} migrated, ${skipped} skipped, ${errors.length} errors`);
     
     return {
       success: errors.length === 0,
       migrated,
-      errors
+      errors,
+      skipped
     };
   } catch (error: any) {
     console.error('❌ Migration error:', error);
     return {
       success: false,
       migrated: 0,
-      errors: [error.message]
+      errors: [error.message],
+      skipped: 0
     };
   }
 };

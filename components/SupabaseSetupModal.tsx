@@ -191,21 +191,38 @@ const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({
 
   const handleMigrate = async () => {
     Alert.alert(
-      '🔄 Migrar Eventos',
-      '¿Deseas migrar todos los eventos locales a Supabase? Esto puede tardar unos momentos.',
+      '🔄 Sincronizar Eventos',
+      '¿Deseas sincronizar todos los eventos locales a Supabase?\n\n• Los eventos nuevos se subirán a la nube\n• Los eventos existentes se omitirán\n• Esto puede tardar unos momentos',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Migrar',
+          text: 'Sincronizar',
           onPress: async () => {
             try {
               setIsLoading(true);
               const result = await migrateLocalEventsToSupabase();
               
+              let message = '';
+              
+              if (result.migrated > 0) {
+                message += `✅ ${result.migrated} evento(s) sincronizado(s)\n`;
+              }
+              
+              if (result.skipped > 0) {
+                message += `⏭️ ${result.skipped} evento(s) ya existían\n`;
+              }
+              
+              if (result.errors.length > 0) {
+                message += `\n❌ Errores (${result.errors.length}):\n${result.errors.slice(0, 3).join('\n')}`;
+                if (result.errors.length > 3) {
+                  message += `\n... y ${result.errors.length - 3} más`;
+                }
+              }
+              
               if (result.success) {
                 Alert.alert(
-                  '✅ Migración Exitosa',
-                  `Se migraron ${result.migrated} eventos a Supabase correctamente.`,
+                  '✅ Sincronización Completa',
+                  message || 'Todos los eventos están sincronizados.',
                   [
                     {
                       text: 'OK',
@@ -220,13 +237,13 @@ const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({
                 );
               } else {
                 Alert.alert(
-                  '⚠️ Migración Parcial',
-                  `Se migraron ${result.migrated} eventos.\n\nErrores:\n${result.errors.join('\n')}`,
+                  '⚠️ Sincronización con Errores',
+                  message,
                   [{ text: 'OK' }]
                 );
               }
             } catch (error: any) {
-              Alert.alert('Error', `Error durante la migración: ${error.message}`);
+              Alert.alert('Error', `Error durante la sincronización: ${error.message}`);
             } finally {
               setIsLoading(false);
             }
@@ -322,12 +339,12 @@ const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({
 
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            💡 Consejo: Si tienes eventos guardados solo en almacenamiento local, puedes migrarlos a Supabase usando el botón de abajo.
+            💡 Consejo: Si tienes eventos guardados solo en almacenamiento local, puedes sincronizarlos a la nube usando el botón de abajo.
           </Text>
         </View>
 
         <Button
-          text="🔄 Migrar Eventos Locales"
+          text="☁️ Sincronizar Eventos a la Nube"
           onPress={handleMigrate}
           variant="primary"
           disabled={isLoading}
