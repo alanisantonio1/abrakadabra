@@ -71,10 +71,42 @@ const MainScreen: React.FC = () => {
   const handleDateSelect = (date: string) => {
     console.log('📅 Date selected:', date);
     setSelectedDate(date);
-    router.push({
-      pathname: '/schedule',
-      params: { date }
-    });
+    
+    // Find events for the selected date
+    const dateEvents = events.filter(e => e.date === date);
+    
+    if (dateEvents.length === 0) {
+      // No events on this date, navigate to schedule to create one
+      router.push({
+        pathname: '/schedule',
+        params: { date }
+      });
+    } else if (dateEvents.length === 1) {
+      // Single event, navigate directly to event detail
+      router.push(`/event/${dateEvents[0].id}`);
+    } else {
+      // Multiple events, show a selection modal or navigate to events list filtered by date
+      Alert.alert(
+        'Eventos en esta fecha',
+        `Hay ${dateEvents.length} eventos programados para esta fecha. ¿Qué deseas hacer?`,
+        [
+          {
+            text: 'Ver Eventos',
+            onPress: () => {
+              // Navigate to events screen with date filter
+              router.push({
+                pathname: '/events',
+                params: { filterDate: date }
+              });
+            }
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
+    }
   };
 
   // FIXED: Helper function to parse date string correctly without timezone issues
@@ -413,7 +445,7 @@ const MainScreen: React.FC = () => {
             
             <Button
               text="👁️ Ver Eventos"
-              onPress={() => handleNavigation('/events')}
+              onPress={() => setCurrentView('calendar')}
               variant="secondary"
               icon="👁️"
             />

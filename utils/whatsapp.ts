@@ -244,9 +244,10 @@ ${remainingBalance > 0 ?
   return message;
 };
 
+// UPDATED: Open WhatsApp Business app directly instead of browser
 const openWhatsApp = async (phoneNumber: string, message: string): Promise<void> => {
   try {
-    console.log('📱 Opening WhatsApp with message for:', phoneNumber);
+    console.log('📱 Opening WhatsApp Business with message for:', phoneNumber);
     
     // Clean phone number (remove all non-digits)
     const cleanPhone = phoneNumber.replace(/\D/g, '');
@@ -257,24 +258,43 @@ const openWhatsApp = async (phoneNumber: string, message: string): Promise<void>
     // Encode the message for URL
     const encodedMessage = encodeURIComponent(message);
     
-    // Create WhatsApp URL
-    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    // UPDATED: Try WhatsApp Business first, then regular WhatsApp
+    // WhatsApp Business URL scheme
+    const whatsappBusinessUrl = `whatsapp://send?phone=${formattedPhone}&text=${encodedMessage}`;
     
-    console.log('🔗 WhatsApp URL:', whatsappUrl);
+    // Regular WhatsApp URL scheme (fallback)
+    const whatsappUrl = `whatsapp://send?phone=${formattedPhone}&text=${encodedMessage}`;
     
-    // Check if WhatsApp can be opened
-    const canOpen = await Linking.canOpenURL(whatsappUrl);
+    // Web fallback
+    const webUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
     
-    if (canOpen) {
-      await Linking.openURL(whatsappUrl);
-      console.log('✅ WhatsApp opened successfully');
-    } else {
-      console.warn('⚠️ WhatsApp not available, trying web version');
-      
-      // Fallback to web version
-      const webUrl = `https://web.whatsapp.com/send?phone=${formattedPhone}&text=${encodedMessage}`;
-      await Linking.openURL(webUrl);
+    console.log('🔗 Trying WhatsApp Business URL:', whatsappBusinessUrl);
+    
+    // Try WhatsApp Business first
+    const canOpenBusiness = await Linking.canOpenURL(whatsappBusinessUrl);
+    
+    if (canOpenBusiness) {
+      console.log('✅ Opening WhatsApp Business app');
+      await Linking.openURL(whatsappBusinessUrl);
+      return;
     }
+    
+    console.log('⚠️ WhatsApp Business not available, trying regular WhatsApp');
+    
+    // Try regular WhatsApp
+    const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
+    
+    if (canOpenWhatsApp) {
+      console.log('✅ Opening regular WhatsApp app');
+      await Linking.openURL(whatsappUrl);
+      return;
+    }
+    
+    console.log('⚠️ WhatsApp app not available, opening web version');
+    
+    // Fallback to web version
+    await Linking.openURL(webUrl);
+    console.log('✅ Opened WhatsApp web version');
   } catch (error: any) {
     console.error('❌ Error opening WhatsApp:', error);
     throw new Error(`No se pudo abrir WhatsApp: ${error.message}`);
