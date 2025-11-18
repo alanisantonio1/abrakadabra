@@ -1,7 +1,8 @@
+
 {
   "expo": {
-    "name": "Abrakadabra",
-    "slug": "Abrakadabra",
+    "name": "abrakadabra",
+    "slug": "abrakadabra",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -24,7 +25,7 @@
         "foregroundImage": "./assets/images/natively-dark.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.abrakadabra.abrakadabra"
+      "package": "com.abrakadabra.app"
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
@@ -34,13 +35,12 @@
       "expo-font",
       "expo-router"
     ],
-    "scheme": "natively",
+    "scheme": "abrakadabra",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "router": {}
     }
-  },
-  "scheme": "Abrakadabra"
+  }
 }
