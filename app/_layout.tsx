@@ -1,5 +1,4 @@
 
-import '../utils/polyfills'; // Import polyfills first
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

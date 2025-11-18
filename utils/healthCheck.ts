@@ -10,9 +10,8 @@ export interface HealthCheckResult {
 export interface SystemHealth {
   overall: HealthCheckResult;
   localStorage: HealthCheckResult;
-  googleSheets: HealthCheckResult;
+  supabase: HealthCheckResult;
   network: HealthCheckResult;
-  polyfills: HealthCheckResult;
 }
 
 // Check if AsyncStorage is working
@@ -22,37 +21,31 @@ export const checkLocalStorage = async (): Promise<HealthCheckResult> => {
     const testValue = JSON.stringify({ test: true, timestamp: Date.now() });
     
     // Test write
-    await import('@react-native-async-storage/async-storage').then(async (AsyncStorage) => {
-      await AsyncStorage.default.setItem(testKey, testValue);
-      
-      // Test read
-      const retrieved = await AsyncStorage.default.getItem(testKey);
-      
-      // Test delete
-      await AsyncStorage.default.removeItem(testKey);
-      
-      if (retrieved === testValue) {
-        return {
-          status: 'healthy' as const,
-          message: 'Local storage is working correctly',
-          details: 'Read/write/delete operations successful'
-        };
-      } else {
-        return {
-          status: 'error' as const,
-          message: 'Local storage data integrity issue',
-          details: 'Data retrieved does not match data written'
-        };
-      }
-    });
+    const AsyncStorage = await import('@react-native-async-storage/async-storage');
+    await AsyncStorage.default.setItem(testKey, testValue);
     
-    return {
-      status: 'healthy' as const,
-      message: 'Local storage is working correctly'
-    };
+    // Test read
+    const retrieved = await AsyncStorage.default.getItem(testKey);
+    
+    // Test delete
+    await AsyncStorage.default.removeItem(testKey);
+    
+    if (retrieved === testValue) {
+      return {
+        status: 'healthy',
+        message: 'Local storage is working correctly',
+        details: 'Read/write/delete operations successful'
+      };
+    } else {
+      return {
+        status: 'error',
+        message: 'Local storage data integrity issue',
+        details: 'Data retrieved does not match data written'
+      };
+    }
   } catch (error: any) {
     return {
-      status: 'error' as const,
+      status: 'error',
       message: 'Local storage is not working',
       details: error.message || 'Unknown error'
     };
@@ -76,13 +69,13 @@ export const checkNetwork = async (): Promise<HealthCheckResult> => {
     
     if (response.ok) {
       return {
-        status: 'healthy' as const,
+        status: 'healthy',
         message: 'Network connectivity is working',
         details: `Response time: ${response.headers.get('date')}`
       };
     } else {
       return {
-        status: 'warning' as const,
+        status: 'warning',
         message: 'Network connectivity issues detected',
         details: `HTTP ${response.status}: ${response.statusText}`
       };
@@ -90,95 +83,43 @@ export const checkNetwork = async (): Promise<HealthCheckResult> => {
   } catch (error: any) {
     if (error.name === 'AbortError') {
       return {
-        status: 'error' as const,
+        status: 'error',
         message: 'Network request timed out',
         details: 'No response after 5 seconds'
       };
     }
     
     return {
-      status: 'error' as const,
+      status: 'error',
       message: 'Network connectivity failed',
       details: error.message || 'Unknown network error'
     };
   }
 };
 
-// Check Google Sheets connectivity
-export const checkGoogleSheets = async (): Promise<HealthCheckResult> => {
+// Check Supabase connectivity
+export const checkSupabase = async (): Promise<HealthCheckResult> => {
   try {
-    const { testGoogleSheetsConnection } = await import('./googleSheetsRN');
-    const isConnected = await testGoogleSheetsConnection();
+    const { checkEventsTableExists } = await import('./supabaseSetup');
+    const result = await checkEventsTableExists();
     
-    if (isConnected) {
+    if (result.exists) {
       return {
-        status: 'healthy' as const,
-        message: 'Google Sheets connection is working',
-        details: 'API key authentication successful'
+        status: 'healthy',
+        message: 'Supabase connection is working',
+        details: 'Events table exists and is accessible'
       };
     } else {
       return {
-        status: 'warning' as const,
-        message: 'Google Sheets connection failed',
-        details: 'Check API key and spreadsheet permissions'
+        status: 'warning',
+        message: 'Supabase not configured',
+        details: 'Events table does not exist. Run setup to configure.'
       };
     }
   } catch (error: any) {
     return {
-      status: 'error' as const,
-      message: 'Google Sheets connection error',
-      details: error.message || 'Unknown error'
-    };
-  }
-};
-
-// Check if polyfills are working
-export const checkPolyfills = (): HealthCheckResult => {
-  try {
-    const issues: string[] = [];
-    
-    // Check global object
-    if (typeof global === 'undefined') {
-      issues.push('global object not available');
-    }
-    
-    // Check process
-    if (typeof global !== 'undefined' && typeof global.process === 'undefined') {
-      issues.push('process polyfill not loaded');
-    }
-    
-    // Check btoa/atob
-    if (typeof global !== 'undefined') {
-      if (typeof global.btoa === 'undefined') {
-        issues.push('btoa polyfill not available');
-      }
-      if (typeof global.atob === 'undefined') {
-        issues.push('atob polyfill not available');
-      }
-    }
-    
-    // Check fetch
-    if (typeof fetch === 'undefined') {
-      issues.push('fetch API not available');
-    }
-    
-    if (issues.length === 0) {
-      return {
-        status: 'healthy' as const,
-        message: 'All polyfills are working correctly',
-        details: 'global, process, btoa, atob, and fetch are available'
-      };
-    } else {
-      return {
-        status: 'warning' as const,
-        message: 'Some polyfills are missing',
-        details: issues.join(', ')
-      };
-    }
-  } catch (error: any) {
-    return {
-      status: 'error' as const,
-      message: 'Error checking polyfills',
+      status: 'error',
+      message: 'Supabase connection error',
       details: error.message || 'Unknown error'
     };
   }
@@ -190,9 +131,8 @@ export const runHealthCheck = async (): Promise<SystemHealth> => {
   
   const results = await Promise.allSettled([
     checkLocalStorage(),
-    checkGoogleSheets(),
-    checkNetwork(),
-    Promise.resolve(checkPolyfills())
+    checkSupabase(),
+    checkNetwork()
   ]);
   
   const localStorage = results[0].status === 'fulfilled' ? results[0].value : {
@@ -201,7 +141,7 @@ export const runHealthCheck = async (): Promise<SystemHealth> => {
     details: results[0].status === 'rejected' ? results[0].reason?.message : 'Unknown error'
   };
   
-  const googleSheets = results[1].status === 'fulfilled' ? results[1].value : {
+  const supabase = results[1].status === 'fulfilled' ? results[1].value : {
     status: 'error' as const,
     message: 'Health check failed',
     details: results[1].status === 'rejected' ? results[1].reason?.message : 'Unknown error'
@@ -213,14 +153,8 @@ export const runHealthCheck = async (): Promise<SystemHealth> => {
     details: results[2].status === 'rejected' ? results[2].reason?.message : 'Unknown error'
   };
   
-  const polyfills = results[3].status === 'fulfilled' ? results[3].value : {
-    status: 'error' as const,
-    message: 'Health check failed',
-    details: results[3].status === 'rejected' ? results[3].reason?.message : 'Unknown error'
-  };
-  
   // Determine overall health
-  const allResults = [localStorage, googleSheets, network, polyfills];
+  const allResults = [localStorage, supabase, network];
   const hasError = allResults.some(r => r.status === 'error');
   const hasWarning = allResults.some(r => r.status === 'warning');
   
@@ -248,9 +182,8 @@ export const runHealthCheck = async (): Promise<SystemHealth> => {
   const health: SystemHealth = {
     overall,
     localStorage,
-    googleSheets,
-    network,
-    polyfills
+    supabase,
+    network
   };
   
   console.log('🏥 Health check completed:', health.overall.status);
@@ -282,9 +215,9 @@ export const formatHealthReport = (health: SystemHealth): string => {
     report += `   Details: ${health.localStorage.details}\n`;
   }
   
-  report += `\n2. Google Sheets: ${getStatusIcon(health.googleSheets.status)} ${health.googleSheets.message}\n`;
-  if (health.googleSheets.details) {
-    report += `   Details: ${health.googleSheets.details}\n`;
+  report += `\n2. Supabase: ${getStatusIcon(health.supabase.status)} ${health.supabase.message}\n`;
+  if (health.supabase.details) {
+    report += `   Details: ${health.supabase.details}\n`;
   }
   
   report += `\n3. Network: ${getStatusIcon(health.network.status)} ${health.network.message}\n`;
@@ -292,31 +225,22 @@ export const formatHealthReport = (health: SystemHealth): string => {
     report += `   Details: ${health.network.details}\n`;
   }
   
-  report += `\n4. Polyfills: ${getStatusIcon(health.polyfills.status)} ${health.polyfills.message}\n`;
-  if (health.polyfills.details) {
-    report += `   Details: ${health.polyfills.details}\n`;
-  }
-  
   report += '\n🔧 RECOMMENDATIONS:\n';
   
   if (health.localStorage.status === 'error') {
-    report += '• Restart the app to fix local storage issues\n';
+    report += '- Restart the app to fix local storage issues\n';
   }
   
-  if (health.googleSheets.status === 'error') {
-    report += '• Check internet connection and Google Sheets permissions\n';
+  if (health.supabase.status === 'error') {
+    report += '- Check internet connection and Supabase configuration\n';
   }
   
   if (health.network.status === 'error') {
-    report += '• Check internet connection and firewall settings\n';
-  }
-  
-  if (health.polyfills.status === 'error') {
-    report += '• Restart the development server to reload polyfills\n';
+    report += '- Check internet connection and firewall settings\n';
   }
   
   if (health.overall.status === 'healthy') {
-    report += '• All systems are working correctly! 🎉\n';
+    report += '- All systems are working correctly! 🎉\n';
   }
   
   return report;

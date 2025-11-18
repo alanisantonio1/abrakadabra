@@ -47,7 +47,7 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
-            "kotlinVersion": "1.9.24",
+            "kotlinVersion": "2.0.0",
             "enableProguardInReleaseBuilds": false,
             "enableShrinkResourcesInReleaseBuilds": false
           }
@@ -59,7 +59,12 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "your-project-id"
+      }
     }
   }
 }
